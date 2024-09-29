@@ -1,0 +1,13 @@
+$ fibIter(n) {
+    let a = 0;
+    let b = 1;
+    let c = 0;
+    @(let i = 0; i < n; i = i + 1) {
+        c = a + b;
+        a = b;
+        b = c
+    }
+    a
+}
+
+println(fibIter(10))

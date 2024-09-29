@@ -1,0 +1,21 @@
+~> file {open, fRead, fReadLine, fWrite, fSeek, fClose};
+
+let f = open("teste.txt", "w");
+
+fWrite(f, "Hello, world!\nThis is a new line.");
+
+fClose(f);
+
+f = open("teste.txt", "r");
+let conteudo = fRead(f);
+println(conteudo);
+
+fSeek(f, 0);
+
+let linha = fReadLine(f);
+#(linha != -1) {
+    println(linha);
+    linha = fReadLine(f)
+}
+
+fClose(f)

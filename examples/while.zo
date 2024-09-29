@@ -1,0 +1,11 @@
+let a = 10;
+let b = 0;
+
+let c = #(a > 0) {
+    b = b + 1;
+    a = a - 1;
+    a + b + 5
+};
+println(a);
+println(b); 
+println(c)

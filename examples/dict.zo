@@ -1,0 +1,10 @@
+let person = [
+    "name" -> "John";
+    "age" -> 30;
+    "city" -> "New York"
+];
+
+println(person);
+println(person{"name"});
+person{"age"} = 31;
+println(person{"age"});

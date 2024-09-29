@@ -1,0 +1,5 @@
+let listA = {1, 2, 3, 4, 5};
+println(listA[2:4]);
+println(listA[:2]);
+println(listA[2:]);
+println(listA[2])

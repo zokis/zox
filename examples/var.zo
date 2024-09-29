@@ -1,0 +1,11 @@
+let name = "John";
+let age = 20;
+let isStudent = true;
+
+print("Name: ");
+println(name);
+print("Age: ");
+println(age);
+print("Is student: ");
+println(isStudent);
+

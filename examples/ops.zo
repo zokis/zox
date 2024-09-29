@@ -1,0 +1,15 @@
+
+let sum = 10 + 5;
+let sub  = 20 - 0.1;
+let mult = 33 * 2;
+let div = 100 / 2;
+let pot = 2 ** 3;
+let mod = 100 % 3;
+
+println(sum);
+println(sub);
+println(mult);
+println(div);
+println(pot);
+println(mod);
+

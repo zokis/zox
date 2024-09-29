@@ -1,0 +1,10 @@
+let a = "abaca";
+let b = "te";
+
+let c = a + b;
+
+println(c);
+
+let d = c - "ac";
+
+println(d)

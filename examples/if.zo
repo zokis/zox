@@ -1,0 +1,18 @@
+let age = 18;
+let blond = false;
+
+? (age < 18) {
+    println("You are a minor")
+} : {
+    println("You are an adult")
+}
+
+? (blond && age >= 18) {
+    println("You are blond and an adult")
+} :? (blond && age < 18) {
+    println("You are blond and a minor")
+} :? (age >= 18 && blond == false) {
+    println("You are not blond and an adult")
+} : {
+    println("You are not blond and a minor")
+}

@@ -1,0 +1,3 @@
+~> fib {fib as f};
+
+println(f(10))

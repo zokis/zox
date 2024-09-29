@@ -1,0 +1,14 @@
+let listA = {1, 2, 3, 4, 5};
+let listB = {6, 7, 8, 9, 10};
+let listC = {11, 12, 13, 14, 15};
+
+let listD = listA + listB + listC;
+println(listD);
+
+let c = len(listD);
+
+#(c > 0) {
+    c = c - 1;
+    listD[c] = listD[c] * listC[c % len(listC)]
+}
+println(listD)

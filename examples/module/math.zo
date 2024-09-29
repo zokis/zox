@@ -1,0 +1,17 @@
+$abs(x) {
+	? (x < 0) {
+		x * -1
+	} : {
+		x
+	}
+}
+
+$ sqrt(x) {
+    let guess = x / 2;
+    let epsilon = 0.00001;
+
+    #(abs(guess ** 2 - x) > epsilon) {
+        guess = (guess + x / guess) / 2
+    }
+    guess
+}

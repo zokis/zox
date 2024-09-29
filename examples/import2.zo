@@ -1,0 +1,4 @@
+~> module.math {abs, sqrt as squareRoot};
+
+println(abs(-16));
+println(squareRoot(16))

@@ -1,0 +1,10 @@
+let a = 1;
+let c = 100;
+
+let b = @(let x = 0; x <= 2; x = x + 1) {
+    let c = a * (x + 1);
+    a = c + 1
+};
+println(b);
+println(c);
+println(a)

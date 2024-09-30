@@ -66,6 +66,7 @@ char *type_to_string(ValueType type) {
         case STRING_T: return "string";
         case FUNCTION_T: return "function";
         case LIST_T: return "list";
+        case TABLE_T: return "table";
         case DICT_T: return "dict";
         default: return "unknown";
     }

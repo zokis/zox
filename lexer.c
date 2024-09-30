@@ -36,7 +36,6 @@ void ensure_capacity(Token **tokens, size_t *capacity, size_t tokenCount, const 
     }
 }
 
-
 int utf8_char_len(char c) {
     if ((c & 0x80) == 0) return 1;
     else if ((c & 0xE0) == 0xC0) return 2;

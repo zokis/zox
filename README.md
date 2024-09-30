@@ -314,6 +314,7 @@ The file module includes the following functions:
 - `fWrite(file, content)`: Writes the given content to the file.
 - `fSeek(file, position)`: Moves the file pointer to the specified position in the file.
 - `fClose(file)`: Closes the file and releases the associated resources.
+- `fExists(file)`: Returns true if the file exists otherwise returns false.
 
 ```
 ~> file {open, fRead, fReadLine, fWrite, fSeek, fClose};

@@ -208,12 +208,26 @@ static RuntimeVal *file_seek(Environment *env, RuntimeVal **args, size_t arg_cou
     return (RuntimeVal *)MK_NIL();
 }
 
+static RuntimeVal *file_exists(Environment *env, RuntimeVal **args, size_t arg_count) {
+    if (arg_count != 1 || args[0]->type != STRING_T) {   
+        error("fExists() expect one arguments: path");
+    }
+    char *path = ((StringVal *)args[0])->value;
+    FILE *file = fopen(path, "r");
+    if (file != NULL) {
+        fclose(file);
+        return (RuntimeVal *)MK_BOOL(1);
+    }
+    return (RuntimeVal *)MK_BOOL(0);
+}
+
 void init_file_module(Environment *env) {
     char *double_param[] = {"f", "n"};
     char *single_param[] = {"f"};
 
     declare_var(env, "open", (RuntimeVal *)MK_NATIVE_FN(double_param, 2, file_open));
     declare_var(env, "fRead", (RuntimeVal *)MK_NATIVE_FN(single_param, 1, file_read));
+    declare_var(env, "fExists", (RuntimeVal *)MK_NATIVE_FN(single_param, 1, file_exists));
     declare_var(env, "fReadLine", (RuntimeVal *)MK_NATIVE_FN(single_param, 1, file_readline));
     declare_var(env, "fWrite", (RuntimeVal *)MK_NATIVE_FN(double_param, 2, file_write));
     declare_var(env, "fSeek", (RuntimeVal *)MK_NATIVE_FN(double_param, 2, file_seek));

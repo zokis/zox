@@ -1,13 +1,13 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "lexer.h"
 #include "ast.h"
+#include "lexer.h"
 
 typedef struct {
-    Token *tokens;
-    long long int token_count;
-    long long int current;
+  Token *tokens;
+  long long int token_count;
+  long long int current;
 } Parser;
 
 Parser *create_parser(Token *tokens, long long int token_count);
@@ -42,7 +42,7 @@ Expr *parse_assign_dict_expr(Parser *parser);
 Expr *parse_assign_var_expr(Parser *parser);
 Expr *parse_return_expr(Parser *parser);
 Expr *parse_break_expr(Parser *parser);
-Expr *parse_continue_expr(Parser *parser);  
+Expr *parse_continue_expr(Parser *parser);
 Stmt *parse_import_stmt(Parser *parser);
 
-#endif // PARSER_H
+#endif  // PARSER_H

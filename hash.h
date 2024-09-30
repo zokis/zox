@@ -3,4 +3,4 @@
 
 size_t hash(const char *key, int table_size);
 
-#endif // HASH_H
+#endif  // HASH_H

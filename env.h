@@ -1,21 +1,22 @@
 #ifndef ENVIRONMENT_H
 #define ENVIRONMENT_H
 
+#include <stddef.h>
 #include <stdbool.h>
+
 #include "values.h"
 
-
 typedef struct {
-    char *key;
-    RuntimeVal *value;
+  char *key;
+  RuntimeVal *value;
 } HashEntry;
 
 struct Environment {
-    Environment *parent;
-    HashEntry *entries;
-    size_t capacity;
-    size_t size;
-    char *scope_name;
+  Environment *parent;
+  HashEntry *entries;
+  size_t capacity;
+  size_t size;
+  char *scope_name;
 };
 
 Environment *create_env();
@@ -26,4 +27,4 @@ RuntimeVal *lookup_var(Environment *env, const char *varname);
 Environment *resolve(Environment *env, const char *varname);
 void free_environment(Environment *env);
 
-#endif // ENVIRONMENT_H
+#endif  // ENVIRONMENT_H

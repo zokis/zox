@@ -97,9 +97,26 @@ NumberVal *eval_numeric_binary_expr(NumberVal *lhs, NumberVal *rhs, const char *
     }
 }
 
+
+
 ListVal *eval_list_binary_expr(ListVal *lhs, ListVal *rhs, const char *operator) {
     ListVal *new_list = NULL;
-    if (!strcmp(operator, "+")) {
+    if (!strcmp(operator, "*")) {
+        size_t result_size = lhs->size * rhs->size;
+        new_list = MK_LIST(result_size);
+        size_t index = 0;
+        for (size_t i = 0; i < lhs->size; i++) {
+            for (size_t j = 0; j < rhs->size; j++) {
+                ListVal *pair = MK_LIST(2);
+                pair->items[0] = lhs->items[i];
+                pair->items[1] = rhs->items[j];
+                pair->size = 2;
+                new_list->items[index] = (RuntimeVal *)pair;
+                index++;
+            }
+        }
+        new_list->size = result_size;
+    } else if (!strcmp(operator, "+")) {
         new_list = MK_LIST(lhs->capacity + rhs->capacity);
         new_list->size = lhs->size + rhs->size;
         for (size_t i = 0; i < lhs->size; i++) {
@@ -108,8 +125,36 @@ ListVal *eval_list_binary_expr(ListVal *lhs, ListVal *rhs, const char *operator)
         for (size_t i = 0; i < rhs->size; i++) {
             new_list->items[lhs->size + i] = rhs->items[i];
         }
-    } 
+    } else if (!strcmp(operator, "^")) {
+        new_list = MK_LIST(lhs->capacity + rhs->capacity);
+        new_list->size = 0;
+        for (size_t i = 0; i < lhs->size; i++) {
+            if (!contains(rhs, lhs->items[i])) {
+                new_list->items[new_list->size++] = lhs->items[i];
+            }
+        }
+        for (size_t i = 0; i < rhs->size; i++) {
+            if (!contains(lhs, rhs->items[i])) {
+                new_list->items[new_list->size++] = rhs->items[i];
+            }
+        }
+    }
     return new_list;
+}
+
+RuntimeVal *eval_list_any_binary_expr(ListVal *lhs, RuntimeVal *rhs, const char *operator) {
+    if (!strcmp(operator, "<<")) {
+        if (lhs->size >= lhs->capacity) {
+            lhs->capacity = lhs->capacity * 2 + 1;
+            lhs->items = realloc_safe(lhs->items, sizeof(RuntimeVal*) * lhs->capacity, "eval_list_any_binary_expr realloc");
+        }
+        lhs->items[lhs->size] = rhs;
+        lhs->size++;
+        
+        return (RuntimeVal *)lhs;
+    }
+    
+    return NULL;
 }
 
 DictVal *eval_dict_binary_expr(DictVal *lhs, DictVal *rhs, const char *operator) {
@@ -271,6 +316,11 @@ RuntimeVal *eval_binary_expr(BinaryExpr *binop, Environment *env) {
     if (lhs->type == LIST_T && rhs->type == LIST_T) {
         return (RuntimeVal *)eval_list_binary_expr(
             (ListVal *)lhs, (ListVal *)rhs, binop->operator
+        );
+    }
+    if (lhs->type == LIST_T && rhs->type != LIST_T) {
+        return (RuntimeVal *)eval_list_any_binary_expr(
+            (ListVal *)lhs, (RuntimeVal *)rhs, binop->operator
         );
     }
     if (lhs->type == DICT_T && rhs->type == DICT_T) {

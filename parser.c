@@ -115,6 +115,7 @@ Expr *parse_logical_or(Parser *parser) {
             free_expr(left);
             return NULL;
         }
+        printf("operator or: %s\n", operator);
         left = (Expr *)create_binary_expr(left, right, operator);
     }
     return left;
@@ -134,6 +135,7 @@ Expr *parse_logical_and(Parser *parser) {
             free_expr(left);
             return NULL;
         }
+        printf("operator and: %s\n", operator);
         left = (Expr *)create_binary_expr(left, right, operator);
     }
     return left;
@@ -153,6 +155,7 @@ Expr *parse_equality(Parser *parser) {
             free_expr(left);
             return NULL;
         }
+        printf("operator eq: %s\n", operator);
         left = (Expr *)create_binary_expr(left, right, operator);
     }
     return left;
@@ -173,13 +176,14 @@ Expr *parse_comparison(Parser *parser) {
             free_expr(left);
             return NULL;
         }
+        printf("operator cmp: %s\n", operator);
         left = (Expr *)create_binary_expr(left, right, operator);
     }
     return left;
 }
 
 Expr *parse_additive_expr(Parser *parser) {
-    Expr *left = (Expr *)parse_multiplicative_expr(parser);
+    Expr *left = (Expr *)parse_bitwise_expr(parser);
     if (!left) return NULL;
     while (1) {
         Token token = at(parser);
@@ -192,6 +196,27 @@ Expr *parse_additive_expr(Parser *parser) {
             free_expr(left);
             return NULL;
         }
+        printf("operator add: %s\n", operator);
+        left = (Expr *)create_binary_expr(left, right, operator);
+    }
+    return left;
+}
+
+Expr *parse_bitwise_expr(Parser *parser) {
+    Expr *left = parse_multiplicative_expr(parser);
+    while (1) {
+        Token token = at(parser);
+        if (
+            token.value[0] != '^' &&
+            token.value[0] != '&' &&
+            token.value[0] != '|' &&
+            strcmp(token.value, "<<") != 0 &&
+            strcmp(token.value, ">>") != 0
+        ) {
+            break;
+        }
+        char *operator = eat(parser).value;
+        Expr *right = parse_multiplicative_expr(parser);
         left = (Expr *)create_binary_expr(left, right, operator);
     }
     return left;
@@ -215,6 +240,7 @@ Expr *parse_multiplicative_expr(Parser *parser) {
             free_expr(left);
             return NULL;
         }
+        printf("operator mul: %s\n", operator);
         left = (Expr *)create_binary_expr(left, right, operator);
     }
     return left;

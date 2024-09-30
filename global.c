@@ -8,9 +8,9 @@
 
 extern ExecutionContext global_context;
 
-short int compare_runtimeval(RuntimeVal *a, RuntimeVal *b);
+unsigned short int compare_runtimeval(RuntimeVal *a, RuntimeVal *b);
 
-short int compare_lists(ListVal *a, ListVal *b) {
+unsigned short int compare_lists(ListVal *a, ListVal *b) {
     if (a->size != b->size) {
         return 0;
     }
@@ -22,7 +22,7 @@ short int compare_lists(ListVal *a, ListVal *b) {
     return 1;
 }
 
-short int compare_dicts(DictVal *a, DictVal *b) {
+unsigned short int compare_dicts(DictVal *a, DictVal *b) {
     if (a->size != b->size) {
         return 0;
     }
@@ -37,7 +37,7 @@ short int compare_dicts(DictVal *a, DictVal *b) {
     return 1;
 }
 
-short int compare_runtimeval(RuntimeVal *a, RuntimeVal *b) {
+unsigned short int compare_runtimeval(RuntimeVal *a, RuntimeVal *b) {
     if (a->type != b->type) {
         return 0;
     }
@@ -52,6 +52,15 @@ short int compare_runtimeval(RuntimeVal *a, RuntimeVal *b) {
             return compare_lists((ListVal *)a, (ListVal *)b);
         case DICT_T:
             return compare_dicts((DictVal *)a, (DictVal *)b);           
+    }
+    return 0;
+}
+
+unsigned short int contains(ListVal *list, RuntimeVal *value){
+    for (size_t i = 0; i < list->size; i++) {
+        if (compare_runtimeval(list->items[i], value)) {
+            return 1;
+        }
     }
     return 0;
 }

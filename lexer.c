@@ -46,14 +46,14 @@ int utf8_char_len(char c) {
 }
 
 Token *tokenize(const char *sourceCode, size_t *tokenCount) {
-    unsigned long int capacity = 10;
+    size_t capacity = 10;
     unsigned int line = 1;
     unsigned short int column = 1;
     Token *tokens = malloc_safe(capacity * sizeof(Token), "tokenize");
     *tokenCount = 0;
     const char *src = sourceCode;
     while (*src) {
-        long long int char_len = utf8_char_len(*src);
+        unsigned long long int char_len = utf8_char_len(*src);
         if (*src == '-' && *(src + 1) == '#') {
             while (*src && *src != '\n') {
                 src++;
@@ -72,7 +72,7 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
             while (isspace(*src)) { src++; column++; }
             if (isalpha(*src) || *src == '_'  || *src == '.') {
                 char ident[256] = {0};
-                int i = 0;
+                unsigned int i = 0;
                 while (isalnum(*src) || *src == '_' || *src == '.') {
                     ident[i++] = *src++;
                     column++;

@@ -33,6 +33,7 @@ Expr *parse_for_expr(Parser *parser);
 Expr *parse_func_def(Parser *parser);
 Expr *parse_call_expr(Parser *parser, Expr *callee);
 Expr *parse_list_literal(Parser *parser);
+Expr *parse_bitwise_expr(Parser *parser);
 Expr *parse_dict_literal(Parser *parser);
 Expr *parse_identifier_expr(Parser *parser);
 Expr *parse_table_literal(Parser *parser);

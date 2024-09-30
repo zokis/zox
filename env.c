@@ -5,6 +5,7 @@
 #include "malloc_safe.h"
 #include "hash.h"
 #include "global.h"
+
 #define INITIAL_CAPACITY 16
 #define LOAD_FACTOR_THRESHOLD 0.75
 

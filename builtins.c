@@ -34,10 +34,8 @@ RuntimeVal *builtin_find(Environment *env, RuntimeVal **args, size_t arg_count) 
     if (args[0]->type == LIST_T) {
         ListVal *list = (ListVal *)args[0];
         RuntimeVal *value = args[1];
-        for (size_t i = 0; i < list->size; i++) {
-            if (compare_runtimeval(list->items[i], value)) {
-                return (RuntimeVal *)MK_NUMBER((double)i);
-            }
+        if (contains(list, value)) {
+            return (RuntimeVal *)MK_NUMBER((double)1);
         }
     }   
     return (RuntimeVal *)MK_NUMBER((double)-1);

@@ -294,7 +294,8 @@ Zox has a built-in module called `math` that contains the following functions:
 - `ceil`: Returns the smallest integer greater than or equal to a number.
 - `round`: Returns the nearest integer to a number.
 - `min`: Returns the smallest of two numbers.
-- `max`: Returns the largest of two numbers.
+- `max`: Returns the largest of two numbers..
+- `average`: Returns the average of a list of numbers.
 
 ```
 ~> math {abs, sqrt as squareRoot};

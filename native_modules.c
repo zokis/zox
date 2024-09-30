@@ -49,6 +49,31 @@ typedef struct {
     size_t arg_count;
 } MathFunction;
 
+
+static RuntimeVal *math_average(Environment *env, RuntimeVal **args, size_t arg_count) {
+    if (arg_count != 1 || args[0]->type != LIST_T) {
+        error("average() expects one list argument");
+    }
+    ListVal *list = (ListVal *)args[0];
+
+    if (list == NULL || list->size == 0) {
+        return (RuntimeVal *)MK_NUMBER(0);
+    }
+
+    double soma = 0.0;
+    size_t count = 0;
+
+    for (size_t i = 0; i < list->size; i++) {
+        RuntimeVal *item = list->items[i];
+        if (item->type == NUMBER_T) {
+            NumberVal *numVal = (NumberVal *)item;
+            soma += numVal->value;
+            count++;
+        }
+    }
+    return (count > 0) ? (RuntimeVal *)MK_NUMBER(soma / count) : (RuntimeVal *)MK_NUMBER(0);
+}
+
 static MathFunction math_functions[] = {
     {"abs", math_abs, 1},
     {"sqrt", math_sqrt, 1},
@@ -73,6 +98,7 @@ void init_math_module(Environment *env) {
         char **params = (func->arg_count == 1) ? single_param : double_param;
         declare_var(env, func->name, (RuntimeVal *)MK_NATIVE_FN(params, func->arg_count, func->func));
     }
+    declare_var(env, "average", (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_average));
 }
 
 typedef struct {

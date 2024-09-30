@@ -40,7 +40,7 @@ typedef struct {
     short int column;
 } Token;
 
-Token *tokenize(const char *sourceCode, long long int *tokenCount);
+Token *tokenize(const char *sourceCode, size_t *tokenCount);
 
 Token create_token(const char *value, TokenType type, int line, short int column);
 void free_tokens(Token *tokens, int tokenCount);

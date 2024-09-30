@@ -29,7 +29,7 @@ int isquote(char c) {
     return c == '"' || c == '\'';
 }
 
-void ensure_capacity(Token **tokens, long int *capacity, int tokenCount, const char *errMsg) {
+void ensure_capacity(Token **tokens, size_t *capacity, size_t tokenCount, const char *errMsg) {
     if (tokenCount >= *capacity) {
         *capacity *= 2;
         *tokens = realloc_safe(*tokens, *capacity * sizeof(Token), errMsg);
@@ -45,7 +45,7 @@ int utf8_char_len(char c) {
     return 1;  // Invalid UTF-8 character
 }
 
-Token *tokenize(const char *sourceCode, long long int *tokenCount) {
+Token *tokenize(const char *sourceCode, size_t *tokenCount) {
     unsigned long int capacity = 10;
     unsigned int line = 1;
     unsigned short int column = 1;

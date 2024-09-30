@@ -435,7 +435,7 @@ RuntimeVal *eval_call_expr(CallExpr *call_expr, Environment *env) {
     FunctionVal *func = (FunctionVal *)callee;
     if (call_expr->arg_count != func->param_count) {
         char error_message[100];
-        snprintf(error_message, sizeof(error_message), "Function expected %d arguments but got %d.\n", func->param_count, call_expr->arg_count);
+        snprintf(error_message, sizeof(error_message), "Function expected %ld arguments but got %ld.\n", func->param_count, call_expr->arg_count);
         error(error_message);
     }
     if (func->builtin_func != NULL) {

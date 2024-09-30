@@ -315,6 +315,8 @@ The file module includes the following functions:
 - `fSeek(file, position)`: Moves the file pointer to the specified position in the file.
 - `fClose(file)`: Closes the file and releases the associated resources.
 - `fExists(file)`: Returns true if the file exists otherwise returns false.
+- `fDelete(file)`: Delete a file, returns true or false.
+- `fCopy(file1, file2)`: Copy source file to destination file, returns true or false.
 
 ```
 ~> file {open, fRead, fReadLine, fWrite, fSeek, fClose};

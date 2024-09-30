@@ -317,6 +317,7 @@ The file module includes the following functions:
 - `fExists(file)`: Returns true if the file exists otherwise returns false.
 - `fDelete(file)`: Delete a file, returns true or false.
 - `fCopy(file1, file2)`: Copy source file to destination file, returns true or false.
+- `fMove(file1, file2)`: Move or rename a file, returns true or false.
 
 ```
 ~> file {open, fRead, fReadLine, fWrite, fSeek, fClose};

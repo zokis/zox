@@ -49,6 +49,62 @@ typedef struct {
     size_t arg_count;
 } MathFunction;
 
+int compare_runtime_vals(const void *a, const void *b) {
+    RuntimeVal *val1 = *(RuntimeVal **)a;
+    RuntimeVal *val2 = *(RuntimeVal **)b;
+
+    if (val1->type != NUMBER_T || val2->type != NUMBER_T) {
+        return 0;
+    }
+
+    double num1 = ((NumberVal *)val1)->value;
+    double num2 = ((NumberVal *)val2)->value;
+
+    if (num1 < num2) return -1;
+    if (num1 > num2) return 1;
+    return 0;
+}
+
+static RuntimeVal *math_median(Environment *env, RuntimeVal **args, size_t arg_count) {
+    if (arg_count != 1 || args[0]->type != LIST_T) {
+        error("median() expects one list argument");
+    }
+    
+    ListVal *list = (ListVal *)args[0];
+
+    if (list == NULL || list->size == 0) {
+        return (RuntimeVal *)MK_NUMBER(0);
+    }
+
+    RuntimeVal **num_items = (RuntimeVal **)malloc_safe(list->size * sizeof(RuntimeVal *), "math_median");
+    size_t count = 0;
+
+    for (size_t i = 0; i < list->size; i++) {
+        if (list->items[i]->type == NUMBER_T) {
+            num_items[count++] = list->items[i];
+        }
+    }
+
+    if (count == 0) {
+        free_safe(num_items);
+        return (RuntimeVal *)MK_NUMBER(0);
+    }
+
+    qsort(num_items, count, sizeof(RuntimeVal *), compare_runtime_vals);
+
+    double median;
+    if (count % 2 == 1) {
+        median = ((NumberVal *)num_items[count / 2])->value;
+    } else {
+        double middle1 = ((NumberVal *)num_items[(count / 2) - 1])->value;
+        double middle2 = ((NumberVal *)num_items[count / 2])->value;
+        median = (middle1 + middle2) / 2.0;
+    }
+
+    free_safe(num_items);
+
+    return (RuntimeVal *)MK_NUMBER(median);
+}
 
 static RuntimeVal *math_average(Environment *env, RuntimeVal **args, size_t arg_count) {
     if (arg_count != 1 || args[0]->type != LIST_T) {
@@ -99,6 +155,7 @@ void init_math_module(Environment *env) {
         declare_var(env, func->name, (RuntimeVal *)MK_NATIVE_FN(params, func->arg_count, func->func));
     }
     declare_var(env, "average", (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_average));
+    declare_var(env, "median", (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_median));
 }
 
 typedef struct {

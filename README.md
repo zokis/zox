@@ -296,6 +296,7 @@ Zox has a built-in module called `math` that contains the following functions:
 - `min`: Returns the smallest of two numbers.
 - `max`: Returns the largest of two numbers..
 - `average`: Returns the average of a list of numbers.
+- `median`: Returns the median of a list of numbers.
 
 ```
 ~> math {abs, sqrt as squareRoot};

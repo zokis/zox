@@ -232,6 +232,20 @@ static RuntimeVal *file_delete(Environment *env, RuntimeVal **args, size_t arg_c
     return (RuntimeVal *)MK_BOOL(0);
 }
 
+static RuntimeVal *file_move(Environment *env, RuntimeVal **args, size_t arg_count) {
+    if (arg_count != 2 || args[0]->type != STRING_T || args[1]->type != STRING_T) {   
+        error("fCopy() expect two path arguments");
+    }
+
+    char *path1 = ((StringVal *)args[0])->value;
+    char *path2 = ((StringVal *)args[1])->value;
+
+    if (rename(path1, path2) == 0) {
+        return (RuntimeVal *)MK_BOOL(1);
+    }
+    return (RuntimeVal *)MK_BOOL(0);
+}
+
 static RuntimeVal *file_copy(Environment *env, RuntimeVal **args, size_t arg_count) {
     if (arg_count != 2 || args[0]->type != STRING_T || args[1]->type != STRING_T) {   
         error("fCopy() expect two path arguments");
@@ -286,5 +300,6 @@ void init_file_module(Environment *env) {
     declare_var(env, "fWrite", (RuntimeVal *)MK_NATIVE_FN(double_param, 2, file_write));
     declare_var(env, "fSeek", (RuntimeVal *)MK_NATIVE_FN(double_param, 2, file_seek));
     declare_var(env, "fCopy", (RuntimeVal *)MK_NATIVE_FN(double_param, 2, file_copy));
+    declare_var(env, "fMove", (RuntimeVal *)MK_NATIVE_FN(double_param, 2, file_move));
     declare_var(env, "fClose", (RuntimeVal *)MK_NATIVE_FN(single_param, 1, file_close));
 }

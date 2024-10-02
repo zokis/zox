@@ -223,7 +223,6 @@ Expr *parse_bitwise_expr(Parser *parser) {
 }
 
 Expr *parse_multiplicative_expr(Parser *parser) {
-
   Expr *left = parse_primary_expr(parser);
   if (!left)
     return NULL;

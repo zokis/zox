@@ -9,4 +9,4 @@ $Equal(expected, actual, message) {
         println("Actual: " + actual);
         false
     }
-};
+}

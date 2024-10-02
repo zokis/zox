@@ -20,6 +20,7 @@ void parser_error(const char *message, Token *token, TokenType type);
 void error(const char *message);
 char *read_file(const char *filename);
 unsigned short int compare_runtimeval(RuntimeVal *a, RuntimeVal *b);
-unsigned short int contains(ListVal *list, RuntimeVal *value);
+unsigned short int contains(RuntimeVal *obj, RuntimeVal *value);
+ListVal *dict_to_keys(DictVal *dict);
 
 #endif  // GLOBAL_H

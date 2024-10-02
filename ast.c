@@ -1,10 +1,9 @@
 #include "ast.h"
 
-#include <stddef.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-
 
 #include "malloc_safe.h"
 
@@ -15,7 +14,8 @@ static NumericLiteral preallocated_numeric_literals[256];
 static short int numeric_literals_initialized = 0;
 
 void initialize_preallocated_literals() {
-  if (numeric_literals_initialized) return;
+  if (numeric_literals_initialized)
+    return;
   preallocated_nil_literal.base.stmt.kind = NilAst;
   preallocated_true_literal.base.stmt.kind = BooleanLiteralAst;
   preallocated_true_literal.value = 1;
@@ -76,13 +76,22 @@ AssignDictVar *assign_dict_expr(const char *varname, Expr *key, Expr *value) {
   return var_expr;
 }
 
+UnaryExpr *create_unary_expr(const char *operator, Expr * expr) {
+  UnaryExpr *unary_expr =
+      (UnaryExpr *)malloc_safe(sizeof(UnaryExpr), "UnaryExpr");
+  unary_expr->base.stmt.kind = UnaryExprAst;
+  unary_expr->operator= strdup(operator);
+  unary_expr->expr = expr;
+  return unary_expr;
+}
+
 BinaryExpr *create_binary_expr(Expr *left, Expr *right, const char *operator) {
   BinaryExpr *binary_expr =
       (BinaryExpr *)malloc_safe(sizeof(BinaryExpr), "BinaryExpr");
   binary_expr->base.stmt.kind = BinaryExprAst;
   binary_expr->left = left;
   binary_expr->right = right;
-  binary_expr->operator= strdup(operator);
+  binary_expr->operator= operator;
   return binary_expr;
 }
 
@@ -229,144 +238,144 @@ TableLiteral *create_table_literal(char **columns, size_t column_count) {
 }
 
 void free_expr(Expr *expr) {
-  if (!expr) return;
+  if (!expr)
+    return;
 
   switch (expr->stmt.kind) {
-    case StringLiteralAst: {
-      StringLiteral *str_literal = (StringLiteral *)expr;
-      free_safe(str_literal->value);
-      free_safe(str_literal);
-      break;
+  case StringLiteralAst: {
+    StringLiteral *str_literal = (StringLiteral *)expr;
+    free_safe(str_literal->value);
+    free_safe(str_literal);
+    break;
+  }
+  case BooleanLiteralAst: {
+    if (expr == (Expr *)&preallocated_true_literal ||
+        expr == (Expr *)&preallocated_false_literal) {
+      return;
     }
-    case BooleanLiteralAst: {
-      if (expr == (Expr *)&preallocated_true_literal ||
-          expr == (Expr *)&preallocated_false_literal) {
-        return;
-      }
-      free_safe(expr);
-      break;
+    free_safe(expr);
+    break;
+  }
+  case NilAst: {
+    if (expr == (Expr *)&preallocated_nil_literal) {
+      return;
     }
-    case NilAst: {
-      if (expr == (Expr *)&preallocated_nil_literal) {
-        return;
-      }
-      free_safe(expr);
-      break;
+    free_safe(expr);
+    break;
+  }
+  case IdentifierAst: {
+    Identifier *identifier = (Identifier *)expr;
+    free_safe(identifier->symbol);
+    free_safe(identifier);
+    break;
+  }
+  case BinaryExprAst: {
+    BinaryExpr *binary_expr = (BinaryExpr *)expr;
+    free_expr(binary_expr->left);
+    free_expr(binary_expr->right);
+    free_safe(binary_expr);
+    break;
+  }
+  case ListLiteralAst: {
+    ListLiteral *list_literal = (ListLiteral *)expr;
+    for (size_t i = 0; i < list_literal->element_count; i++) {
+      free_expr(list_literal->elements[i]);
     }
-    case IdentifierAst: {
-      Identifier *identifier = (Identifier *)expr;
-      free_safe(identifier->symbol);
-      free_safe(identifier);
-      break;
+    free_safe(list_literal->elements);
+    free_safe(list_literal);
+    break;
+  }
+  case DictLiteralAst: {
+    DictLiteral *dict_literal = (DictLiteral *)expr;
+    for (size_t i = 0; i < dict_literal->element_count; i++) {
+      free_expr(dict_literal->keys[i]);
+      free_expr(dict_literal->values[i]);
     }
-    case BinaryExprAst: {
-      BinaryExpr *binary_expr = (BinaryExpr *)expr;
-      free_expr(binary_expr->left);
-      free_expr(binary_expr->right);
-      free_safe(binary_expr->operator);
-      free_safe(binary_expr);
-      break;
+    free_safe(dict_literal->keys);
+    free_safe(dict_literal->values);
+    free_safe(dict_literal);
+    break;
+  }
+  case CallExprAst: {
+    CallExpr *call_expr = (CallExpr *)expr;
+    free_expr(call_expr->callee);
+    for (size_t i = 0; i < call_expr->arg_count; i++) {
+      free_expr(call_expr->arguments[i]);
     }
-    case ListLiteralAst: {
-      ListLiteral *list_literal = (ListLiteral *)expr;
-      for (size_t i = 0; i < list_literal->element_count; i++) {
-        free_expr(list_literal->elements[i]);
-      }
-      free_safe(list_literal->elements);
-      free_safe(list_literal);
-      break;
-    }
-    case DictLiteralAst: {
-      DictLiteral *dict_literal = (DictLiteral *)expr;
-      for (size_t i = 0; i < dict_literal->element_count; i++) {
-        free_expr(dict_literal->keys[i]);
-        free_expr(dict_literal->values[i]);
-      }
-      free_safe(dict_literal->keys);
-      free_safe(dict_literal->values);
-      free_safe(dict_literal);
-      break;
-    }
-    case CallExprAst: {
-      CallExpr *call_expr = (CallExpr *)expr;
-      free_expr(call_expr->callee);
-      for (size_t i = 0; i < call_expr->arg_count; i++) {
-        free_expr(call_expr->arguments[i]);
-      }
-      free_safe(call_expr->arguments);
-      free_safe(call_expr);
-      break;
-    }
-    default: {
-      break;
-    }
+    free_safe(call_expr->arguments);
+    free_safe(call_expr);
+    break;
+  }
+  default: {
+    break;
+  }
   }
 }
 
 void free_stmt(Stmt *stmt) {
-  if (!stmt) return;
+  if (!stmt)
+    return;
 
   switch (stmt->kind) {
-    case ProgramAst: {
-      Program *program = (Program *)stmt;
-      for (size_t i = 0; i < program->body_count; i++) {
-        free_stmt(program->body[i]);
-      }
-      free_safe(program->body);
-      free_safe(program);
-      break;
+  case ProgramAst: {
+    Program *program = (Program *)stmt;
+    for (size_t i = 0; i < program->body_count; i++) {
+      free_stmt(program->body[i]);
     }
-    case VarDeclarationAst: {
-      VarDeclaration *var_decl = (VarDeclaration *)stmt;
-      free_safe(var_decl->varname);
-      free_expr(var_decl->value);
-      break;
+    free_safe(program->body);
+    free_safe(program);
+    break;
+  }
+  case VarDeclarationAst: {
+    VarDeclaration *var_decl = (VarDeclaration *)stmt;
+    free_safe(var_decl->varname);
+    free_expr(var_decl->value);
+    break;
+  }
+  case AssignVarAst: {
+    AssignVar *assign_var = (AssignVar *)stmt;
+    free_safe(assign_var->varname);
+    free_expr(assign_var->value);
+    break;
+  }
+  case BinaryExprAst: {
+    BinaryExpr *binary_expr = (BinaryExpr *)stmt;
+    free_expr(binary_expr->left);
+    free_expr(binary_expr->right);
+    break;
+  }
+  case ListLiteralAst: {
+    ListLiteral *list_literal = (ListLiteral *)stmt;
+    for (size_t i = 0; i < list_literal->element_count; i++) {
+      free_expr(list_literal->elements[i]);
     }
-    case AssignVarAst: {
-      AssignVar *assign_var = (AssignVar *)stmt;
-      free_safe(assign_var->varname);
-      free_expr(assign_var->value);
-      break;
+    free_safe(list_literal->elements);
+    break;
+  }
+  case DictLiteralAst: {
+    DictLiteral *dict_literal = (DictLiteral *)stmt;
+    for (size_t i = 0; i < dict_literal->element_count; i++) {
+      free_expr(dict_literal->keys[i]);
+      free_expr(dict_literal->values[i]);
     }
-    case BinaryExprAst: {
-      BinaryExpr *binary_expr = (BinaryExpr *)stmt;
-      free_expr(binary_expr->left);
-      free_expr(binary_expr->right);
-      free_safe(binary_expr->operator);
-      break;
+    free_safe(dict_literal->keys);
+    free_safe(dict_literal->values);
+    break;
+  }
+  case NilAst:
+    break;
+  case CallExprAst: {
+    CallExpr *call_expr = (CallExpr *)stmt;
+    free_expr(call_expr->callee);
+    for (size_t i = 0; i < call_expr->arg_count; i++) {
+      free_expr(call_expr->arguments[i]);
     }
-    case ListLiteralAst: {
-      ListLiteral *list_literal = (ListLiteral *)stmt;
-      for (size_t i = 0; i < list_literal->element_count; i++) {
-        free_expr(list_literal->elements[i]);
-      }
-      free_safe(list_literal->elements);
-      break;
-    }
-    case DictLiteralAst: {
-      DictLiteral *dict_literal = (DictLiteral *)stmt;
-      for (size_t i = 0; i < dict_literal->element_count; i++) {
-        free_expr(dict_literal->keys[i]);
-        free_expr(dict_literal->values[i]);
-      }
-      free_safe(dict_literal->keys);
-      free_safe(dict_literal->values);
-      break;
-    }
-    case NilAst:
-      break;
-    case CallExprAst: {
-      CallExpr *call_expr = (CallExpr *)stmt;
-      free_expr(call_expr->callee);
-      for (size_t i = 0; i < call_expr->arg_count; i++) {
-        free_expr(call_expr->arguments[i]);
-      }
-      free_safe(call_expr->arguments);
-      break;
-    }
-    default: {
-      break;
-    }
+    free_safe(call_expr->arguments);
+    break;
+  }
+  default: {
+    break;
+  }
   }
   free_safe(stmt);
 }

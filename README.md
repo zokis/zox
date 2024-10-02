@@ -176,6 +176,26 @@ println(listA[2]); -# 3
 println(listA[:]); -# {1, 2, 3, 4, 5}
 ```
 
+List operations:
+- `list + list`: Concatenation - Combines two lists into one.
+- `list * n`: Repetition - Repeats the list n times.
+- `list * list`: Cartesian Product - Returns the Cartesian product of two lists.
+- `list - list`: Difference - Removes elements of the second list from the first.
+- `list & list`: Intersection - Returns the elements common to both lists.
+- `list | list`: Union - Returns a list of elements from both lists without duplicates.
+- `list ^ list`: Symmetric Difference - Returns the elements that are in either of the lists, but not in both.
+- `list &+ n`: Element-wise Addition - Adds a given scalar to each element in the list.
+- `list &- n`: Element-wise Subtraction - Subtracts a given scalar from each element in the list.
+- `list &* n`: Element-wise Multiplication - Multiplies each element in the list by a given scalar.
+- `list &/ n`: Element-wise Division - Divides each element in the list by a given scalar.
+- `list &% n`: Element-wise Modulus - Computes the modulus of each element in the list by a given scalar.
+- `list &** n`: Element-wise Power - Raises each element in the list to the power of a given scalar.
+- `list &<< n`: Left Shift - Shifts each element in the list to the left by a given scalar.
+- `list &>> n`: Right Shift - Shifts each element in the list to the right by a given scalar.
+- `list &e n`: Element-wise AND - Performs a bitwise AND operation on each element in the list with a given scalar.
+- `list &| n`: Element-wise OR - Performs a bitwise OR operation on each element in the list with a given scalar.
+- `list &~`: Element-wise NOT - Performs a bitwise NOT operation on each element in the list.
+
 ## 7. Dictionaries ([])
 Dictionaries in Zox use square brackets [] with the structure [key -> value].
 For access, use curly brackets {}.
@@ -268,35 +288,38 @@ println(squareRoot(16)); -# 4
 
 ## 11. Built-in Functions
 Zox provides several built-in functions that are always available without the need for importing:
-- `keys`: Returns a list of all keys in a dictionary.
-- `len`: Returns the length of a list or dictionary.
-- `print`: Outputs the given value without adding a newline at the end.
-- `println`: Outputs the given value and adds a newline at the end.
-- `random`: Generates a random floating-point number between 0 and 1.
-- `randomInt`: Generates a random integer within a specified range.
-- `values`: Returns a list of all values in a dictionary.
-- `find`: Returns the index of a substring within a string.
-- `find`: Returns the index of a value in a list.
+- `keys(dict)`: Returns a list of all keys in the given dictionary.
+- `len(collection)`: Returns the number of elements in a list, characters in a string, or key-value pairs in a dictionary.
+- `print(value)`: Outputs the given value to the console without adding a newline at the end.
+- `println(value)`: Outputs the given value to the console and adds a newline at the end.
+- `random()`: Generates a random floating-point number between 0 (inclusive) and 1 (exclusive).
+- `randomInt(min, max)`: Generates a random integer within the specified range [min, max] (both inclusive).
+- `values(dict)`: Returns a list of all values in the given dictionary.
+- `sum(list)`: Calculates the sum of all numeric elements in the given list.
+- `find(target, value)`: Returns the index of `value` in `target` (string/list), or checks if `value` exists as a key (dict). Returns -1 if not found. For dicts, a non-negative return only indicates presence.
 
 
 These functions provide essential functionality for working with basic data structures and performing common operations in Zox programs.
 
 ## 12. Module Math
 Zox has a built-in module called `math` that contains the following functions:
-- `abs`: Returns the absolute value of a number.
-- `sqrt`: Returns the square root of a number.
-- `sin`: Returns the sine of a number.
-- `cos`: Returns the cosine of a number.
-- `tan`: Returns the tangent of a number.
-- `log`: Returns the natural logarithm of a number.
-- `pow`: Returns the power of a number.
-- `floor`: Returns the largest integer less than or equal to a number.
-- `ceil`: Returns the smallest integer greater than or equal to a number.
-- `round`: Returns the nearest integer to a number.
-- `min`: Returns the smallest of two numbers.
-- `max`: Returns the largest of two numbers..
-- `average`: Returns the average of a list of numbers.
-- `median`: Returns the median of a list of numbers.
+- `abs(x)`: Returns the absolute value of the number `x`.
+- `sqrt(x)`: Returns the square root of the non-negative number `x`.
+- `sin(x)`: Returns the sine of `x` (x in radians).
+- `cos(x)`: Returns the cosine of `x` (x in radians).
+- `tan(x)`: Returns the tangent of `x` (x in radians).
+- `log(x)`: Returns the natural logarithm of the positive number `x`.
+- `pow(x, y)`: Returns `x` raised to the power of `y`.
+- `floor(x)`: Returns the largest integer less than or equal to `x`.
+- `ceil(x)`: Returns the smallest integer greater than or equal to `x`.
+- `round(x)`: Returns the nearest integer to `x`.
+- `min(x, y)`: Returns the smaller of the two numbers `x` and `y`.
+- `max(x, y)`: Returns the larger of the two numbers `x` and `y`.
+- `lmin(list)`: Returns the smaller of the list.
+- `lmax(list)`: Returns the larger of the list.
+- `sum(list)`: Returns the sum of all numbers in the `list`.
+- `average(list)`: Returns the arithmetic mean of the numbers in the `list`.
+- `median(list)`: Returns the median value of the numbers in the `list`.
 
 ```
 ~> math {abs, sqrt as squareRoot};

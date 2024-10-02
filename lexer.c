@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "global.h"
 #include "malloc_safe.h"
 
 Token create_token(const char *value, TokenType type, int line,
@@ -19,7 +20,7 @@ Token create_token(const char *value, TokenType type, int line,
 
 int isalpha_custom(char c) {
   return isalpha(c) ||
-         (unsigned char)c >= 128;  // Extend to include UTF-8 characters
+         (unsigned char)c >= 128; // Extend to include UTF-8 characters
 }
 
 int isskippable(char c) { return c == ' ' || c == '\n' || c == '\t' || '\r'; }
@@ -45,7 +46,56 @@ int utf8_char_len(char c) {
     return 3;
   else if ((c & 0xF8) == 0xF0)
     return 4;
-  return 1;  // Invalid UTF-8 character
+  return 1; // Invalid UTF-8 character
+}
+
+Token handle_ampersand_token(const char **src, int *line,
+                             unsigned short int *column) {
+  if (*(*src + 1) == '&') {
+    *src += 2;
+    *column += 2;
+    return create_token("&&", BinaryOperatorTk, *line, *column - 2);
+  } else if (*(*src + 1) == '+' || *(*src + 1) == '-' || *(*src + 1) == '*' ||
+             *(*src + 1) == '/' || *(*src + 1) == '%' ||
+             (*(*src + 1) == '*' && *(*src + 2) == '*') ||
+             (*(*src + 1) == '<' && *(*src + 2) == '<') ||
+             (*(*src + 1) == '>' && *(*src + 2) == '>') || *(*src + 1) == 'e' ||
+             *(*src + 1) == '|' || *(*src + 1) == '~') {
+    char op[4] = {'&', 0, 0, 0};
+    int i = 1;
+    (*src)++;
+    (*column)++;
+    if (**src == '*' && *(*src + 1) == '*') {
+      op[i++] = *(*src)++;
+      op[i++] = *(*src)++;
+      *column += 2;
+    } else if ((**src == '<' && *(*src + 1) == '<') ||
+               (**src == '>' && *(*src + 1) == '>')) {
+      op[i++] = *(*src)++;
+      op[i++] = *(*src)++;
+      *column += 2;
+    } else {
+      op[i++] = *(*src)++;
+      (*column)++;
+    }
+    return create_token(op, BinaryOperatorTk, *line, *column - i);
+  } else {
+    (*src)++;
+    (*column)++;
+    return create_token("&", BinaryOperatorTk, *line, *column - 1);
+  }
+}
+
+void handle_operator(const char **src, int *line, unsigned short int *column,
+                     const char *op, Token **tokens, size_t *capacity,
+                     size_t *tokenCount, unsigned short int len,
+                     TokenType type) {
+  char error_message[100];
+  snprintf(error_message, sizeof(error_message), "tokenize '%s'.\n", op);
+  ensure_capacity(tokens, capacity, *tokenCount, error_message);
+  (*tokens)[(*tokenCount)++] = create_token(op, type, *line, *column);
+  *src += len;
+  *column += len;
 }
 
 Token *tokenize(const char *sourceCode, size_t *tokenCount) {
@@ -90,91 +140,53 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
             create_token(strdup(ident), IdentifierImportTk, line, column);
       }
     } else if (*src == 'a' && *(src + 1) == 's') {
-      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'AsTk'");
-      tokens[(*tokenCount)++] = create_token("as", AsTk, line, column);
-      src += 2;
-      column += 2;
+      handle_operator(&src, &line, &column, "as", &tokens, &capacity,
+                      tokenCount, 2, AsTk);
     } else if (*src == '.') {
-      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'DotTk'");
-      tokens[(*tokenCount)++] = create_token(".", DotTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, ".", &tokens, &capacity, tokenCount,
+                      1, DotTk);
     } else if (*src == '#') {
-      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'WhileTk'");
-      tokens[(*tokenCount)++] = create_token("#", WhileTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, "#", &tokens, &capacity, tokenCount,
+                      1, WhileTk);
     } else if (*src == ',') {
-      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'CommaTk'");
-      tokens[(*tokenCount)++] = create_token(",", CommaTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, ",", &tokens, &capacity, tokenCount,
+                      1, CommaTk);
     } else if (*src == '$') {
-      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'FunctionTk'");
-      tokens[(*tokenCount)++] = create_token("$", FunctionTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, "$", &tokens, &capacity, tokenCount,
+                      1, FunctionTk);
     } else if (*src == '@') {
-      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'ForTk'");
-      tokens[(*tokenCount)++] = create_token("@", ForTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, "@", &tokens, &capacity, tokenCount,
+                      1, ForTk);
     } else if (*src == '?') {
-      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'IfTk'");
-      tokens[(*tokenCount)++] = create_token("?", IfTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, "?", &tokens, &capacity, tokenCount,
+                      1, IfTk);
     } else if (*src == ':') {
-      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'ElseTk'");
-      tokens[(*tokenCount)++] = create_token(":", ElseTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, ":", &tokens, &capacity, tokenCount,
+                      1, ElseTk);
     } else if (*src == '|' && *(src + 1) == '>') {
-      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'TableTk'");
-      tokens[(*tokenCount)++] = create_token("|>", OpenTableTk, line, column);
-      src += 2;
-      column += 2;
+      handle_operator(&src, &line, &column, "|>", &tokens, &capacity,
+                      tokenCount, 2, OpenTableTk);
     } else if (*src == '<' && *(src + 1) == '|') {
-      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'TableTk'");
-      tokens[(*tokenCount)++] = create_token("<|", CloseTableTk, line, column);
-      src += 2;
-      column += 2;
+      handle_operator(&src, &line, &column, "<|", &tokens, &capacity,
+                      tokenCount, 2, CloseTableTk);
     } else if (*src == '(') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'OpenParenTk'");
-      tokens[(*tokenCount)++] = create_token("(", OpenParenTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, "(", &tokens, &capacity, tokenCount,
+                      1, OpenParenTk);
     } else if (*src == ')') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'CloseParenTk'");
-      tokens[(*tokenCount)++] = create_token(")", CloseParenTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, ")", &tokens, &capacity, tokenCount,
+                      1, CloseParenTk);
     } else if (*src == '{') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'OpenBraceTk'");
-      tokens[(*tokenCount)++] = create_token("{", OpenBraceTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, "{", &tokens, &capacity, tokenCount,
+                      1, OpenBraceTk);
     } else if (*src == '}') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'CloseBraceTk'");
-      tokens[(*tokenCount)++] = create_token("}", CloseBraceTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, "}", &tokens, &capacity, tokenCount,
+                      1, CloseBraceTk);
     } else if (*src == '[') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'OpenBracketTk'");
-      tokens[(*tokenCount)++] = create_token("[", OpenBracketTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, "[", &tokens, &capacity, tokenCount,
+                      1, OpenBracketTk);
     } else if (*src == ']') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'CloseBracketTk'");
-      tokens[(*tokenCount)++] = create_token("]", CloseBracketTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, "]", &tokens, &capacity, tokenCount,
+                      1, CloseBracketTk);
     } else if (*src == '>' || *src == '<' || *src == '=' || *src == '!') {
       char op[3] = {0};
       unsigned int i = 0;
@@ -193,88 +205,44 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
             create_token(op, BinaryOperatorTk, line, column);
       }
     } else if (*src == '&') {
-      if (*(src + 1) == '&') {
-        ensure_capacity(&tokens, &capacity, *tokenCount,
-                        "tokenize 'BinaryOperatorTk'");
-        tokens[(*tokenCount)++] =
-            create_token("&&", BinaryOperatorTk, line, column);
-        src += 2;
-        column += 2;
-      } else {
-        ensure_capacity(&tokens, &capacity, *tokenCount,
-                        "tokenize 'BinaryOperatorTk'");
-        tokens[(*tokenCount)++] =
-            create_token("&", BinaryOperatorTk, line, column);
-        src++;
-        column++;
-      }
+      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize '&' operator");
+      tokens[(*tokenCount)++] = handle_ampersand_token(&src, &line, &column);
     } else if (*src == '|') {
       if (*(src + 1) == '|') {
-        ensure_capacity(&tokens, &capacity, *tokenCount,
-                        "tokenize 'BinaryOperatorTk'");
-        tokens[(*tokenCount)++] =
-            create_token("||", BinaryOperatorTk, line, column);
-        src += 2;
-        column += 2;
+        handle_operator(&src, &line, &column, "||", &tokens, &capacity,
+                        tokenCount, 2, BinaryOperatorTk);
       } else {
-        ensure_capacity(&tokens, &capacity, *tokenCount,
-                        "tokenize 'BinaryOperatorTk'");
-        tokens[(*tokenCount)++] =
-            create_token("|", BinaryOperatorTk, line, column);
-        src++;
-        column++;
+        handle_operator(&src, &line, &column, "|", &tokens, &capacity,
+                        tokenCount, 1, BinaryOperatorTk);
       }
     } else if (*src == '^') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'BinaryOperatorTk'");
-      tokens[(*tokenCount)++] =
-          create_token("^", BinaryOperatorTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, "^", &tokens, &capacity, tokenCount,
+                      1, BinaryOperatorTk);
     } else if (*src == '<' && *(src + 1) == '<') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'BinaryOperatorTk'");
-      tokens[(*tokenCount)++] =
-          create_token("<<", BinaryOperatorTk, line, column);
-      src += 2;
-      column += 2;
+      handle_operator(&src, &line, &column, "<<", &tokens, &capacity,
+                      tokenCount, 2, BinaryOperatorTk);
     } else if (*src == '>' && *(src + 1) == '>') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'BinaryOperatorTk'");
-      tokens[(*tokenCount)++] =
-          create_token(">>", BinaryOperatorTk, line, column);
-      src += 2;
-      column += 2;
+      handle_operator(&src, &line, &column, "<<", &tokens, &capacity,
+                      tokenCount, 2, BinaryOperatorTk);
     } else if (*src == '*' && *(src + 1) == '*') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'BinaryOperatorTk'");
-      tokens[(*tokenCount)++] =
-          create_token("**", BinaryOperatorTk, line, column);
-      src += 2;
-      column += 2;
+      handle_operator(&src, &line, &column, "<<", &tokens, &capacity,
+                      tokenCount, 2, BinaryOperatorTk);
     } else if (*src == '%') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'BinaryOperatorTk'");
-      tokens[(*tokenCount)++] =
-          create_token("%", BinaryOperatorTk, line, column);
-      src++;
-      column++;
-    } else if (isint(*src) || (*src == '-' && isint(*(src + 1)))) {
+      handle_operator(&src, &line, &column, "%", &tokens, &capacity, tokenCount,
+                      1, BinaryOperatorTk);
+    } else if (isint(*src)) {
       char num[1024] = {0};
       unsigned short int i = 0;
       unsigned short int isFloat = 0;
-      if (*src == '-') {
-        num[i++] = *src++;
-        column++;
-      }
       while (isint(*src) || *src == '.') {
         if (*src == '.' && isFloat) {
           free_tokens(tokens, *tokenCount);
-          fprintf(stderr,
-                  "A floating point number can only have one decimal point; "
-                  "line %i column %i\n",
-                  line, column);
-          exit(1);
+          char error_message[100];
+          snprintf(error_message, sizeof(error_message),
+                   "A floating point number can only have one decimal point; "
+                   "line %i column %i\n",
+                   line, column);
+          error(error_message);
         } else if (*src == '.') {
           isFloat = 1;
         }
@@ -285,24 +253,24 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
       ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'NumberTk'");
       tokens[(*tokenCount)++] = create_token(num, NumberTk, line, column);
     } else if (*src == '-' && *(src + 1) == '>') {
-      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'ArrowTk'");
-      tokens[(*tokenCount)++] = create_token("->", ArrowTk, line, column);
-      src += 2;
-      column += 2;
+      handle_operator(&src, &line, &column, "->", &tokens, &capacity,
+                      tokenCount, 2, ArrowTk);
     } else if (*src == '+' || *src == '-' || *src == '*' || *src == '/') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'BinaryOperatorTk'");
+      ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'OperatorTk'");
       char op[2] = {*src, '\0'};
-      tokens[(*tokenCount)++] =
-          create_token(op, BinaryOperatorTk, line, column);
+      TokenType type = BinaryOperatorTk;
+      if (*tokenCount == 0 ||
+          tokens[*tokenCount - 1].type == BinaryOperatorTk ||
+          tokens[*tokenCount - 1].type == OpenParenTk ||
+          tokens[*tokenCount - 1].type == CommaTk) {
+        type = UnaryOperatorTk;
+      }
+      tokens[(*tokenCount)++] = create_token(op, type, line, column);
       src++;
       column++;
     } else if (*src == ';') {
-      ensure_capacity(&tokens, &capacity, *tokenCount,
-                      "tokenize 'SemiColonTk'");
-      tokens[(*tokenCount)++] = create_token(";", SemiColonTk, line, column);
-      src++;
-      column++;
+      handle_operator(&src, &line, &column, ";", &tokens, &capacity, tokenCount,
+                      1, SemiColonTk);
     } else if (isalpha_custom(*src) || *src == '.') {
       char ident[256] = {0};
       unsigned int i = 0;
@@ -357,7 +325,7 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
     } else {
       // Handle UTF-8 characters
       if (char_len > 1) {
-        char utf8_char[5] = {0};  // UTF-8 characters can be up to 4 bytes
+        char utf8_char[5] = {0}; // UTF-8 characters can be up to 4 bytes
         strncpy(utf8_char, src, char_len);
         ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'UTF8Char'");
         tokens[(*tokenCount)++] =

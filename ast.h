@@ -14,23 +14,24 @@ typedef enum {
   NilAst,             // 2
   NumericLiteralAst,  // 3
   IdentifierAst,      // 4
-  BinaryExprAst,      // 5
-  VarDeclarationAst,  // 6
-  AssignVarAst,       // 7
-  IfAst,              // 8
-  WhileAst,           // 9
-  ForAst,             // 10
-  StringLiteralAst,   // 11
-  FuncDefAst,         // 12
-  CallExprAst,        // 13
-  ListLiteralAst,     // 14
-  DictLiteralAst,     // 15
-  ListIndexAst,       // 16
-  DictKeyAst,         // 17
-  AssignListVarAst,   // 18
-  AssignDictVarAst,   // 19
-  TableLiteralAst,    // 20
-  ImportAst           // 21
+  UnaryExprAst,       // 5
+  BinaryExprAst,      // 6
+  VarDeclarationAst,  // 7
+  AssignVarAst,       // 8
+  IfAst,              // 9
+  WhileAst,           // 10
+  ForAst,             // 11
+  StringLiteralAst,   // 12
+  FuncDefAst,         // 13
+  CallExprAst,        // 14
+  ListLiteralAst,     // 15
+  DictLiteralAst,     // 16
+  ListIndexAst,       // 17
+  DictKeyAst,         // 18
+  AssignListVarAst,   // 19
+  AssignDictVarAst,   // 20
+  TableLiteralAst,    // 21
+  ImportAst           // 22
 } NodeType;
 
 typedef struct Stmt {
@@ -49,9 +50,15 @@ typedef struct {
 
 typedef struct {
   Expr base;
+  const char *operator;
+  Expr *expr;
+} UnaryExpr;
+
+typedef struct {
+  Expr base;
   Expr *left;
   Expr *right;
-  char *operator;
+  const char *operator;
 } BinaryExpr;
 
 typedef struct {
@@ -194,6 +201,7 @@ typedef struct {
 
 Program *create_program(Stmt **body, size_t body_count);
 BinaryExpr *create_binary_expr(Expr *left, Expr *right, const char *operator);
+UnaryExpr *create_unary_expr(const char *operator, Expr *expr);
 Identifier *create_identifier(const char *symbol);
 NumericLiteral *create_numeric_literal(double value);
 BooleanLiteral *create_boolean_literal(unsigned short int value);

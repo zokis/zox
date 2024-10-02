@@ -1,0 +1,73 @@
+~> file {open, fWrite, fClose};
+
+$ Equal(expected, actual, message) {
+    ? (expected == actual) {
+        print(".")
+    } : {
+        println("\nFail: " + message);
+        println("Expected: " + expected);
+        println("Actual: " + actual)
+    }
+}
+
+
+$ NotEqual(expected, actual, message) {
+    ? (expected != actual) {
+        print(".")
+    } : {
+        println("\nFail: " + message);
+        println("Not expected: " + expected);
+        println("Actual: " + actual)
+    }
+}
+
+$ isTrue(condition, message) {
+    ? (condition) {
+        print(".")
+    } : {
+        println("\nFail: " + message);
+        println("Condition is false")
+    }
+}
+
+$ isFalse(condition, message) {
+    ? (!condition) {
+        print(".")
+    } : {
+        println("\nFail: " + message);
+        println("Condition is true")
+    }
+}
+
+let testCount = 0;
+let passCount = 0;
+
+$runTest(testFunc) {
+    testCount = testCount + 1;
+    let result = testFunc();
+    ? (result) {
+        passCount = passCount + 1
+    }
+}
+
+$runTests(testList) {
+    @(let i = 0; i < len(testList); i = i + 1) {
+        runTest(testList[i])
+    }
+}
+
+$reportResults() {
+    println("\n\nTest Results:");
+    println("Total tests: " + testCount);
+    println("Tests passed: " + passCount);
+    println("Tests failed: " + (testCount - passCount))
+}
+
+$saveResults(filename) {
+    let f = open(filename, "w");
+    fWrite(f, "Test Results:\n");
+    fWrite(f, "Total tests: " + testCount + "\n");
+    fWrite(f, "Tests passed: " + passCount + "\n");
+    fWrite(f, "Tests failed: " + (testCount - passCount) + "\n");
+    fClose(f)
+}

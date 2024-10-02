@@ -9,28 +9,28 @@
 #include "malloc_safe.h"
 #include "values.h"
 
-#define MATH_FUNC_1ARG(name, func)                                    \
-  static RuntimeVal *math_##name(Environment *env, RuntimeVal **args, \
-                                 size_t arg_count) {                  \
-    if (arg_count != 1 || args[0]->type != NUMBER_T) {                \
-      error(#name "() expects one number argument");                  \
-      return (RuntimeVal *)MK_NIL();                                  \
-    }                                                                 \
-    double value = ((NumberVal *)args[0])->value;                     \
-    return (RuntimeVal *)MK_NUMBER(func(value));                      \
+#define MATH_FUNC_1ARG(name, func)                                             \
+  static RuntimeVal *math_##name(Environment *env, RuntimeVal **args,          \
+                                 size_t arg_count) {                           \
+    if (arg_count != 1 || args[0]->type != NUMBER_T) {                         \
+      error(#name "() expects one number argument");                           \
+      return (RuntimeVal *)MK_NIL();                                           \
+    }                                                                          \
+    double value = ((NumberVal *)args[0])->value;                              \
+    return (RuntimeVal *)MK_NUMBER(func(value));                               \
   }
 
-#define MATH_FUNC_2ARG(name, func)                                    \
-  static RuntimeVal *math_##name(Environment *env, RuntimeVal **args, \
-                                 size_t arg_count) {                  \
-    if (arg_count != 2 || args[0]->type != NUMBER_T ||                \
-        args[1]->type != NUMBER_T) {                                  \
-      error(#name "() expects two number arguments");                 \
-      return (RuntimeVal *)MK_NIL();                                  \
-    }                                                                 \
-    double value1 = ((NumberVal *)args[0])->value;                    \
-    double value2 = ((NumberVal *)args[1])->value;                    \
-    return (RuntimeVal *)MK_NUMBER(func(value1, value2));             \
+#define MATH_FUNC_2ARG(name, func)                                             \
+  static RuntimeVal *math_##name(Environment *env, RuntimeVal **args,          \
+                                 size_t arg_count) {                           \
+    if (arg_count != 2 || args[0]->type != NUMBER_T ||                         \
+        args[1]->type != NUMBER_T) {                                           \
+      error(#name "() expects two number arguments");                          \
+      return (RuntimeVal *)MK_NIL();                                           \
+    }                                                                          \
+    double value1 = ((NumberVal *)args[0])->value;                             \
+    double value2 = ((NumberVal *)args[1])->value;                             \
+    return (RuntimeVal *)MK_NUMBER(func(value1, value2));                      \
   }
 
 MATH_FUNC_1ARG(abs, fabs)
@@ -63,10 +63,55 @@ int compare_runtime_vals(const void *a, const void *b) {
   double num1 = ((NumberVal *)val1)->value;
   double num2 = ((NumberVal *)val2)->value;
 
-  if (num1 < num2) return -1;
-  if (num1 > num2) return 1;
+  if (num1 < num2)
+    return -1;
+  if (num1 > num2)
+    return 1;
   return 0;
 }
+
+static RuntimeVal *math_list_min_max(char *op, Environment *env, RuntimeVal **args,
+                                size_t arg_count) {
+  if (arg_count != 1 || args[0]->type != LIST_T) {
+    char error_message[100];
+    snprintf(error_message, sizeof(error_message),
+             "%s() expects one list argument.\n", op);
+    error(error_message);
+  }
+
+  ListVal *list = (ListVal *)args[0];
+
+  if (list == NULL || list->size == 0) {
+    return (RuntimeVal *)MK_NIL();
+  }
+  double min_max = ((NumberVal *)list->items[0])->value;
+  for (size_t i = 1; i < list->size; i++) {
+    if (list->items[i]->type == NUMBER_T) {
+      double numVal = ((NumberVal *)list->items[i])->value;
+      if (strcmp(op, "min") == 0) {
+        if (i == 0 || numVal < min_max) {
+          min_max = numVal;
+        }
+      } else if (strcmp(op, "max") == 0) {
+        if (i == 0 || numVal > min_max) {
+          min_max = numVal;
+        }
+      }
+    }
+  }
+  return (RuntimeVal *)MK_NUMBER(min_max);
+}
+
+static RuntimeVal *math_list_min(Environment *env, RuntimeVal **args,
+                                 size_t arg_count) {
+  return math_list_min_max("min", env, args, arg_count);
+}
+
+static RuntimeVal *math_list_max(Environment *env, RuntimeVal **args,
+                                 size_t arg_count) {
+  return math_list_min_max("max", env, args, arg_count);
+}
+
 
 static RuntimeVal *math_median(Environment *env, RuntimeVal **args,
                                size_t arg_count) {
@@ -158,6 +203,10 @@ void init_math_module(Environment *env) {
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_average));
   declare_var(env, "median",
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_median));
+  declare_var(env, "lmin",
+              (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_list_min));
+  declare_var(env, "lmax",
+              (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_list_max));
 }
 
 typedef struct {

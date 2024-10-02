@@ -22,7 +22,6 @@ Parser *create_parser(Token *tokens, long long int token_count) {
 }
 
 short int not_eof(Parser *parser) {
-  // printf("token: %s\n", parser->tokens[parser->current].value);
   return parser->current < parser->token_count &&
          parser->tokens[parser->current].type != EOFTk;
 }
@@ -94,7 +93,8 @@ Expr *parse_relational_expr(Parser *parser) { return parse_logical_or(parser); }
 
 Expr *parse_logical_or(Parser *parser) {
   Expr *left = parse_logical_and(parser);
-  if (!left) return NULL;
+  if (!left)
+    return NULL;
   while (1) {
     Token token = at(parser);
     if (strcmp(token.value, "||") != 0) {
@@ -106,7 +106,6 @@ Expr *parse_logical_or(Parser *parser) {
       free_expr(left);
       return NULL;
     }
-    printf("operator or: %s\n", operator);
     left = (Expr *)create_binary_expr(left, right, operator);
   }
   return left;
@@ -114,7 +113,8 @@ Expr *parse_logical_or(Parser *parser) {
 
 Expr *parse_logical_and(Parser *parser) {
   Expr *left = parse_equality(parser);
-  if (!left) return NULL;
+  if (!left)
+    return NULL;
   while (1) {
     Token token = at(parser);
     if (strcmp(token.value, "&&") != 0) {
@@ -126,7 +126,6 @@ Expr *parse_logical_and(Parser *parser) {
       free_expr(left);
       return NULL;
     }
-    printf("operator and: %s\n", operator);
     left = (Expr *)create_binary_expr(left, right, operator);
   }
   return left;
@@ -134,7 +133,8 @@ Expr *parse_logical_and(Parser *parser) {
 
 Expr *parse_equality(Parser *parser) {
   Expr *left = parse_comparison(parser);
-  if (!left) return NULL;
+  if (!left)
+    return NULL;
   while (1) {
     Token token = at(parser);
     if (strcmp(token.value, "==") != 0 && strcmp(token.value, "!=") != 0) {
@@ -146,7 +146,6 @@ Expr *parse_equality(Parser *parser) {
       free_expr(left);
       return NULL;
     }
-    printf("operator eq: %s\n", operator);
     left = (Expr *)create_binary_expr(left, right, operator);
   }
   return left;
@@ -154,7 +153,8 @@ Expr *parse_equality(Parser *parser) {
 
 Expr *parse_comparison(Parser *parser) {
   Expr *left = parse_additive_expr(parser);
-  if (!left) return NULL;
+  if (!left)
+    return NULL;
   while (1) {
     Token token = at(parser);
     if (token.value[0] != '<' && token.value[0] != '>' &&
@@ -167,28 +167,38 @@ Expr *parse_comparison(Parser *parser) {
       free_expr(left);
       return NULL;
     }
-    printf("operator cmp: %s\n", operator);
     left = (Expr *)create_binary_expr(left, right, operator);
   }
   return left;
 }
 
+Expr *parse_unary_expr(Parser *parser) {
+    Token token = at(parser);
+    if (token.type == UnaryOperatorTk || (token.type == BinaryOperatorTk && (strcmp(token.value, "-") == 0 || strcmp(token.value, "+") == 0))) {
+        char *operator = eat(parser).value;
+        Expr *expr = parse_unary_expr(parser);
+        return (Expr *)create_unary_expr(operator, expr);
+    }
+    return parse_primary_expr(parser);
+}
+
 Expr *parse_additive_expr(Parser *parser) {
   Expr *left = (Expr *)parse_bitwise_expr(parser);
-  if (!left) return NULL;
+  if (!left)
+    return NULL;
   while (1) {
     Token token = at(parser);
     if (token.type == ArrowTk ||
-        (token.value[0] != '+' && token.value[0] != '-')) {
+        (token.value[0] != '+' && token.value[0] != '-' &&
+         strcmp(token.value, "&+") != 0 && strcmp(token.value, "&-") != 0)) {
       break;
     }
     char *operator= eat(parser).value;
-    Expr *right = (Expr *)parse_multiplicative_expr(parser);
+    Expr *right = parse_unary_expr(parser);
     if (!right) {
       free_expr(left);
       return NULL;
     }
-    printf("operator add: %s\n", operator);
     left = (Expr *)create_binary_expr(left, right, operator);
   }
   return left;
@@ -200,7 +210,9 @@ Expr *parse_bitwise_expr(Parser *parser) {
     Token token = at(parser);
     if (token.value[0] != '^' && token.value[0] != '&' &&
         token.value[0] != '|' && strcmp(token.value, "<<") != 0 &&
-        strcmp(token.value, ">>") != 0) {
+        strcmp(token.value, ">>") != 0 && strcmp(token.value, "&>>") != 0 &&
+        strcmp(token.value, "&<<") != 0 && strcmp(token.value, "&|") != 0 &&
+        strcmp(token.value, "&e") != 0 && strcmp(token.value, "&^") != 0) {
       break;
     }
     char *operator= eat(parser).value;
@@ -211,22 +223,24 @@ Expr *parse_bitwise_expr(Parser *parser) {
 }
 
 Expr *parse_multiplicative_expr(Parser *parser) {
+
   Expr *left = parse_primary_expr(parser);
-  if (!left) return NULL;
+  if (!left)
+    return NULL;
   while (1) {
     Token token = at(parser);
     if (token.type == ArrowTk ||
         (token.value[0] != '/' && token.value[0] != '*' &&
-         token.value[0] != '%')) {
+         token.value[0] != '%' && strcmp(token.value, "&*") != 0 &&
+         strcmp(token.value, "&/") != 0 && strcmp(token.value, "&%") != 0)) {
       break;
     }
     char *operator= eat(parser).value;
-    Expr *right = (Expr *)parse_primary_expr(parser);
+    Expr *right = (Expr *)parse_unary_expr(parser);
     if (!right) {
       free_expr(left);
       return NULL;
     }
-    printf("operator mul: %s\n", operator);
     left = (Expr *)create_binary_expr(left, right, operator);
   }
   return left;
@@ -315,32 +329,32 @@ char *parse_string(const char *raw_value) {
   while (raw_value[i]) {
     if (raw_value[i] == '\\' && raw_value[i + 1]) {
       switch (raw_value[i + 1]) {
-        case 'n':
-          parsed_value[j++] = '\n';
-          break;
-        case 't':
-          parsed_value[j++] = '\t';
-          break;
-        case 'r':
-          parsed_value[j++] = '\r';
-          break;
-        case 'b':
-          parsed_value[j++] = '\b';
-          break;
-        case 'f':
-          parsed_value[j++] = '\f';
-          break;
-        case '"':
-          parsed_value[j++] = '"';
-          break;
-        case '\'':
-          parsed_value[j++] = '\'';
-          break;
-        case '\\':
-          parsed_value[j++] = '\\';
-          break;
-        default:
-          parsed_value[j++] = raw_value[i];
+      case 'n':
+        parsed_value[j++] = '\n';
+        break;
+      case 't':
+        parsed_value[j++] = '\t';
+        break;
+      case 'r':
+        parsed_value[j++] = '\r';
+        break;
+      case 'b':
+        parsed_value[j++] = '\b';
+        break;
+      case 'f':
+        parsed_value[j++] = '\f';
+        break;
+      case '"':
+        parsed_value[j++] = '"';
+        break;
+      case '\'':
+        parsed_value[j++] = '\'';
+        break;
+      case '\\':
+        parsed_value[j++] = '\\';
+        break;
+      default:
+        parsed_value[j++] = raw_value[i];
       }
       i += 2;
     } else {
@@ -466,81 +480,89 @@ Expr *parse_primary_expr(Parser *parser) {
   TokenType tk = at(parser).type;
 
   switch (tk) {
-    case ImportTk: {
-      return (Expr *)parse_import_stmt(parser);
-    }
-    case FunctionTk: {
-      eat(parser);
-      return (Expr *)parse_func_def(parser);
-    }
-    case IdentifierTk: {
-      return (Expr *)parse_identifier_expr(parser);
-    }
-    case NumberTk:
-      return (Expr *)create_numeric_literal(atof(eat(parser).value));
-    case StringTk: {
-      const char *raw_value = eat(parser).value;
-      char *parsed_value = parse_string(raw_value);
-      Expr *result = (Expr *)create_string_literal(parsed_value);
-      free_safe(parsed_value);
-      return result;
-    }
-    case BooleanLiteralTk: {
-      return (Expr *)create_boolean_literal(
-          strcmp(eat(parser).value, "true") == 0 ? 1 : 0);
-    }
-    case OpenTableTk: {
-      return parse_table_literal(parser);
-    }
-    case OpenBracketTk: {
-      return parse_dict_literal(parser);
-    }
-    case OpenBraceTk: {
-      return parse_list_literal(parser);
-    }
-    case NilTk: {
-      eat(parser);
-      return (Expr *)create_nil_literal();
-    }
-    case LetTk: {
-      return (Expr *)parse_var_declaration(parser);
-    }
-    case SemiColonTk: {
-      eat(parser);
-      return parse_expr(parser);
-    }
-    case OpenParenTk: {
-      eat(parser);
-      Expr *value = (Expr *)parse_expr(parser);
-      expect(parser, CloseParenTk,
-             "Unexpected token found inside parenthesised expression. Expected "
-             "closing parenthesis.");
-      return value;
-    }
-    case IfTk: {
-      eat(parser);
-      return (Expr *)parse_if_expr(parser);
-    }
-    case WhileTk: {
-      eat(parser);
-      return (Expr *)parse_while_expr(parser);
-    }
-    case ForTk: {
-      eat(parser);
-      return (Expr *)parse_for_expr(parser);
-    }
-    case EOFTk: {
-      return (Expr *)create_nil_literal();
-    }
-    default: {
-      Token tk = at(parser);
-      char error_message[100];
-      snprintf(error_message, sizeof(error_message),
-               "Unexpected token found during parsing! Token: %s\nLine %i; "
-               "Column %i\n",
-               tk.value, tk.line, tk.column);
-      error(error_message);
-    }
+  case ImportTk: {
+    return (Expr *)parse_import_stmt(parser);
+  }
+  case FunctionTk: {
+    eat(parser);
+    return (Expr *)parse_func_def(parser);
+  }
+  case IdentifierTk: {
+    return (Expr *)parse_identifier_expr(parser);
+  }
+  case NumberTk:
+    return (Expr *)create_numeric_literal(atof(eat(parser).value));
+  case StringTk: {
+    const char *raw_value = eat(parser).value;
+    char *parsed_value = parse_string(raw_value);
+    Expr *result = (Expr *)create_string_literal(parsed_value);
+    free_safe(parsed_value);
+    return result;
+  }
+  case BooleanLiteralTk: {
+    return (Expr *)create_boolean_literal(
+        strcmp(eat(parser).value, "true") == 0 ? 1 : 0);
+  }
+  case OpenTableTk: {
+    return parse_table_literal(parser);
+  }
+  case OpenBracketTk: {
+    return parse_dict_literal(parser);
+  }
+  case OpenBraceTk: {
+    return parse_list_literal(parser);
+  }
+  case NilTk: {
+    eat(parser);
+    return (Expr *)create_nil_literal();
+  }
+  case LetTk: {
+    return (Expr *)parse_var_declaration(parser);
+  }
+  case SemiColonTk: {
+    eat(parser);
+    return parse_expr(parser);
+  }
+  case OpenParenTk: {
+    eat(parser);
+    Expr *value = (Expr *)parse_expr(parser);
+    expect(parser, CloseParenTk,
+           "Unexpected token found inside parenthesised expression. Expected "
+           "closing parenthesis.");
+    return value;
+  }
+  case IfTk: {
+    eat(parser);
+    return (Expr *)parse_if_expr(parser);
+  }
+  case WhileTk: {
+    eat(parser);
+    return (Expr *)parse_while_expr(parser);
+  }
+  case ForTk: {
+    eat(parser);
+    return (Expr *)parse_for_expr(parser);
+  }
+  case UnaryOperatorTk: {
+    eat(parser);
+    return (Expr *)parse_unary_expr(parser);
+  }
+  case BinaryOperatorTk: {
+    eat(parser);
+    return (Expr *)parse_relational_expr(parser);
+  }
+  case EOFTk: {
+    return (Expr *)create_nil_literal();
+  }
+  default: {
+    Token tk = at(parser);
+    char error_message[100];
+    snprintf(error_message, sizeof(error_message),
+             "Unexpected token found during parsing! Token: %s\nLine %i; "
+             "Column %i\n",
+             tk.value, tk.line, tk.column);
+    error(error_message);
+  }
   }
 }
 

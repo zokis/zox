@@ -1,0 +1,104 @@
+~> core.test {Equal, NotEqual, isTrue, isFalse, reportResults, runTests};
+
+$ testConcatenation() {
+    let list1 = {1, 2, 3};
+    let list2 = {4, 5, 6};
+    Equal(list1 + list2, {1, 2, 3, 4, 5, 6}, "Concatenation should combine two lists")
+}
+
+$ testRepetition() {
+    let list = {1, 2};
+    Equal(list * 3, {1, 2, 1, 2, 1, 2}, "Repetition should repeat the list n times")
+}
+
+$ testCartesianProduct() {
+    let list1 = {1, 2};
+    let list2 = {3, 4};
+    Equal(list1 * list2, {{1, 3}, {1, 4}, {2, 3}, {2, 4}}, "Cartesian product should return all combinations")
+}
+
+$ testDifference() {
+    let list1 = {1, 2, 3, 4};
+    let list2 = {3, 4, 5};
+    Equal(list1 - list2, {1, 2}, "Difference should remove elements of the second list from the first")
+}
+
+$ testIntersection() {
+    let list1 = {1, 2, 3, 4};
+    let list2 = {3, 4, 5};
+    Equal(list1 & list2, {3, 4}, "Intersection should return common elements")
+}
+
+$ testUnion() {
+    let list1 = {1, 2, 3};
+    let list2 = {3, 4, 5};
+    Equal(list1 | list2, {1, 2, 3, 4, 5}, "Union should return elements from both lists without duplicates")
+}
+
+$ testSymmetricDifference() {
+    let list1 = {1, 2, 3, 4};
+    let list2 = {3, 4, 5, 6};
+    Equal(list1 ^ list2, {1, 2, 5, 6}, "Symmetric difference should return elements in either list but not both")
+}
+
+$ testElementWiseAddition() {
+    let list = {1, 2, 3};
+    Equal(list &+ 2, {3, 4, 5}, "Element-wise addition should add scalar to each element")
+}
+
+$ testElementWiseSubtraction() {
+    let list = {3, 4, 5};
+    Equal(list &- 2, {1, 2, 3}, "Element-wise subtraction should subtract scalar from each element")
+}
+
+$ testElementWiseMultiplication() {
+    let list = {1, 2, 3};
+    Equal(list &* 2, {2, 4, 6}, "Element-wise multiplication should multiply each element by scalar")
+}
+
+$ testElementWiseDivision() {
+    let list = {2, 4, 6};
+    Equal(list &/ 2, {1, 2, 3}, "Element-wise division should divide each element by scalar")
+}
+
+$ testElementWiseModulus() {
+    let list = {5, 7, 9};
+    Equal(list &% 3, {2, 1, 0}, "Element-wise modulus should compute modulus of each element by scalar")
+}
+
+$ testElementWisePower() {
+    let list = {1, 2, 3};
+    Equal(list &** 2, {1, 4, 9}, "Element-wise power should raise each element to the power of scalar")
+}
+
+$ testLeftShift() {
+    let list = {1, 2, 3};
+    Equal(list &<< 1, {2, 4, 6}, "Left shift should shift each element to the left by scalar")
+}
+
+$ testRightShift() {
+    let list = {4, 8, 16};
+    Equal(list &>> 1, {2, 4, 8}, "Right shift should shift each element to the right by scalar")
+}
+
+$ testElementWiseAND() {
+    let list = {5, 6, 7};
+    Equal(list &e 3, {1, 2, 3}, "Element-wise AND should perform bitwise AND on each element with scalar")
+}
+
+$ testElementWiseOR() {
+    let list = {1, 2, 3};
+    Equal(list &| 4, {5, 6, 7}, "Element-wise OR should perform bitwise OR on each element with scalar")
+}
+
+$ testElementWiseNOT() {
+    let list = {1, 2, 3};
+    Equal(list &~, {-2, -3, -4}, "Element-wise NOT should perform bitwise NOT on each element")
+}
+
+let tests = {
+    testConcatenation
+};
+
+runTests(tests);
+reportResults()

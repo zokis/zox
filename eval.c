@@ -22,6 +22,11 @@
 #define PATH_SEPARATOR "/"
 #endif
 
+RuntimeVal *eval_binary_expr_evaluated(RuntimeVal *lhs, RuntimeVal *rhs,
+                                       const char *operator);
+char *runtime_value_to_string(RuntimeVal *val);
+Expr *runtime_value_to_expr(RuntimeVal *val);
+
 RuntimeVal *eval_program(Program *program, Environment *env) {
   RuntimeVal *lastEvaluated = (RuntimeVal *)MK_NIL();
   if (program->body_count == 0) {
@@ -128,25 +133,68 @@ ListVal *eval_list_binary_expr(ListVal *lhs, ListVal *rhs,
     for (size_t i = 0; i < rhs->size; i++) {
       new_list->items[lhs->size + i] = rhs->items[i];
     }
-  } else if (!strcmp(operator, "^")) {
-    new_list = MK_LIST(lhs->capacity + rhs->capacity);
+  } else if (!strcmp(operator, "-")) {
+    new_list = MK_LIST(fmax(lhs->capacity, rhs->capacity));
     new_list->size = 0;
     for (size_t i = 0; i < lhs->size; i++) {
-      if (!contains(rhs, lhs->items[i])) {
+      if (!contains((RuntimeVal *)rhs, lhs->items[i])) {
         new_list->items[new_list->size++] = lhs->items[i];
       }
     }
     for (size_t i = 0; i < rhs->size; i++) {
-      if (!contains(lhs, rhs->items[i])) {
+      if (!contains((RuntimeVal *)lhs, rhs->items[i])) {
         new_list->items[new_list->size++] = rhs->items[i];
+      }
+    }
+  } else if (!strcmp(operator, "^")) {
+    new_list = MK_LIST(lhs->capacity + rhs->capacity);
+    new_list->size = 0;
+    for (size_t i = 0; i < lhs->size; i++) {
+      if (!contains((RuntimeVal *)rhs, lhs->items[i])) {
+        new_list->items[new_list->size++] = lhs->items[i];
+      }
+    }
+    for (size_t i = 0; i < rhs->size; i++) {
+      if (!contains((RuntimeVal *)lhs, rhs->items[i])) {
+        new_list->items[new_list->size++] = rhs->items[i];
+      }
+    }
+  } else if (!strcmp(operator, "|")) {
+    new_list = MK_LIST(lhs->capacity + rhs->capacity);
+    new_list->size = 0;
+    for (size_t i = 0; i < lhs->size; i++) {
+      new_list->items[new_list->size++] = lhs->items[i];
+    }
+    for (size_t i = 0; i < rhs->size; i++) {
+      if (!contains((RuntimeVal *)new_list, rhs->items[i])) {
+        new_list->items[new_list->size++] = rhs->items[i];
+      }
+    }
+  } else if (!strcmp(operator, "&")) {
+    new_list = MK_LIST(lhs->capacity + rhs->capacity);
+    new_list->size = 0;
+    for (size_t i = 0; i < lhs->size; i++) {
+      if (contains((RuntimeVal *)rhs, lhs->items[i])) {
+        new_list->items[new_list->size++] = lhs->items[i];
+      }
+    }
+    for (size_t i = 0; i < rhs->size; i++) {
+      if (!contains((RuntimeVal *)new_list, rhs->items[i])) {
+        if (contains((RuntimeVal *)lhs, rhs->items[i])) {
+          new_list->items[new_list->size++] = rhs->items[i];
+        }
       }
     }
   }
   return new_list;
 }
 
-RuntimeVal *eval_list_any_binary_expr(ListVal *lhs, RuntimeVal *rhs,
-                                      const char *operator) {
+static const char *remove_prefix(const char *operator) {
+  return (operator[0] == '&') ? operator+ 1 : operator;
+}
+
+RuntimeVal *eval_list_any_binary_expr(const char *operator, ListVal * lhs,
+                                      RuntimeVal *rhs) {
   if (!strcmp(operator, "<<")) {
     if (lhs->size >= lhs->capacity) {
       lhs->capacity = lhs->capacity * 2 + 1;
@@ -156,8 +204,27 @@ RuntimeVal *eval_list_any_binary_expr(ListVal *lhs, RuntimeVal *rhs,
     }
     lhs->items[lhs->size] = rhs;
     lhs->size++;
-
     return (RuntimeVal *)lhs;
+  } else if (!strcmp(operator, "*") && rhs->type == NUMBER_T) {
+    ListVal *new_list = MK_LIST(lhs->capacity * ((NumberVal *)rhs)->value);
+    for (size_t i = 0; i < lhs->size * ((NumberVal *)rhs)->value; i++) {
+      new_list->items[i] = lhs->items[i % lhs->size];
+    }
+    new_list->size = lhs->size * ((NumberVal *)rhs)->value;
+    return (RuntimeVal *)new_list;
+  } else if (operator[0] ==
+             '&' &&(operator[1] == '+' || operator[1] == '*' || operator[1] ==
+                    '/' ||
+                    operator[1] == '-' ||
+                    operator[1] == '%')) {
+    const char *operator_suffix = remove_prefix(operator);
+    ListVal *new_list = MK_LIST(lhs->capacity);
+    for (size_t i = 0; i < lhs->size; i++) {
+      RuntimeVal *result =
+          eval_binary_expr_evaluated(lhs->items[i], rhs, operator_suffix);
+      new_list->items[new_list->size++] = result;
+    }
+    return (RuntimeVal *)new_list;
   }
   return NULL;
 }
@@ -272,10 +339,21 @@ RuntimeVal *eval_string_repeat(StringVal *str, NumberVal *num) {
   return result;
 }
 
-RuntimeVal *eval_binary_expr(BinaryExpr *binop, Environment *env) {
-  RuntimeVal *lhs = evaluate(&(binop->left->stmt), env);
-  RuntimeVal *rhs = evaluate(&(binop->right->stmt), env);
+Expr *runtime_value_to_expr(RuntimeVal *val) {
+  if (val->type == NUMBER_T) {
+    return (Expr *)create_numeric_literal(((NumberVal *)val)->value);
+  } else if (val->type == BOOLEAN_T) {
+    return (Expr *)create_boolean_literal(((BooleanVal *)val)->value);
+  } else if (val->type == STRING_T) {
+    return (Expr *)create_string_literal(((StringVal *)val)->value);
+  } else if (val->type == NIL_T) {
+    return (Expr *)create_nil_literal();
+  }
+  return NULL;
+}
 
+RuntimeVal *eval_binary_expr_evaluated(RuntimeVal *lhs, RuntimeVal *rhs,
+                                       const char *operator) {
   if ((lhs->type == NUMBER_T || lhs->type == BOOLEAN_T) &&
       (rhs->type == NUMBER_T || rhs->type == BOOLEAN_T)) {
     NumberVal *lhs_num, *rhs_num;
@@ -292,8 +370,8 @@ RuntimeVal *eval_binary_expr(BinaryExpr *binop, Environment *env) {
       rhs_num = MK_NUMBER(((BooleanVal *)rhs)->value ? 1 : 0);
     }
 
-    RuntimeVal *result = (RuntimeVal *)eval_numeric_binary_expr(
-        lhs_num, rhs_num, binop->operator);
+    RuntimeVal *result =
+        (RuntimeVal *)eval_numeric_binary_expr(lhs_num, rhs_num, operator);
 
     if (lhs->type == BOOLEAN_T) {
       free_safe(lhs_num);
@@ -304,32 +382,32 @@ RuntimeVal *eval_binary_expr(BinaryExpr *binop, Environment *env) {
     return result;
   }
   if (lhs->type == STRING_T && rhs->type == STRING_T) {
-    return eval_string_binary_expr((StringVal *)lhs, (StringVal *)rhs,
-                                   binop->operator);
+    return eval_string_binary_expr((StringVal *)lhs,
+                                   (StringVal *)rhs, operator);
   }
   if (lhs->type == STRING_T && rhs->type == NUMBER_T) {
-    if (!strcmp(binop->operator, "*")) {
+    if (!strcmp(operator, "*")) {
       StringVal *str = (StringVal *)lhs;
       NumberVal *num = (NumberVal *)rhs;
       return eval_string_repeat((StringVal *)lhs, (NumberVal *)rhs);
     }
   }
   if (lhs->type == LIST_T && rhs->type == LIST_T) {
-    return (RuntimeVal *)eval_list_binary_expr((ListVal *)lhs, (ListVal *)rhs,
-                                               binop->operator);
+    return (RuntimeVal *)eval_list_binary_expr((ListVal *)lhs,
+                                               (ListVal *)rhs, operator);
   }
   if (lhs->type == LIST_T && rhs->type != LIST_T) {
-    return (RuntimeVal *)eval_list_any_binary_expr(
-        (ListVal *)lhs, (RuntimeVal *)rhs, binop->operator);
+    return (RuntimeVal *)eval_list_any_binary_expr(operator,(ListVal *) lhs,
+                                                   rhs);
   }
   if (lhs->type == DICT_T && rhs->type == DICT_T) {
-    return (RuntimeVal *)eval_dict_binary_expr((DictVal *)lhs, (DictVal *)rhs,
-                                               binop->operator);
+    return (RuntimeVal *)eval_dict_binary_expr((DictVal *)lhs,
+                                               (DictVal *)rhs, operator);
   }
   if (lhs->type == TABLE_T && rhs->type == DICT_T) {
     TableVal *table = (TableVal *)lhs;
     DictVal *dict = (DictVal *)rhs;
-    if (!strcmp(binop->operator, "+")) {
+    if (!strcmp(operator, "+")) {
       if (dict->size != table->column_count) {
         error("Error: Dictionary size does not match table column count.\n");
       }
@@ -338,7 +416,7 @@ RuntimeVal *eval_binary_expr(BinaryExpr *binop, Environment *env) {
         table->capacity = table->capacity == 0 ? 1 : table->capacity * 2;
         table->rows =
             realloc_safe(table->rows, sizeof(DictVal *) * table->capacity,
-                         "eval_binary_expr table rows");
+                         "eval_binary_expr_evaluated table rows");
       }
 
       table->rows[table->row_count++] = dict;
@@ -348,7 +426,7 @@ RuntimeVal *eval_binary_expr(BinaryExpr *binop, Environment *env) {
   if (lhs->type == TABLE_T && rhs->type == LIST_T) {
     TableVal *table = (TableVal *)lhs;
     ListVal *list = (ListVal *)rhs;
-    if (!strcmp(binop->operator, "+")) {
+    if (!strcmp(operator, "+")) {
       for (size_t i = 0; i < list->size; i++) {
         DictVal *dict;
         if (list->items[i]->type == DICT_T) {
@@ -390,8 +468,7 @@ RuntimeVal *eval_binary_expr(BinaryExpr *binop, Environment *env) {
   char error_message[100];
   snprintf(error_message, sizeof(error_message),
            "Unsupported types (%s, %s) for operator %s\n",
-           type_to_string(lhs->type), type_to_string(rhs->type),
-           binop->operator);
+           type_to_string(lhs->type), type_to_string(rhs->type), operator);
   error(error_message);
 }
 
@@ -584,30 +661,30 @@ RuntimeVal *eval_table_literal(TableLiteral *table_lit, Environment *env) {
 
 char *runtime_value_to_string(RuntimeVal *val) {
   switch (val->type) {
-    case NIL_T:
-      return "nil";
-    case BOOLEAN_T: {
-      BooleanVal *bool_val = (BooleanVal *)val;
-      if (bool_val->value) {
-        return "true";
-      }
-      return "false";
+  case NIL_T:
+    return "nil";
+  case BOOLEAN_T: {
+    BooleanVal *bool_val = (BooleanVal *)val;
+    if (bool_val->value) {
+      return "true";
     }
-    case NUMBER_T: {
-      NumberVal *num_val = (NumberVal *)val;
-      // Assume 32 bytes are enough to hold the string representation of the
-      // number
-      char *result = malloc_safe(32, "runtime_value_to_string NUMBER_T");
-      sprintf(result, "%f", num_val->value);
-      return result;
-    }
-    case STRING_T: {
-      StringVal *str_val = (StringVal *)val;
-      return str_val->value;
-    }
-    default:
-      // Handle unexpected type
-      return NULL;
+    return "false";
+  }
+  case NUMBER_T: {
+    NumberVal *num_val = (NumberVal *)val;
+    // Assume 32 bytes are enough to hold the string representation of the
+    // number
+    char *result = malloc_safe(32, "runtime_value_to_string NUMBER_T");
+    sprintf(result, "%f", num_val->value);
+    return result;
+  }
+  case STRING_T: {
+    StringVal *str_val = (StringVal *)val;
+    return str_val->value;
+  }
+  default:
+    // Handle unexpected type
+    return NULL;
   }
 }
 
@@ -622,13 +699,16 @@ RuntimeVal *eval_dict_literal(DictLiteral *dict_lit, Environment *env) {
 }
 
 RuntimeVal *get_list_slice(ListVal *list, int start, int end) {
-  if (start < 0) start = list->size + start;
-  if (end < 0) end = list->size + end;
+  if (start < 0)
+    start = list->size + start;
+  if (end < 0)
+    end = list->size + end;
 
   start = (start < 0) ? 0 : (start > list->size) ? list->size : start;
   end = (end < 0) ? 0 : (end > list->size) ? list->size : end;
 
-  if (start >= end) return (RuntimeVal *)MK_LIST(0);
+  if (start >= end)
+    return (RuntimeVal *)MK_LIST(0);
 
   ListVal *slice = MK_LIST(end - start);
   for (int i = start; i < end; i++) {
@@ -638,11 +718,14 @@ RuntimeVal *get_list_slice(ListVal *list, int start, int end) {
 }
 
 RuntimeVal *get_table_slice(TableVal *table, int start, int end) {
-  if (start < 0) start = table->row_count + start;
-  if (end < 0) end = table->row_count + end;
+  if (start < 0)
+    start = table->row_count + start;
+  if (end < 0)
+    end = table->row_count + end;
 
-  start =
-      (start < 0) ? 0 : (start > table->row_count) ? table->row_count : start;
+  start = (start < 0)                  ? 0
+          : (start > table->row_count) ? table->row_count
+                                       : start;
   end = (end < 0) ? 0 : (end > table->row_count) ? table->row_count : end;
 
   if (start >= end)
@@ -663,15 +746,18 @@ RuntimeVal *get_table_slice(TableVal *table, int start, int end) {
 
 RuntimeVal *get_string_slice(StringVal *str, int start, int end) {
   size_t size = strlen(str->value);
-  if (start < 0) start = size + start;
+  if (start < 0)
+    start = size + start;
   if (start < 0 || start >= size) {
     error("String index out of bounds.\n");
   }
-  if (end < 0) end = size + end;
+  if (end < 0)
+    end = size + end;
   if (end < 0 || end > size) {
     error("String index out of bounds.\n");
   }
-  if (start >= end) return (RuntimeVal *)MK_STRING("");
+  if (start >= end)
+    return (RuntimeVal *)MK_STRING("");
 
   char *slice = malloc_safe(end - start + 1, "get_string_slice slice");
   strncpy(slice, str->value + start, end - start);
@@ -695,7 +781,8 @@ RuntimeVal *eval_list_index(ListIndex *list_index, Environment *env) {
   if (list_val->type == STRING_T) {
     StringVal *str = (StringVal *)list_val;
     if (!list_index->is_slice) {
-      if (start < 0) start = strlen(str->value) + start;
+      if (start < 0)
+        start = strlen(str->value) + start;
       if (start < 0 || start >= strlen(str->value)) {
         error("String index out of bounds.\n");
       }
@@ -715,11 +802,13 @@ RuntimeVal *eval_list_index(ListIndex *list_index, Environment *env) {
   } else if (list_val->type == LIST_T) {
     ListVal *list = (ListVal *)list_val;
     if (!list_index->is_slice) {
-      if (start < 0) start = list->size + start;
+      if (start < 0)
+        start = list->size + start;
       if (start < 0 || start >= list->size) {
         error("List index out of bounds.\n");
       }
-      if (start < 0) start = list->size + start;
+      if (start < 0)
+        start = list->size + start;
       return list->items[start];
     } else {
       int end = list->size;
@@ -738,7 +827,8 @@ RuntimeVal *eval_list_index(ListIndex *list_index, Environment *env) {
       if (start < -table->row_count || start >= table->row_count) {
         error("List index out of bounds.\n");
       }
-      if (start < 0) start = table->row_count + start;
+      if (start < 0)
+        start = table->row_count + start;
       return (RuntimeVal *)table->rows[start];
     } else {
       int end = table->row_count;
@@ -793,7 +883,8 @@ char *find_module_path(const char *module_name) {
   strncpy(module_path, module_name, sizeof(module_path));
   char *p = module_path;
   while (*p) {
-    if (*p == '.') *p = PATH_SEPARATOR[0];
+    if (*p == '.')
+      *p = PATH_SEPARATOR[0];
     p++;
   }
 
@@ -883,77 +974,97 @@ RuntimeVal *eval_import_stmt(ImportStmt *import_stmt, Environment *env) {
   return (RuntimeVal *)MK_NIL();
 }
 
+RuntimeVal *eval_unary_expr(UnaryExpr *unary_expr, Environment *env) {
+  RuntimeVal *value = evaluate(&(unary_expr->expr->stmt), env);
+  if (value->type != NUMBER_T) {
+    error("Unary operator not applicable to non-number type");
+  }
+  NumberVal *num_val = (NumberVal *)value;
+  double result = num_val->value;
+
+  if (strcmp(unary_expr->operator, "-") == 0) {
+    result = -result;
+  }
+  return (RuntimeVal *)MK_NUMBER(result);
+}
+
 RuntimeVal *evaluate(Stmt *astNode, Environment *env) {
   switch (astNode->kind) {
-    case ProgramAst: {
-      return eval_program((Program *)astNode, env);
-    }
-    case BooleanLiteralAst: {
-      return (RuntimeVal *)MK_BOOL(((BooleanLiteral *)astNode)->value);
-    }
-    case NilAst: {
-      printf("NIL");
-      return (RuntimeVal *)MK_NIL();
-    }
-    case NumericLiteralAst: {
-      return (RuntimeVal *)MK_NUMBER(((NumericLiteral *)astNode)->value);
-    }
-    case IdentifierAst: {
-      return eval_identifier_expr((Identifier *)astNode, env);
-    }
-    case BinaryExprAst: {
-      return eval_binary_expr((BinaryExpr *)astNode, env);
-    }
-    case VarDeclarationAst: {
-      return eval_var_expr((VarDeclaration *)astNode, env);
-    }
-    case AssignVarAst: {
-      return eval_assign_var_expr((AssignVar *)astNode, env);
-    }
-    case IfAst: {
-      return eval_if_expr((IfExpr *)astNode, env);
-    }
-    case WhileAst: {
-      return eval_while_expr((WhileExpr *)astNode, env);
-    }
-    case ForAst: {
-      return eval_for_expr((ForExpr *)astNode, env);
-    }
-    case StringLiteralAst: {
-      return eval_string_literal((StringLiteral *)astNode);
-    }
-    case FuncDefAst: {
-      return eval_func_def((FuncDef *)astNode, env);
-    }
-    case CallExprAst: {
-      return eval_call_expr((CallExpr *)astNode, env);
-    }
-    case ListLiteralAst: {
-      return eval_list_literal((ListLiteral *)astNode, env);
-    }
-    case DictLiteralAst: {
-      return eval_dict_literal((DictLiteral *)astNode, env);
-    }
-    case ListIndexAst: {
-      return eval_list_index((ListIndex *)astNode, env);
-    }
-    case DictKeyAst: {
-      return eval_dict_key((DictKey *)astNode, env);
-    }
-    case AssignListVarAst: {
-      return eval_assign_list_var_expr((AssignListVar *)astNode, env);
-    }
-    case AssignDictVarAst: {
-      return eval_assign_dict_var_expr((AssignDictVar *)astNode, env);
-    }
-    case TableLiteralAst: {
-      return eval_table_literal((TableLiteral *)astNode, env);
-    }
-    case ImportAst: {
-      return eval_import_stmt((ImportStmt *)astNode, env);
-    }
-    default: {
-      error("This AST Node has not yet been setup for interpretation.\n");
-    }
+  case ProgramAst: {
+    return eval_program((Program *)astNode, env);
+  }
+  case BooleanLiteralAst: {
+    return (RuntimeVal *)MK_BOOL(((BooleanLiteral *)astNode)->value);
+  }
+  case NilAst: {
+    printf("NIL");
+    return (RuntimeVal *)MK_NIL();
+  }
+  case NumericLiteralAst: {
+    return (RuntimeVal *)MK_NUMBER(((NumericLiteral *)astNode)->value);
+  }
+  case IdentifierAst: {
+    return eval_identifier_expr((Identifier *)astNode, env);
+  }
+  case BinaryExprAst: {
+    BinaryExpr *binop = (BinaryExpr *)astNode;
+    RuntimeVal *lhs = evaluate(&(binop->left->stmt), env);
+    RuntimeVal *rhs = evaluate(&(binop->right->stmt), env);
+    return eval_binary_expr_evaluated(lhs, rhs, binop->operator);
+  }
+  case VarDeclarationAst: {
+    return eval_var_expr((VarDeclaration *)astNode, env);
+  }
+  case AssignVarAst: {
+    return eval_assign_var_expr((AssignVar *)astNode, env);
+  }
+  case IfAst: {
+    return eval_if_expr((IfExpr *)astNode, env);
+  }
+  case WhileAst: {
+    return eval_while_expr((WhileExpr *)astNode, env);
+  }
+  case ForAst: {
+    return eval_for_expr((ForExpr *)astNode, env);
+  }
+  case StringLiteralAst: {
+    return eval_string_literal((StringLiteral *)astNode);
+  }
+  case FuncDefAst: {
+    return eval_func_def((FuncDef *)astNode, env);
+  }
+  case CallExprAst: {
+    return eval_call_expr((CallExpr *)astNode, env);
+  }
+  case ListLiteralAst: {
+    return eval_list_literal((ListLiteral *)astNode, env);
+  }
+  case DictLiteralAst: {
+    return eval_dict_literal((DictLiteral *)astNode, env);
+  }
+  case ListIndexAst: {
+    return eval_list_index((ListIndex *)astNode, env);
+  }
+  case DictKeyAst: {
+    return eval_dict_key((DictKey *)astNode, env);
+  }
+  case AssignListVarAst: {
+    return eval_assign_list_var_expr((AssignListVar *)astNode, env);
+  }
+  case AssignDictVarAst: {
+    return eval_assign_dict_var_expr((AssignDictVar *)astNode, env);
+  }
+  case TableLiteralAst: {
+    return eval_table_literal((TableLiteral *)astNode, env);
+  }
+  case ImportAst: {
+    return eval_import_stmt((ImportStmt *)astNode, env);
+  }
+  case UnaryExprAst: {
+    return eval_unary_expr((UnaryExpr *)astNode, env);
+  }
+  default: {
+    error("This AST Node has not yet been setup for interpretation.\n");
+  }
   }
 }

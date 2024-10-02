@@ -32,7 +32,8 @@ typedef enum {
   IdentifierImportTk,  // 25
   AsTk,                // 26
   DotTk,               // 27
-  EOFTk                // 28
+  UnaryOperatorTk,     // 28
+  EOFTk                // 29
 } TokenType;
 
 typedef struct {

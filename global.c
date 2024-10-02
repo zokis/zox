@@ -59,7 +59,28 @@ unsigned short int compare_runtimeval(RuntimeVal *a, RuntimeVal *b) {
   return 0;
 }
 
-unsigned short int contains(ListVal *list, RuntimeVal *value) {
+ListVal *dict_to_keys(DictVal *dict) {
+ ListVal *keys_list = MK_LIST(dict->size);
+
+  for (size_t i = 0; i < dict->capacity; i++) {
+    Entry *entry = dict->entries[i];
+    while (entry != NULL) {
+      keys_list->items[keys_list->size++] = (RuntimeVal *)MK_STRING(entry->key);
+      entry = entry->next;
+    }
+  }
+  return keys_list;
+}
+
+unsigned short int contains(RuntimeVal *obj, RuntimeVal *value) {
+  ListVal *list;
+  if(obj->type == LIST_T) {
+    list = (ListVal *)obj;
+  } else if (obj->type == DICT_T) {
+    list = dict_to_keys((DictVal *)obj);
+  } else {
+    error("contains function only works on lists and dictionaries");
+  }
   for (size_t i = 0; i < list->size; i++) {
     if (compare_runtimeval(list->items[i], value)) {
       return 1;

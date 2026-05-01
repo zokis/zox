@@ -8,3 +8,8 @@ println(c);
 let d = c - "ac";
 
 println(d)
+
+println("line1\nline2");
+println("col1\tcol2");
+println("quote: \"zox\"");
+println("slash: \\");

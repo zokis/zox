@@ -306,7 +306,14 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
       src++;
       column++;
       const char *start = src;
-      while (*src && *src != quote_type) {
+      int escaped = 0;
+      while (*src) {
+        if (*src == quote_type && !escaped) break;
+        if (*src == '\\' && !escaped) {
+          escaped = 1;
+        } else {
+          escaped = 0;
+        }
         src++;
         column++;
       }

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(wsl -e bash -c \"cd /mnt/z/claude/zox && echo 'let x = [1,2,3]; println\\(len\\(x\\)\\)' > /tmp/test.zo && ASAN_OPTIONS=detect_leaks=1 ./zox /tmp/test.zo 2>&1\")",
+      "PowerShell(wsl -e bash -c 'cd /mnt/z/claude/zox && ASAN_OPTIONS=\"detect_leaks=1\" ./zox tests/bench.zo 2>&1 | grep -A15 \"Direct leak\"')",
+      "PowerShell(wsl -e bash -c 'cat /tmp/asan_out.txt | head -40')",
+      "PowerShell(wsl -e bash -c 'cd /mnt/z/claude/zox && ASAN_OPTIONS=detect_leaks=1 ./zox tests/bench.zo 2>&1 | head -200')"
+    ]
+  }
+}

@@ -138,9 +138,7 @@ RuntimeVal *eval_list_any_binary_expr(const char *operator, ListVal *lhs, Runtim
     const char *op = remove_prefix(operator);
     ListVal *new_list = MK_LIST(lhs->capacity);
     for (size_t i = 0; i < lhs->size; i++) {
-      RuntimeVal *result = eval_binary_expr_evaluated(lhs->items[i], rhs, op);
-      new_list->items[new_list->size++] = result;
-      retain(new_list->items[new_list->size - 1]);
+      new_list->items[new_list->size++] = eval_binary_expr_evaluated(lhs->items[i], rhs, op);
     }
     return (RuntimeVal *)new_list;
   }

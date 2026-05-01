@@ -35,13 +35,28 @@ RuntimeVal *builtin_find(Environment *env, RuntimeVal **args, size_t arg_count) 
     if (pos != NULL)
       return (RuntimeVal *)MK_NUMBER((double)(pos - ((StringVal *)args[0])->value));
   }
-  if (args[0]->type == LIST_T || args[0]->type == DICT_T) {
-    ListVal *obj = (args[0]->type == LIST_T) ? (ListVal *)args[0]
-                                              : (ListVal *)dict_to_keys((DictVal *)args[0]);
+  if (args[0]->type == LIST_T) {
+    ListVal *obj = (ListVal *)args[0];
     for (size_t i = 0; i < obj->size; i++) {
       if (compare_runtimeval(obj->items[i], args[1]))
         return (RuntimeVal *)MK_NUMBER((double)i);
     }
+  }
+  if (args[0]->type == DICT_T) {
+    char *needle = dict_key_to_string(args[1]);
+    if (needle == NULL) error("The second argument for 'find' must be convertible to a string.");
+    DictVal *dict = (DictVal *)args[0];
+    size_t index = 0;
+    for (size_t i = 0; i < dict->capacity; i++) {
+      for (Entry *e = dict->entries[i]; e != NULL; e = e->next) {
+        if (strcmp(e->key, needle) == 0) {
+          free_safe(needle);
+          return (RuntimeVal *)MK_NUMBER((double)index);
+        }
+        index++;
+      }
+    }
+    free_safe(needle);
   }
   return (RuntimeVal *)MK_NUMBER((double)-1);
 }
@@ -50,6 +65,43 @@ RuntimeVal *builtin_keys(Environment *env, RuntimeVal **args, size_t arg_count) 
   if (arg_count != 1) error("Function 'keys' expects exactly one argument.");
   if (args[0]->type != DICT_T) error("Argument to 'keys' must be a dictionary.");
   return (RuntimeVal *)dict_to_keys((DictVal *)args[0]);
+}
+
+RuntimeVal *builtin_has_key(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 2) error("Function 'has_key' expects exactly two arguments.");
+  if (args[0]->type != DICT_T) error("The first argument to 'has_key' must be a dictionary.");
+  char *key = dict_key_to_string(args[1]);
+  if (key == NULL) error("The second argument to 'has_key' must be convertible to a string.");
+  RuntimeVal *result = (RuntimeVal *)MK_BOOL(dict_find_entry((DictVal *)args[0], key) != NULL);
+  free_safe(key);
+  return result;
+}
+
+RuntimeVal *builtin_get(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 2) error("Function 'get' expects exactly two arguments.");
+  if (args[0]->type != DICT_T) error("The first argument to 'get' must be a dictionary.");
+  char *key = dict_key_to_string(args[1]);
+  if (key == NULL) error("The second argument to 'get' must be convertible to a string.");
+  RuntimeVal *value = dict_get_val((DictVal *)args[0], key);
+  free_safe(key);
+  if (value != NULL) return value;
+  return (RuntimeVal *)MK_NIL();
+}
+
+RuntimeVal *builtin_setdefault(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 3) error("Function 'setdefault' expects exactly three arguments.");
+  if (args[0]->type != DICT_T) error("The first argument to 'setdefault' must be a dictionary.");
+  char *key = dict_key_to_string(args[1]);
+  if (key == NULL) error("The second argument to 'setdefault' must be convertible to a string.");
+  RuntimeVal *existing = dict_get_val((DictVal *)args[0], key);
+  if (existing != NULL) {
+    free_safe(key);
+    return existing;
+  }
+  dict_set_val((DictVal *)args[0], key, args[2]);
+  free_safe(key);
+  retain(args[2]);
+  return args[2];
 }
 
 RuntimeVal *builtin_values(Environment *env, RuntimeVal **args, size_t arg_count) {
@@ -214,12 +266,19 @@ RuntimeVal *builtin_print_value(Environment *env, RuntimeVal **args, size_t arg_
 }
 
 void register_builtins(Environment *env) {
-  char *no_params[]    = {};
-  char *single_param[] = {"value"};
-  char *double_param[] = {"param1", "param2"};
+  char *no_params[]     = {};
+  char *single_param[]  = {"value"};
+  char *double_param[]  = {"param1", "param2"};
+  char *triple_param[]  = {"param1", "param2", "param3"};
 
   declare_owned(env, "keys",
     (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_keys));
+  declare_owned(env, "has_key",
+    (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_has_key));
+  declare_owned(env, "get",
+    (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_get));
+  declare_owned(env, "setdefault",
+    (RuntimeVal *)MK_FUNCTION(triple_param, 3, NULL, 0, NULL, builtin_setdefault));
   declare_owned(env, "len",
     (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_len));
   declare_owned(env, "print",

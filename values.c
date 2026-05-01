@@ -117,7 +117,7 @@ StringVal *MK_STRING(const char *str) {
 }
 
 ListVal *MK_LIST(size_t capacity) {
-  if (capacity == 0) capacity = 1;
+  if (capacity < 8) capacity = 8;
   ListVal *list = zox_alloc_obj(ZOX_ALLOC_LIST, sizeof(ListVal), "ListVal");
   list->base.type      = LIST_T;
   list->base.ref_count = 1;
@@ -136,7 +136,7 @@ Entry *MK_ENTRY(const char *key, RuntimeVal *value) {
 }
 
 DictVal *MK_DICT(size_t capacity) {
-  if (capacity == 0) capacity = 1;
+  if (capacity < 8) capacity = 8;
   DictVal *dict = zox_alloc_obj(ZOX_ALLOC_DICT, sizeof(DictVal), "DictVal");
   dict->base.type      = DICT_T;
   dict->base.ref_count = 1;

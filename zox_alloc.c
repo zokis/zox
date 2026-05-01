@@ -83,12 +83,13 @@ void zox_alloc_cleanup(void) {
     PoolNode *node = free_lists[i];
     while (node) {
       PoolNode *next = node->next;
-      if (!arena_owns(node)) free_safe(node);
+      if (!arena_owns(node)) free_safe(node);  /* Free heap objects */
       node = next;
     }
     free_lists[i] = NULL;
     stats[i].depth = 0;
   }
+  /* Arena buffer and its contained objects are freed by zox_arena_destroy */
 }
 
 static const char *kind_names[ZOX_ALLOC_KIND_COUNT] = {

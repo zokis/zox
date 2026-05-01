@@ -51,8 +51,7 @@ $ freq_count(lst) {
     let i = 0;
     @(i = 0; i < len(lst); i = i + 1) {
         let k = toString(lst[i]);
-        let found = find(keys(counts), k);
-        ?(found >= 0) {
+        ?(has_key(counts, k)) {
             counts{k} = counts{k} + 1
         } : {
             counts{k} = 1

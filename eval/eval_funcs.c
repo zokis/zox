@@ -33,7 +33,10 @@ RuntimeVal *eval_assign_dict_var_expr(AssignDictVar *var, Environment *env) {
   RuntimeVal *value = evaluate(&(var->value->stmt), env);
   RuntimeVal *key_val = evaluate(&(var->key->stmt), env);
   DictVal *dict = (DictVal *)lookup_var(env, var->varname);
-  dict_set_val(dict, runtime_value_to_string(key_val), value);
+  char *key = runtime_value_to_string(key_val);
+  if (key == NULL) error("Dict key must be convertible to a string.\n");
+  dict_set_val(dict, key, value);
+  free_safe(key);
   release(key_val);
   return value;
 }
@@ -64,6 +67,7 @@ RuntimeVal *eval_assign_dict_expr(AssignDictExpr *node, Environment *env) {
   char *key = runtime_value_to_string(key_val);
   if (key == NULL) error("Dict key must be convertible to a string.\n");
   dict_set_val((DictVal *)dict_val, key, value);
+  free_safe(key);
   release(key_val);
   release(dict_val);
   return value;

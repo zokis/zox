@@ -1,3 +1,3 @@
-["name" -> "John"; "age" -> 30; "city" -> "New York"]
+["city" -> "New York"; "age" -> 30; "name" -> "John"]
 John
 31

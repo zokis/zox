@@ -94,6 +94,9 @@ FunctionVal *MK_FUNCTION(char **params, size_t param_count, Stmt **body,
 ListVal *MK_LIST(size_t capacity);
 DictVal *MK_DICT(size_t capacity);
 Entry *MK_ENTRY(const char *key, RuntimeVal *value);
+char *dict_key_to_string(RuntimeVal *val);
+Entry *dict_find_entry(DictVal *dict, const char *key);
+RuntimeVal *dict_get_val(DictVal *dict, const char *key);
 
 char *type_to_string(ValueType type);
 

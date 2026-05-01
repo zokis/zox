@@ -11,6 +11,38 @@ void list_append_val(ListVal *list, RuntimeVal *item) {
   list->items[list->size++] = item;
 }
 
+char *dict_key_to_string(RuntimeVal *val) {
+  switch (val->type) {
+    case NIL_T:     return strdup("nil");
+    case BOOLEAN_T: return strdup(((BooleanVal *)val)->value ? "true" : "false");
+    case NUMBER_T: {
+      int needed = snprintf(NULL, 0, "%.17g", ((NumberVal *)val)->value);
+      if (needed < 0) return NULL;
+      char *result = malloc_safe((size_t)needed + 1, "dict_key_to_string");
+      snprintf(result, (size_t)needed + 1, "%.17g", ((NumberVal *)val)->value);
+      return result;
+    }
+    case STRING_T:  return strdup(((StringVal *)val)->value);
+    default:        return NULL;
+  }
+}
+
+Entry *dict_find_entry(DictVal *dict, const char *key) {
+  if (!dict || !key) return NULL;
+  size_t slot = hash(key, dict->capacity);
+  for (Entry *entry = dict->entries[slot]; entry != NULL; entry = entry->next) {
+    if (strcmp(entry->key, key) == 0) return entry;
+  }
+  return NULL;
+}
+
+RuntimeVal *dict_get_val(DictVal *dict, const char *key) {
+  Entry *entry = dict_find_entry(dict, key);
+  if (entry == NULL) return NULL;
+  retain(entry->value);
+  return entry->value;
+}
+
 RuntimeVal *eval_list_literal(ListLiteral *list_lit, Environment *env) {
   ListVal *list = MK_LIST(list_lit->element_count > 0 ? list_lit->element_count : 1);
   for (size_t i = 0; i < list_lit->element_count; i++) {
@@ -65,17 +97,7 @@ void dict_set_val(DictVal *dict, const char *key, RuntimeVal *value) {
 }
 
 char *runtime_value_to_string(RuntimeVal *val) {
-  switch (val->type) {
-  case NIL_T:     return "nil";
-  case BOOLEAN_T: return ((BooleanVal *)val)->value ? "true" : "false";
-  case NUMBER_T: {
-    char *result = malloc_safe(32, "runtime_value_to_string NUMBER_T");
-    sprintf(result, "%f", ((NumberVal *)val)->value);
-    return result;
-  }
-  case STRING_T:  return ((StringVal *)val)->value;
-  default:        return NULL;
-  }
+  return dict_key_to_string(val);
 }
 
 RuntimeVal *eval_dict_literal(DictLiteral *dict_lit, Environment *env) {
@@ -83,7 +105,10 @@ RuntimeVal *eval_dict_literal(DictLiteral *dict_lit, Environment *env) {
   for (size_t i = 0; i < dict_lit->element_count; i++) {
     RuntimeVal *key   = evaluate(&(dict_lit->keys[i]->stmt), env);
     RuntimeVal *value = evaluate(&(dict_lit->values[i]->stmt), env);
-    dict_set_val(dict, runtime_value_to_string(key), value);
+    char *key_str = runtime_value_to_string(key);
+    if (key_str == NULL) error("Dict key must be convertible to a string.\n");
+    dict_set_val(dict, key_str, value);
+    free_safe(key_str);
     release(key);
     release(value);
   }
@@ -173,21 +198,13 @@ RuntimeVal *eval_dict_key(DictKey *dict_key, Environment *env) {
   DictVal *dict = (DictVal *)dict_val;
 
   RuntimeVal *key_val = evaluate(&(dict_key->key->stmt), env);
-  char *key = runtime_value_to_string(key_val);
+  char *key = dict_key_to_string(key_val);
   if (key == NULL) error("Dict key must be convertible to a string.\n");
-
-  size_t slot = hash(key, dict->capacity);
-  RuntimeVal *result = NULL;
-  for (Entry *entry = dict->entries[slot]; entry != NULL; entry = entry->next) {
-    if (strcmp(entry->key, key) == 0) {
-      result = entry->value;
-      retain(result);
-      break;
-    }
-  }
+  RuntimeVal *result = dict_get_val(dict, key);
 
   release(key_val);
   release(dict_val);
+  free_safe(key);
   if (result == NULL) return (RuntimeVal *)MK_NIL();
   return result;
 }

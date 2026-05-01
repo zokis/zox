@@ -1,0 +1,24 @@
+~> assert {assert_eq, assert_true, assert_false, assert_summary};
+
+let counts = ["a" -> 1; "b" -> 2];
+
+assert_true(has_key(counts, "a"));
+assert_false(has_key(counts, "z"));
+assert_eq(get(counts, "a"), 1);
+assert_eq(get(counts, "z"), nil);
+
+let keyed = [];
+keyed{1} = "one";
+keyed{2} = "two";
+assert_true(has_key(keyed, 1));
+assert_eq(get(keyed, 1), "one");
+assert_eq(get(keyed, 3), nil);
+assert_false(has_key(keyed, 3));
+
+let approx = [];
+approx{1.0000001} = "low";
+approx{1.0000002} = "high";
+assert_eq(get(approx, 1.0000001), "low");
+assert_eq(get(approx, 1.0000002), "high");
+
+assert_summary();

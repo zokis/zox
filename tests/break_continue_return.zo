@@ -1,0 +1,73 @@
+-# break em while: para quando j == 5, soma deve ser 5
+let soma = 0;
+let j = 0;
+#(j < 10) {
+    ?(j == 5) {
+        ~!!
+    }
+    soma = soma + 1
+    j = j + 1
+};
+println(soma);
+
+-# continue em while: conta pares de 1..10, deve ser 5
+let pares = 0;
+let k = 0;
+#(k < 10) {
+    k = k + 1
+    ?(k % 2 != 0) {
+        __>
+    }
+    pares = pares + 1
+};
+println(pares);
+
+-# break em for: para quando n == 7, total deve ser 7
+let total = 0;
+@(let n = 0; n < 100; n = n + 1) {
+    ?(n == 7) {
+        ~!!
+    }
+    total = total + 1
+};
+println(total);
+
+-# continue em for: conta impares de 0..9, deve ser 5
+let impares = 0;
+@(let m = 0; m < 10; m = m + 1) {
+    ?(m % 2 == 0) {
+        __>
+    }
+    impares = impares + 1
+};
+println(impares);
+
+-# return simples
+$ dobro(x) {
+    _>> x * 2
+};
+println(dobro(7));
+
+-# return antecipado
+$ primeiro_negativo(lista) {
+    let idx = 0;
+    #(idx < len(lista)) {
+        ?(lista[idx] < 0) {
+            _>> lista[idx]
+        }
+        idx = idx + 1
+    }
+    _>> nil
+};
+println(primeiro_negativo({1, 2, -3, 4}));
+println(primeiro_negativo({1, 2, 3}));
+
+-# return em recursao (fatorial)
+$ fatorial(n) {
+    ?(n <= 1) {
+        _>> 1
+    }
+    _>> n * fatorial(n - 1)
+};
+println(fatorial(5));
+println(fatorial(10));

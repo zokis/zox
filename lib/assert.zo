@@ -1,0 +1,151 @@
+-# assert.zo — assertion module for testing in pure Zox
+
+let _pass_count = 0;
+let _fail_count = 0;
+
+$ assert_true(cond) {
+    ? (cond == true) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_true: value was false")
+    }
+}
+
+$ assert_false(cond) {
+    ? (cond == false) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_false: value was true")
+    }
+}
+
+$ assert_eq(a, b) {
+    ? (a == b) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_eq")
+    }
+}
+
+$ assert_neq(a, b) {
+    ? (a != b) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_neq")
+    }
+}
+
+$ assert_lt(a, b) {
+    ? (a < b) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_lt")
+    }
+}
+
+$ assert_gt(a, b) {
+    ? (a > b) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_gt")
+    }
+}
+
+$ assert_lte(a, b) {
+    ? (a <= b) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_lte")
+    }
+}
+
+$ assert_gte(a, b) {
+    ? (a >= b) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_gte")
+    }
+}
+
+-# assert_in: checks that element is in collection (list or string)
+-# uses find() — returns index >= 0 if found, -1 if not
+$ assert_in(elem, coll) {
+    ? (find(coll, elem) >= 0) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_in: element not found")
+    }
+}
+
+-# assert_not_in: checks that element is NOT in collection
+$ assert_not_in(elem, coll) {
+    ? (find(coll, elem) == -1) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_not_in: element found")
+    }
+}
+
+-# assert_len: checks that collection length is n
+$ assert_len(coll, n) {
+    ? (len(coll) == n) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_len")
+    }
+}
+
+-# assert_contains: checks that string contains substring (or list contains element)
+$ assert_contains(coll, sub) {
+    ? (find(coll, sub) >= 0) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        println("  FAIL assert_contains: not found")
+    }
+}
+
+-# assert_summary: prints the final summary
+$ assert_summary() {
+    print(_pass_count);
+    print(" passed / ");
+    print(_fail_count);
+    println(" failed")
+}
+-# assert_type: checks that value has the expected type string
+$ assert_type(val, expected) {
+    let actual = typeof(val);
+    ? (actual == expected) {
+        _pass_count = _pass_count + 1;
+        println("  PASS")
+    } : {
+        _fail_count = _fail_count + 1;
+        print("  FAIL assert_type: expected ");
+        print(expected);
+        print(" but got ");
+        println(actual)
+    }
+}

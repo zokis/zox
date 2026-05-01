@@ -1,0 +1,119 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Zox",
+  "scopeName": "source.zox",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#constant" },
+    { "include": "#keyword" },
+    { "include": "#builtin" },
+    { "include": "#operator-elementwise" },
+    { "include": "#operator-pipe" },
+    { "include": "#operator-logical" },
+    { "include": "#operator-comparison" },
+    { "include": "#operator-arrow" },
+    { "include": "#operator-shift" },
+    { "include": "#operator-power" },
+    { "include": "#operator-arithmetic" },
+    { "include": "#operator-set" },
+    { "include": "#operator-unary" },
+    { "include": "#operator-assign" },
+    { "include": "#identifier" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.zox",
+      "match": "-#.*$"
+    },
+    "string": {
+      "name": "string.quoted.double.zox",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [{
+        "name": "constant.character.escape.zox",
+        "match": "\\\\[ntrb f\"'\\\\]"
+      }]
+    },
+    "number": {
+      "name": "constant.numeric.zox",
+      "match": "\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?\\b"
+    },
+    "constant": {
+      "name": "constant.language.zox",
+      "match": "\\b(true|false|nil)\\b"
+    },
+    "keyword": {
+      "patterns": [
+        { "name": "keyword.declaration.zox",         "match": "\\blet\\b" },
+        { "name": "keyword.declaration.function.zox","match": "\\$" },
+        { "name": "keyword.control.import.zox",      "match": "~>" },
+        { "name": "keyword.control.conditional.zox", "match": "[?:]" },
+        { "name": "keyword.control.loop.zox",        "match": "[#@]" },
+        { "name": "keyword.control.flow.zox",        "match": "~!!" },
+        { "name": "keyword.control.flow.zox",        "match": "__>" },
+        { "name": "keyword.control.flow.zox",        "match": "_>>" }
+      ]
+    },
+    "builtin": {
+      "name": "support.function.builtin.zox",
+      "match": "\\b(println|print|len|find|keys|values|sum|typeof|copy|random|random_int)\\b"
+    },
+    "operator-elementwise": {
+      "name": "keyword.operator.element-wise.zox",
+      "match": "&(\\+|-|\\*|/|%|\\||\\^|e|<<|>>)"
+    },
+    "operator-pipe": {
+      "name": "keyword.operator.pipe.zox",
+      "match": "\\|>|<\\|"
+    },
+    "operator-logical": {
+      "name": "keyword.operator.logical.zox",
+      "match": "&&|\\|\\|"
+    },
+    "operator-comparison": {
+      "name": "keyword.operator.comparison.zox",
+      "match": "==|!=|<=|>=|<|>"
+    },
+    "operator-arrow": {
+      "name": "punctuation.separator.mapping.zox",
+      "match": "->"
+    },
+    "operator-shift": {
+      "name": "keyword.operator.bitwise.zox",
+      "match": "<<|>>"
+    },
+    "operator-power": {
+      "name": "keyword.operator.arithmetic.zox",
+      "match": "\\*\\*"
+    },
+    "operator-arithmetic": {
+      "name": "keyword.operator.arithmetic.zox",
+      "match": "[+\\-*/%]"
+    },
+    "operator-set": {
+      "name": "keyword.operator.set.zox",
+      "match": "[|&^]"
+    },
+    "operator-unary": {
+      "name": "keyword.operator.logical.zox",
+      "match": "!"
+    },
+    "operator-assign": {
+      "name": "keyword.operator.assignment.zox",
+      "match": "="
+    },
+    "identifier": {
+      "name": "variable.other.zox",
+      "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.section.zox",    "match": "[(){}\\[\\]]" },
+        { "name": "punctuation.separator.zox",  "match": "[,;]" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,51 @@
+-# json_example.zo
+-# Demonstra o uso do modulo externo json.so
+-#
+-# Para rodar (a partir da raiz do projeto):
+-#   make json          # compila lib/json.so (so precisa uma vez)
+-#   ./zox examples/json_example.zo
+
+~> "./lib/json.so" { parse, stringify };
+
+-# ── 1. parse de array ───────────────────────────────────────────────────────
+let numeros = parse("[10, 20, 30, 40, 50]");
+println(numeros[0])          -# 10
+println(numeros[4])          -# 50
+println(len(numeros))        -# 5
+
+-# ── 2. parse de objeto (monta a string com stringify para evitar \" no fonte)
+let user = parse(stringify(["nome" -> "Ana"; "idade" -> 28; "ativo" -> true]));
+println(user{"nome"})        -# Ana
+println(user{"idade"})       -# 28
+println(user{"ativo"})       -# true
+
+-# ── 3. parse aninhado: objeto com array dentro ──────────────────────────────
+let nested = ["times" -> {"backend", "frontend"}; "vagas" -> 3];
+let data   = parse(stringify(nested));
+println(data{"vagas"})            -# 3
+println(data{"times"}[0])         -# backend
+println(data{"times"}[1])         -# frontend
+
+-# ── 4. stringify: converte valor Zox -> string JSON ─────────────────────────
+let pessoa   = ["nome" -> "Carlos"; "idade" -> 35];
+let json_str = stringify(pessoa);
+println(typeof(json_str))    -# string
+
+-# ── 5. stringify de lista ────────────────────────────────────────────────────
+let coords = {-23.5, -46.6, 800.0};
+println(stringify(coords))   -# [-23.5,-46.6,800]
+
+-# ── 6. round-trip: Zox -> JSON -> Zox ───────────────────────────────────────
+let original      = ["x" -> 10; "y" -> 20; "label" -> "origem"];
+let serializado   = stringify(original);
+let deserializado = parse(serializado);
+println(deserializado{"x"})      -# 10
+println(deserializado{"y"})      -# 20
+println(deserializado{"label"})  -# origem
+
+-# ── 7. valores especiais ─────────────────────────────────────────────────────
+let especiais = parse("[true, false, null, 3.14]");
+println(especiais[0])        -# true
+println(especiais[1])        -# false
+println(especiais[2])        -# nil
+println(especiais[3])        -# 3.14

@@ -117,6 +117,15 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
         column = 1;
         src++;
       }
+    } else if (*src == '~' && *(src + 1) == '!' && *(src + 2) == '!') {
+      handle_operator(&src, &line, &column, "~!!", &tokens, &capacity,
+                      tokenCount, 3, BreakTk);
+    } else if (*src == '_' && *(src + 1) == '_' && *(src + 2) == '>') {
+      handle_operator(&src, &line, &column, "__>", &tokens, &capacity,
+                      tokenCount, 3, ContinueTk);
+    } else if (*src == '_' && *(src + 1) == '>' && *(src + 2) == '>') {
+      handle_operator(&src, &line, &column, "_>>", &tokens, &capacity,
+                      tokenCount, 3, ReturnTk);
     } else if (*src == '~' && *(src + 1) == '>') {
       ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'ImportTk'");
       tokens[(*tokenCount)++] = create_token("~>", ImportTk, line, column);
@@ -137,9 +146,9 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
         ensure_capacity(&tokens, &capacity, *tokenCount,
                         "tokenize 'IdentifierImportTk'");
         tokens[(*tokenCount)++] =
-            create_token(strdup(ident), IdentifierImportTk, line, column);
+            create_token(ident, IdentifierImportTk, line, column);
       }
-    } else if (*src == 'a' && *(src + 1) == 's') {
+    } else if (*src == 'a' && *(src + 1) == 's' && !isalnum(*(src + 2)) && *(src + 2) != '_') {
       handle_operator(&src, &line, &column, "as", &tokens, &capacity,
                       tokenCount, 2, AsTk);
     } else if (*src == '.') {
@@ -225,7 +234,7 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
       handle_operator(&src, &line, &column, "<<", &tokens, &capacity,
                       tokenCount, 2, BinaryOperatorTk);
     } else if (*src == '*' && *(src + 1) == '*') {
-      handle_operator(&src, &line, &column, "<<", &tokens, &capacity,
+      handle_operator(&src, &line, &column, "**", &tokens, &capacity,
                       tokenCount, 2, BinaryOperatorTk);
     } else if (*src == '%') {
       handle_operator(&src, &line, &column, "%", &tokens, &capacity, tokenCount,
@@ -271,10 +280,10 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
     } else if (*src == ';') {
       handle_operator(&src, &line, &column, ";", &tokens, &capacity, tokenCount,
                       1, SemiColonTk);
-    } else if (isalpha_custom(*src) || *src == '.') {
+    } else if (isalpha_custom(*src) || *src == '_' || *src == '.') {
       char ident[256] = {0};
       unsigned int i = 0;
-      while (isalpha_custom(*src) || *src == '.' || isdigit(*src)) {
+      while (isalpha_custom(*src) || *src == '_' || *src == '.' || isdigit(*src)) {
         ident[i++] = *src++;
         column++;
       }

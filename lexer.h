@@ -33,7 +33,10 @@ typedef enum {
   AsTk,                // 26
   DotTk,               // 27
   UnaryOperatorTk,     // 28
-  EOFTk                // 29
+  EOFTk,               // 29
+  BreakTk,             // 30  ~!!
+  ContinueTk,          // 31  __>
+  ReturnTk             // 32  _>>
 } TokenType;
 
 typedef struct {

@@ -1,0 +1,105 @@
+~> assert {assert_eq, assert_true, assert_false, assert_len, assert_in,
+           assert_not_in, assert_summary};
+
+-# listas de listas
+let matrix = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+assert_eq(matrix[0][1], 2);
+assert_eq(matrix[1][2], 6);
+assert_eq(matrix[2][0], 7);
+assert_len(matrix, 3);
+assert_len(matrix[0], 3);
+
+-# modificar elemento em lista aninhada via referencia
+let row = matrix[1];
+row[1] = 99;
+assert_eq(matrix[1][1], 99);
+
+-# listas de dicts
+let pessoas = {
+    ["nome" -> "Alice"; "idade" -> 30],
+    ["nome" -> "Bob";   "idade" -> 25],
+    ["nome" -> "Carol"; "idade" -> 35]
+};
+assert_eq(pessoas[0]{"nome"}, "Alice");
+assert_eq(pessoas[1]{"idade"}, 25);
+assert_eq(pessoas[2]{"nome"}, "Carol");
+assert_len(pessoas, 3);
+
+-# dicts com listas como valores
+let d = ["pares" -> {2, 4, 6}; "impares" -> {1, 3, 5}];
+assert_eq(d{"pares"}[0], 2);
+assert_eq(d{"impares"}[2], 5);
+assert_len(d{"pares"}, 3);
+
+-# modificar lista dentro de dict via referencia
+let pares = d{"pares"};
+pares[0] = 100;
+assert_eq(d{"pares"}[0], 100);
+
+-# lista vazia e append
+let vazia = {};
+assert_len(vazia, 0);
+vazia << 42;
+assert_len(vazia, 1);
+assert_eq(vazia[0], 42);
+
+-# slices
+let a = {10, 20, 30, 40, 50};
+assert_eq(a[1:3], {20, 30});
+assert_eq(a[:2],  {10, 20});
+assert_eq(a[3:],  {40, 50});
+
+-# indice negativo
+assert_eq(a[-1], 50);
+assert_eq(a[-2], 40);
+
+-# slice start >= end retorna lista vazia
+let s = a[3:1];
+assert_len(s, 0);
+
+-# lista de strings
+let palavras = {"zox", "e", "legal"};
+assert_eq(palavras[0], "zox");
+assert_in("legal", palavras);
+assert_not_in("python", palavras);
+
+-# operacoes de conjunto
+let x = {1, 2, 2, 3};
+let y = {2, 3, 3, 4};
+assert_eq(x & y, {2, 3});
+assert_eq(x - y, {1});  -# set difference: elementos de x que nao estao em y (sem duplicatas)
+
+-# produto cartesiano
+let ab = {"a", "b"};
+let nums = {1, 2};
+let prod = ab * nums;
+assert_len(prod, 4);
+assert_eq(prod[0], {"a", 1});
+assert_eq(prod[3], {"b", 2});
+
+-# dict vazio com insercao
+let ed = [];
+ed{"chave"} = "valor";
+assert_eq(ed{"chave"}, "valor");
+assert_len(ed, 1);
+
+-# merge de dicts (direita sobrescreve)
+let d1 = ["a" -> 1; "b" -> 2];
+let d2 = ["b" -> 99; "c" -> 3];
+let merged = d1 + d2;
+assert_eq(merged{"a"}, 1);
+assert_eq(merged{"b"}, 99);
+assert_eq(merged{"c"}, 3);
+
+-# lista aninhada profunda
+let deep = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
+assert_eq(deep[0][0][0], 1);
+assert_eq(deep[1][1][1], 8);
+
+-# element-wise
+let nums2 = {1, 2, 3, 4};
+assert_eq(nums2 &+ 10, {11, 12, 13, 14});
+assert_eq(nums2 &* 2,  {2, 4, 6, 8});
+assert_eq(nums2 &- 1,  {0, 1, 2, 3});
+
+assert_summary();

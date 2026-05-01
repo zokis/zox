@@ -36,7 +36,6 @@ Expr *parse_list_literal(Parser *parser);
 Expr *parse_bitwise_expr(Parser *parser);
 Expr *parse_dict_literal(Parser *parser);
 Expr *parse_identifier_expr(Parser *parser);
-Expr *parse_table_literal(Parser *parser);
 Expr *parse_index_expr(Parser *parser);
 Expr *parse_assign_dict_expr(Parser *parser);
 Expr *parse_assign_var_expr(Parser *parser);

@@ -1,0 +1,33 @@
+~> string {upper, lower, trim, startsWith, endsWith, replace, split, join, toNumber, toString};
+~> string {upper as u};
+
+println(upper("hello"));
+println(lower("WORLD"));
+println(trim("  hi  "));
+println(trim("no spaces"));
+
+println(startsWith("zox lang", "zox"));
+println(startsWith("zox lang", "lua"));
+println(endsWith("file.zo", ".zo"));
+println(endsWith("file.zo", ".py"));
+
+println(replace("foo bar foo", "foo", "baz"));
+println(replace("aaa", "a", "bc"));
+println(replace("hello", "x", "y"));
+
+let parts = split("a,b,c", ",");
+println(len(parts));
+println(parts[0]);
+println(parts[2]);
+
+println(join(parts, "-"));
+println(join(split("one two three", " "), "|"));
+
+println(toNumber("42"));
+println(toNumber("3.14"));
+println(toNumber("abc"));
+
+println(toString(100));
+println(toString(true));
+println(toString(false));
+println(toString(nil));

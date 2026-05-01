@@ -14,175 +14,146 @@
 #include "values.h"
 
 RuntimeVal *builtin_sum(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1 || args[0]->type != LIST_T) {
+  if (arg_count != 1 || args[0]->type != LIST_T)
     error("The 'sum' function expects exactly one list argument.");
-  }
-
   ListVal *list = (ListVal *)args[0];
   double total = 0.0;
-
   for (size_t i = 0; i < list->size; i++) {
-    RuntimeVal *item = list->items[i];
-    if (item->type != NUMBER_T) {
-      error("All elements of the list must be numbers.");
-    }
-    total += ((NumberVal *)item)->value;
+    if (list->items[i]->type != NUMBER_T) error("All elements of the list must be numbers.");
+    total += ((NumberVal *)list->items[i])->value;
   }
-
   return (RuntimeVal *)MK_NUMBER(total);
 }
 
-RuntimeVal *builtin_find(Environment *env, RuntimeVal **args,
-                         size_t arg_count) {
-  if (arg_count != 2) {
-    error("Function 'find' expects exactly two arguments.");
-  }
-  if (args[0]->type != STRING_T && args[0]->type != LIST_T && args[0]->type != DICT_T) {
+RuntimeVal *builtin_find(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 2) error("Function 'find' expects exactly two arguments.");
+  if (args[0]->type != STRING_T && args[0]->type != LIST_T && args[0]->type != DICT_T)
     error("The first argument for 'find' must be a string, list or dictionary.");
-  }
-  if (args[1]->type != STRING_T && args[1]->type != NUMBER_T &&
-      args[1]->type != BOOLEAN_T) {
-    error(
-        "The second argument for 'find' must be a string, number or boolean.");
-  }
+  if (args[1]->type != STRING_T && args[1]->type != NUMBER_T && args[1]->type != BOOLEAN_T)
+    error("The second argument for 'find' must be a string, number or boolean.");
   if (args[0]->type == STRING_T) {
-    StringVal *str = (StringVal *)args[0];
-    StringVal *value = (StringVal *)args[1];
-    char *str_value = str->value;
-    char *value_value = value->value;
-    char *pos = strstr(str_value, value_value);
-    if (pos != NULL) {
-      return (RuntimeVal *)MK_NUMBER((double)(pos - str_value));
-    }
+    char *pos = strstr(((StringVal *)args[0])->value, ((StringVal *)args[1])->value);
+    if (pos != NULL)
+      return (RuntimeVal *)MK_NUMBER((double)(pos - ((StringVal *)args[0])->value));
   }
   if (args[0]->type == LIST_T || args[0]->type == DICT_T) {
-    ListVal *obj;
-    if (args[0]->type == LIST_T) {
-      obj = (ListVal *)args[0];
-    } else {
-      obj = (ListVal *)dict_to_keys((DictVal *)args[0]);
-    }
-    RuntimeVal *value = args[1];
+    ListVal *obj = (args[0]->type == LIST_T) ? (ListVal *)args[0]
+                                              : (ListVal *)dict_to_keys((DictVal *)args[0]);
     for (size_t i = 0; i < obj->size; i++) {
-      if (compare_runtimeval(obj->items[i], value)) {
+      if (compare_runtimeval(obj->items[i], args[1]))
         return (RuntimeVal *)MK_NUMBER((double)i);
-      }
     }
   }
   return (RuntimeVal *)MK_NUMBER((double)-1);
 }
 
-RuntimeVal *builtin_keys(Environment *env, RuntimeVal **args,
-                         size_t arg_count) {
-  if (arg_count != 1) {
-    error("Function 'keys' expects exactly one argument.");
-  }
-  if (args[0]->type != DICT_T) {
-    error("Argument to 'keys' must be a dictionary.");
-  }
-  ListVal *keys_list = dict_to_keys((DictVal *)args[0]);
-  return (RuntimeVal *)keys_list;
+RuntimeVal *builtin_keys(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 1) error("Function 'keys' expects exactly one argument.");
+  if (args[0]->type != DICT_T) error("Argument to 'keys' must be a dictionary.");
+  return (RuntimeVal *)dict_to_keys((DictVal *)args[0]);
 }
 
-RuntimeVal *builtin_values(Environment *env, RuntimeVal **args,
-                           size_t arg_count) {
-  if (arg_count != 1) {
-    error("The 'values' function expects exactly one argument.");
-  }
-  if (args[0]->type != DICT_T) {
-    error("The argument for 'values' must be a dictionary.");
-  }
-
+RuntimeVal *builtin_values(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 1) error("The 'values' function expects exactly one argument.");
+  if (args[0]->type != DICT_T) error("The argument for 'values' must be a dictionary.");
   DictVal *dict = (DictVal *)args[0];
   ListVal *values_list = MK_LIST(dict->size);
-
   for (size_t i = 0; i < dict->capacity; i++) {
-    Entry *entry = dict->entries[i];
-    while (entry != NULL) {
-      values_list->items[values_list->size++] = entry->value;
-      entry = entry->next;
-    }
+    for (Entry *e = dict->entries[i]; e != NULL; e = e->next)
+      values_list->items[values_list->size++] = e->value;
   }
-
   return (RuntimeVal *)values_list;
 }
 
 RuntimeVal *builtin_len(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1) {
-    error("Function 'len' expects exactly one argument.");
+  if (arg_count != 1) error("Function 'len' expects exactly one argument.");
+  if (args[0]->type == LIST_T)
+    return (RuntimeVal *)MK_NUMBER((double)((ListVal *)args[0])->size);
+  if (args[0]->type == STRING_T)
+    return (RuntimeVal *)MK_NUMBER((double)strlen(((StringVal *)args[0])->value));
+  if (args[0]->type == DICT_T)
+    return (RuntimeVal *)MK_NUMBER((double)((DictVal *)args[0])->size);
+  error("Argument to 'len' must be a list, string or dictionary.");
+  return NULL;
+}
+
+RuntimeVal *builtin_typeof(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 1) error("Function 'typeof' expects exactly one argument.");
+  return (RuntimeVal *)MK_STRING(type_to_string(args[0]->type));
+}
+
+/* deep_copy - copia recursiva de qualquer RuntimeVal.
+   Tipos imutaveis (number, string, bool, nil, function) retornam o proprio
+   valor com retain (sem custo de copia real).
+   Tipos mutaveis (list, dict) criam novos objetos com copias dos filhos. */
+static RuntimeVal *deep_copy(RuntimeVal *val) {
+  switch (val->type) {
+  case NUMBER_T:
+  case STRING_T:
+  case BOOLEAN_T:
+  case NIL_T:
+  case FUNCTION_T:
+    retain(val);
+    return val;
+  case LIST_T: {
+    ListVal *src  = (ListVal *)val;
+    ListVal *dst  = MK_LIST(src->capacity > 0 ? src->capacity : 1);
+    for (size_t i = 0; i < src->size; i++) {
+      RuntimeVal *item = deep_copy(src->items[i]);
+      list_append_val(dst, item);
+      release(item);
+    }
+    return (RuntimeVal *)dst;
   }
-  if (args[0]->type == LIST_T) {
-    ListVal *list = (ListVal *)args[0];
-    return (RuntimeVal *)MK_NUMBER((double)list->size);
-  } else if (args[0]->type == STRING_T) {
-    StringVal *str = (StringVal *)args[0];
-    return (RuntimeVal *)MK_NUMBER((double)strlen(str->value));
-  } else if (args[0]->type == DICT_T) {
-    DictVal *dict = (DictVal *)args[0];
-    return (RuntimeVal *)MK_NUMBER((double)dict->size);
-  } else if (args[0]->type == TABLE_T) {
-    TableVal *table = (TableVal *)args[0];
-    return (RuntimeVal *)MK_NUMBER((double)table->row_count);
-  } else {
-    error("Argument to 'len' must be a table, list, string or dictionary.");
+  case DICT_T: {
+    DictVal *src = (DictVal *)val;
+    DictVal *dst = MK_DICT(src->capacity > 0 ? src->capacity : 1);
+    for (size_t i = 0; i < src->capacity; i++) {
+      for (Entry *e = src->entries[i]; e != NULL; e = e->next) {
+        RuntimeVal *v = deep_copy(e->value);
+        dict_set_val(dst, e->key, v);
+        release(v);
+      }
+    }
+    return (RuntimeVal *)dst;
+  }
+  default:
+    retain(val);
+    return val;
   }
 }
 
-void _builtin_print_value(Environment *env, RuntimeVal **args, size_t arg_count,
-                          bool as_string) {
-  if (arg_count != 1) {
-    error("Function 'print' expects exactly one argument.");
-  }
-  RuntimeVal *val = args[0];
+RuntimeVal *builtin_copy(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 1) error("Function 'copy' expects exactly one argument.");
+  return deep_copy(args[0]);
+}
 
+void _builtin_print_value(Environment *env, RuntimeVal **args, size_t arg_count, bool as_string) {
+  if (arg_count != 1) error("Function 'print' expects exactly one argument.");
+  RuntimeVal *val = args[0];
   switch (val->type) {
   case NIL_T:
     printf("nil");
     break;
-  case BOOLEAN_T: {
-    BooleanVal *bool_val = (BooleanVal *)val;
-    printf("%s", bool_val->value ? "true" : "false");
+  case BOOLEAN_T:
+    printf("%s", ((BooleanVal *)val)->value ? "true" : "false");
     break;
-  }
-  case NUMBER_T: {
-    NumberVal *num_val = (NumberVal *)val;
-    printf("%f", num_val->value);
+  case NUMBER_T:
+    printf("%g", ((NumberVal *)val)->value);
     break;
-  }
-  case STRING_T: {
-    StringVal *str_val = (StringVal *)val;
-    if (as_string) {
-      printf("\"%s\"", str_val->value);
-    } else {
-      printf("%s", str_val->value);
-    }
+  case STRING_T:
+    if (as_string) printf("\"%s\"", ((StringVal *)val)->value);
+    else           printf("%s",    ((StringVal *)val)->value);
     break;
-  }
   case LIST_T: {
     ListVal *list_val = (ListVal *)val;
     printf("{");
     for (size_t i = 0; i < list_val->size; i++) {
-      if (i > 0) {
-        printf(", ");
-      }
-      RuntimeVal *item = list_val->items[i];
-      RuntimeVal *item_args[] = {item};
+      if (i > 0) printf(", ");
+      RuntimeVal *item_args[] = {list_val->items[i]};
       _builtin_print_value(env, item_args, 1, 1);
     }
     printf("}");
-    break;
-  }
-  case TABLE_T: {
-    TableVal *table_val = (TableVal *)val;
-    printf("|>");
-    for (size_t i = 0; i < table_val->column_count; i++) {
-      if (i > 0) {
-        printf(";");
-      }
-      printf("%s", table_val->columns[i]);
-    }
-    printf("<|");
-    printf("{%zu}", table_val->row_count);
     break;
   }
   case DICT_T: {
@@ -190,123 +161,87 @@ void _builtin_print_value(Environment *env, RuntimeVal **args, size_t arg_count,
     printf("[");
     short int first = 1;
     for (size_t i = 0; i < dict_val->capacity; i++) {
-      Entry *entry = dict_val->entries[i];
-      while (entry != NULL) {
-        if (!first) {
-          printf("; ");
-        }
-        printf("\"%s\" -> ", entry->key);
-        RuntimeVal *entry_args[] = {entry->value};
+      for (Entry *e = dict_val->entries[i]; e != NULL; e = e->next) {
+        if (!first) printf("; ");
+        printf("\"%s\" -> ", e->key);
+        RuntimeVal *entry_args[] = {e->value};
         _builtin_print_value(env, entry_args, 1, 1);
-        entry = entry->next;
         first = 0;
       }
     }
     printf("]");
     break;
   }
-  case FUNCTION_T: {
-    FunctionVal *func_val = (FunctionVal *)val;
+  case FUNCTION_T:
     printf("<function>");
     break;
-  }
   default:
     printf("Unknown value type\n");
   }
 }
 
-RuntimeVal *builtin_println_value(Environment *env, RuntimeVal **args,
-                                  size_t arg_count) {
+RuntimeVal *builtin_println_value(Environment *env, RuntimeVal **args, size_t arg_count) {
   _builtin_print_value(env, args, 1, 0);
   printf("\n");
   return (RuntimeVal *)MK_NIL();
 }
 
-RuntimeVal *builtin_random(Environment *env, RuntimeVal **args,
-                           size_t arg_count) {
+RuntimeVal *builtin_random(Environment *env, RuntimeVal **args, size_t arg_count) {
   static int initialized = 0;
-  if (!initialized) {
-    srand(time(NULL));
-    initialized = 1;
-  }
-  double random_value = (double)rand() / RAND_MAX;
-  return (RuntimeVal *)MK_NUMBER(random_value);
+  if (!initialized) { srand(time(NULL)); initialized = 1; }
+  return (RuntimeVal *)MK_NUMBER((double)rand() / RAND_MAX);
 }
 
-RuntimeVal *builtin_random_int(Environment *env, RuntimeVal **args,
-                               size_t arg_count) {
+RuntimeVal *builtin_random_int(Environment *env, RuntimeVal **args, size_t arg_count) {
   if (arg_count != 2) {
-    fprintf(stderr, "Error: random_int expects 2 arguments, but received %zu\n",
-            arg_count);
+    fprintf(stderr, "Error: random_int expects 2 arguments, but received %zu\n", arg_count);
     return (RuntimeVal *)MK_NIL();
   }
-
-  RuntimeVal *min_val = args[0];
-  RuntimeVal *max_val = args[1];
-
-  if (min_val->type != NUMBER_T || max_val->type != NUMBER_T) {
+  if (args[0]->type != NUMBER_T || args[1]->type != NUMBER_T) {
     fprintf(stderr, "Error: random_int expects two numbers as arguments\n");
     return (RuntimeVal *)MK_NIL();
   }
-
-  int min = (int)((NumberVal *)min_val)->value;
-  int max = (int)((NumberVal *)max_val)->value;
-
+  int min = (int)((NumberVal *)args[0])->value;
+  int max = (int)((NumberVal *)args[1])->value;
   if (min > max) {
-    fprintf(
-        stderr,
-        "Error: the first argument must be less than or equal to the second\n");
+    fprintf(stderr, "Error: the first argument must be less than or equal to the second\n");
     return (RuntimeVal *)MK_NIL();
   }
-
   static int initialized = 0;
-  if (!initialized) {
-    srand(time(NULL));
-    initialized = 1;
-  }
-
-  int random_int = min + rand() % (max - min + 1);
-  return (RuntimeVal *)MK_NUMBER((double)random_int);
+  if (!initialized) { srand(time(NULL)); initialized = 1; }
+  return (RuntimeVal *)MK_NUMBER((double)(min + rand() % (max - min + 1)));
 }
 
-RuntimeVal *builtin_print_value(Environment *env, RuntimeVal **args,
-                                size_t arg_count) {
+RuntimeVal *builtin_print_value(Environment *env, RuntimeVal **args, size_t arg_count) {
   _builtin_print_value(env, args, 1, 0);
   return (RuntimeVal *)MK_NIL();
 }
 
 void register_builtins(Environment *env) {
-  char *no_params[] = {};
+  char *no_params[]    = {};
   char *single_param[] = {"value"};
   char *double_param[] = {"param1", "param2"};
 
-  declare_var(
-      env, "keys",
-      (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, env, builtin_keys));
-  declare_var(
-      env, "len",
-      (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, env, builtin_len));
-  declare_var(env, "print",
-              (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, env,
-                                        builtin_print_value));
-  declare_var(env, "println",
-              (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, env,
-                                        builtin_println_value));
-  declare_var(
-      env, "values",
-      (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, env, builtin_values));
-  declare_var(
-      env, "sum",
-      (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, env, builtin_sum));
-
-  declare_var(env, "random_int",
-              (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, env,
-                                        builtin_random_int));
-  declare_var(
-      env, "find",
-      (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, env, builtin_find));
-
-  declare_var(
-      env, "random",
-      (RuntimeVal *)MK_FUNCTION(no_params, 0, NULL, 0, env, builtin_random));
+  declare_owned(env, "keys",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_keys));
+  declare_owned(env, "len",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_len));
+  declare_owned(env, "print",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_print_value));
+  declare_owned(env, "println",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_println_value));
+  declare_owned(env, "values",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_values));
+  declare_owned(env, "sum",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_sum));
+  declare_owned(env, "random_int",
+    (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_random_int));
+  declare_owned(env, "find",
+    (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_find));
+  declare_owned(env, "random",
+    (RuntimeVal *)MK_FUNCTION(no_params, 0, NULL, 0, NULL, builtin_random));
+  declare_owned(env, "typeof",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_typeof));
+  declare_owned(env, "copy",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_copy));
 }

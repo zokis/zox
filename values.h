@@ -14,12 +14,13 @@ typedef enum {
   STRING_T,
   LIST_T,
   DICT_T,
-  TABLE_T,
+  /* TABLE_T — reservado para reintroducao futura (ver TODO.md) */
   FUNCTION_T
 } ValueType;
 
 typedef struct {
   ValueType type;
+  int ref_count;
 } RuntimeVal;
 
 typedef struct {
@@ -72,14 +73,7 @@ typedef struct {
   size_t capacity;
 } DictVal;
 
-typedef struct {
-  RuntimeVal base;
-  char **columns;
-  size_t column_count;
-  DictVal **rows;
-  size_t row_count;
-  size_t capacity;
-} TableVal;
+/* TableVal — removido temporariamente (ver TODO.md) */
 
 typedef RuntimeVal *(*NativeFn)(Environment *env, RuntimeVal **args,
                                 int arg_count);
@@ -100,9 +94,12 @@ FunctionVal *MK_FUNCTION(char **params, size_t param_count, Stmt **body,
 ListVal *MK_LIST(size_t capacity);
 DictVal *MK_DICT(size_t capacity);
 Entry *MK_ENTRY(const char *key, RuntimeVal *value);
-TableVal *MK_TABLE(char **columns, size_t column_count);
 
 char *type_to_string(ValueType type);
+
+/* Reference counting */
+void retain(RuntimeVal *val);
+void release(RuntimeVal *val);
 
 void free_null(NilVal *val);
 void free_boolean(BooleanVal *val);

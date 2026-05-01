@@ -30,8 +30,13 @@ typedef enum {
   DictKeyAst,         // 18
   AssignListVarAst,   // 19
   AssignDictVarAst,   // 20
-  TableLiteralAst,    // 21
-  ImportAst           // 22
+  /* TableLiteralAst reservado para reintroducao futura */
+  ImportAst,          // 22
+  AssignListExprAst,  // 26 atribuicao em lista via expressao: expr[i] = v
+  AssignDictExprAst,  // 27 atribuicao em dict via expressao: expr{k} = v
+  BreakAst,           // 23
+  ContinueAst,        // 24
+  ReturnAst           // 25
 } NodeType;
 
 typedef struct Stmt {
@@ -173,12 +178,6 @@ typedef struct {
 } DictKey;
 
 typedef struct {
-  Expr base;
-  char **columns;
-  size_t column_count;
-} TableLiteral;
-
-typedef struct {
   char *name;
   char *alias;
 } ImportItem;
@@ -190,6 +189,14 @@ typedef struct {
   size_t import_count;
 } ImportStmt;
 
+typedef struct { Stmt base; } BreakStmt;
+typedef struct { Stmt base; } ContinueStmt;
+
+typedef struct {
+  Stmt base;
+  Expr *value;
+} ReturnStmt;
+
 typedef struct {
   Expr base;
   Expr *list;
@@ -198,6 +205,22 @@ typedef struct {
   Expr *end;
   int is_slice;
 } ListIndex;
+
+/* Atribuicao em lista via expressao composta: expr[i] = value */
+typedef struct {
+  Expr base;
+  Expr *target;
+  Expr *index;
+  Expr *value;
+} AssignListExpr;
+
+/* Atribuicao em dict via expressao composta: expr{k} = value */
+typedef struct {
+  Expr base;
+  Expr *target;
+  Expr *key;
+  Expr *value;
+} AssignDictExpr;
 
 Program *create_program(Stmt **body, size_t body_count);
 BinaryExpr *create_binary_expr(Expr *left, Expr *right, const char *operator);
@@ -225,10 +248,21 @@ ListIndex *create_list_index(Expr *list, Expr *start, Expr *end,
 DictLiteral *create_dict_literal(Expr **keys, Expr **values,
                                  size_t element_count);
 DictKey *create_dict_key(Expr *dict, Expr *key);
-TableLiteral *create_table_literal(char **columns, size_t column_count);
+AssignListExpr *assign_list_expr_node(Expr *target, Expr *index, Expr *value);
+AssignDictExpr *assign_dict_expr_node(Expr *target, Expr *key, Expr *value);
+
+BreakStmt *create_break();
+ContinueStmt *create_continue();
+ReturnStmt *create_return(Expr *value);
 
 void free_expr(Expr *expr);
 void free_stmt(Stmt *stmt);
 void free_program(Program *program);
 
 #endif  // AST_H
+
+/* ast_serial.c */
+#include <stdint.h>
+#include <stdio.h>
+void     ast_serialize(Program *program, FILE *f, uint64_t source_mtime);
+Program *ast_deserialize(FILE *f, uint64_t source_mtime);

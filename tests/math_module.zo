@@ -1,0 +1,9 @@
+~> math {abs, sqrt, floor, ceil, round, sin, cos, pow, min, max};
+println(abs(-16));
+println(sqrt(16));
+println(floor(3.9));
+println(ceil(3.1));
+println(round(3.5));
+println(min(10, 20));
+println(max(10, 20));
+println(pow(2, 10));

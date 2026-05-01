@@ -1,0 +1,64 @@
+~> "./lib/functional.so"  { map, filter, reduce, any, all, take, drop, zip_with, pipe };
+~> "./lib/collections.so" { range };
+~> "./lib/assert.zo" { assert_eq, assert_len, assert_true, assert_false, assert_summary };
+
+$ dobra(x)    { x * 2 }
+$ quadrado(x) { x * x }
+$ eh_par(x)   { x % 2 == 0 }
+$ soma(a, b)  { a + b }
+$ maior(a, b) { ?(a > b) { a } : { b } }
+
+let nums = range(1, 6, 1);   -# {1,2,3,4,5}
+
+-# map com funcao Zox
+let dobrados = map(nums, dobra);
+assert_len(dobrados, 5)
+assert_eq(dobrados[0], 2)
+assert_eq(dobrados[4], 10)
+
+let quadrados = map(nums, quadrado);
+assert_eq(quadrados[0], 1)
+assert_eq(quadrados[4], 25)
+
+-# filter com funcao Zox
+let pares = filter(nums, eh_par);
+assert_len(pares, 2)
+assert_eq(pares[0], 2)
+assert_eq(pares[1], 4)
+
+-# reduce com funcao Zox
+assert_eq(reduce(nums, soma, 0), 15)
+assert_eq(reduce(nums, maior, 0), 5)
+
+-# any / all
+assert_true(any(nums, eh_par))
+assert_false(all(nums, eh_par))
+assert_false(any({1, 3, 5}, eh_par))
+assert_true(all({2, 4, 6}, eh_par))
+
+-# take / drop
+let t = take(nums, 3);
+assert_len(t, 3)
+assert_eq(t[0], 1)
+assert_eq(t[2], 3)
+
+let d = drop(nums, 3);
+assert_len(d, 2)
+assert_eq(d[0], 4)
+assert_eq(d[1], 5)
+
+-# zip_with com funcao Zox
+let zw = zip_with({1, 2, 3}, {10, 20, 30}, soma);
+assert_len(zw, 3)
+assert_eq(zw[0], 11)
+assert_eq(zw[2], 33)
+
+-# pipe com funcoes Zox
+assert_eq(pipe(3, {dobra, quadrado}), 36)
+assert_eq(pipe(2, {dobra, dobra, dobra}), 16)
+
+-# pipeline: range -> map -> filter -> reduce
+let resultado = reduce(filter(map(range(1, 11, 1), quadrado), eh_par), soma, 0);
+assert_eq(resultado, 220)
+
+assert_summary()

@@ -1,0 +1,26 @@
+-# let dentro de while nao redeclara na segunda iteracao
+let i = 0;
+#(i < 4) {
+    let x = i * 2;
+    println(x);
+    i = i + 1
+};
+
+-# let dentro de for (ja funcionava — garantir que continua)
+@(let j = 0; j < 3; j = j + 1) {
+    let y = j * 3;
+    println(y)
+};
+
+-# closures capturando let do while — cada iteracao tem o proprio escopo
+let funcs = {};
+let k = 0;
+#(k < 3) {
+    let n = k;
+    $ f() { n }
+    funcs << f;
+    k = k + 1
+};
+println(funcs[0]());
+println(funcs[1]());
+println(funcs[2]());

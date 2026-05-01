@@ -1,0 +1,17 @@
+let s = "hello";
+let l = {1, 2, 3, 4, 5};
+let d = ["a" -> 1; "b" -> 2; "c" -> 3];
+
+println(len(s));
+println(len(l));
+println(len(d));
+println(sum(l));
+println(find(l, 3));
+println(find(s, "ll"));
+println(typeof(s));
+println(typeof(l));
+println(typeof(d));
+println(typeof(l[0]));
+println(typeof(typeof));
+println(typeof(l[0] == d{"a"}));
+println(typeof(nil));

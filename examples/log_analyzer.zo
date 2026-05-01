@@ -1,0 +1,147 @@
+-# log_analyzer.zo — analisador de logs HTTP
+-#
+-# Demonstra o uso combinado de:
+-#   collections.so  (group_by, unique, count, range)
+-#   functional.so   (map, filter, reduce, pipe)
+-#   json.so         (stringify para exportar o relatorio)
+-#
+-# Uso:
+-#   make full
+-#   ./zox examples/log_analyzer.zo
+
+~> "./lib/collections.so" { group_by, unique, count, range };
+~> "./lib/functional.so"  { map, filter, reduce, pipe };
+~> "./lib/json.so"        { stringify };
+
+-# ── dataset: entradas de log simuladas ─────────────────────────────────────
+-# cada entrada e um dict com: method, path, status, ms (tempo de resposta)
+
+let logs = {
+    ["method" -> "GET";  "path" -> "/api/users";    "status" -> 200; "ms" -> 45],
+    ["method" -> "GET";  "path" -> "/api/users";    "status" -> 200; "ms" -> 52],
+    ["method" -> "POST"; "path" -> "/api/users";    "status" -> 201; "ms" -> 120],
+    ["method" -> "GET";  "path" -> "/api/products"; "status" -> 200; "ms" -> 30],
+    ["method" -> "GET";  "path" -> "/api/products"; "status" -> 200; "ms" -> 28],
+    ["method" -> "GET";  "path" -> "/api/products"; "status" -> 200; "ms" -> 35],
+    ["method" -> "PUT";  "path" -> "/api/users/1";  "status" -> 200; "ms" -> 88],
+    ["method" -> "GET";  "path" -> "/api/orders";   "status" -> 404; "ms" -> 12],
+    ["method" -> "POST"; "path" -> "/api/orders";   "status" -> 500; "ms" -> 340],
+    ["method" -> "GET";  "path" -> "/api/users";    "status" -> 200; "ms" -> 41],
+    ["method" -> "GET";  "path" -> "/api/products"; "status" -> 200; "ms" -> 55],
+    ["method" -> "DELETE"; "path" -> "/api/users/2"; "status" -> 204; "ms" -> 60],
+    ["method" -> "GET";  "path" -> "/api/orders";   "status" -> 500; "ms" -> 512],
+    ["method" -> "POST"; "path" -> "/api/auth";     "status" -> 401; "ms" -> 15],
+    ["method" -> "POST"; "path" -> "/api/auth";     "status" -> 200; "ms" -> 95],
+    ["method" -> "GET";  "path" -> "/api/users";    "status" -> 200; "ms" -> 48],
+    ["method" -> "GET";  "path" -> "/api/products"; "status" -> 200; "ms" -> 33],
+    ["method" -> "PUT";  "path" -> "/api/orders/5"; "status" -> 404; "ms" -> 10],
+    ["method" -> "GET";  "path" -> "/api/orders";   "status" -> 200; "ms" -> 67],
+    ["method" -> "POST"; "path" -> "/api/users";    "status" -> 422; "ms" -> 25]
+};
+
+println("=== HTTP Log Analyzer ===")
+println("")
+
+-# ── 1. total de requisicoes ─────────────────────────────────────────────────
+let total = len(logs);
+print("Total de requisicoes: ")
+println(total)
+
+-# ── 2. requisicoes com erro (status >= 400) ─────────────────────────────────
+$ eh_erro(entry) { entry{"status"} >= 400 }
+$ eh_sucesso(entry) { entry{"status"} < 400 }
+
+let erros   = filter(logs, eh_erro);
+let sucessos = filter(logs, eh_sucesso);
+
+print("Sucessos (2xx/3xx): ")
+println(len(sucessos))
+print("Erros    (4xx/5xx): ")
+println(len(erros))
+
+-# ── 3. tempo medio de resposta ───────────────────────────────────────────────
+$ get_ms(entry) { entry{"ms"} }
+$ add(a, b)     { a + b }
+
+let tempos     = map(logs, get_ms);
+let tempo_total = reduce(tempos, add, 0);
+let tempo_medio = tempo_total / total;
+
+print("Tempo medio (ms):   ")
+println(tempo_medio)
+
+-# ── 4. tempo medio so dos erros ──────────────────────────────────────────────
+let tempos_erro  = map(erros, get_ms);
+let total_erro_ms = reduce(tempos_erro, add, 0);
+let medio_erro_ms = ?(len(erros) > 0) { total_erro_ms / len(erros) } : { 0 };
+
+print("Tempo medio erros:  ")
+println(medio_erro_ms)
+
+println("")
+println("=== Requisicoes por endpoint ===")
+
+-# ── 5. contagem por path ─────────────────────────────────────────────────────
+$ get_path(entry) { entry{"path"} }
+
+let paths        = map(logs, get_path);
+let paths_unicos = unique(paths);
+
+let i = 0;
+@(i = 0; i < len(paths_unicos); i = i + 1) {
+    let p = paths_unicos[i];
+    let n = count(paths, p);
+    print("  ")
+    print(p)
+    print(": ")
+    println(n)
+}
+
+println("")
+println("=== Distribuicao de status codes ===")
+
+-# ── 6. distribuicao de status codes ─────────────────────────────────────────
+$ get_status_str(entry) {
+    let s = entry{"status"};
+    ?(s < 300) { "2xx" } : { ?(s < 400) { "3xx" } : { ?(s < 500) { "4xx" } : { "5xx" } } }
+}
+
+let classes       = map(logs, get_status_str);
+let classes_unicas = {"2xx", "3xx", "4xx", "5xx"};
+
+let j = 0;
+@(j = 0; j < len(classes_unicas); j = j + 1) {
+    let cls = classes_unicas[j];
+    let n   = count(classes, cls);
+    print("  ")
+    print(cls)
+    print(": ")
+    println(n)
+}
+
+println("")
+println("=== Endpoints com erro ===")
+
+-# ── 7. paths que tiveram erro ────────────────────────────────────────────────
+$ get_path_erro(entry) { entry{"path"} }
+
+let paths_com_erro = unique(map(erros, get_path_erro));
+let k = 0;
+@(k = 0; k < len(paths_com_erro); k = k + 1) {
+    print("  ")
+    println(paths_com_erro[k])
+}
+
+println("")
+println("=== Relatorio JSON ===")
+
+-# ── 8. exporta resumo em JSON ────────────────────────────────────────────────
+let relatorio = [
+    "total"           -> total;
+    "sucessos"        -> len(sucessos);
+    "erros"           -> len(erros);
+    "tempo_medio_ms"  -> tempo_medio;
+    "endpoints"       -> len(paths_unicos)
+];
+
+println(stringify(relatorio))

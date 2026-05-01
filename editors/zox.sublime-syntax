@@ -1,0 +1,96 @@
+%YAML 1.2
+---
+name: Zox
+file_extensions: [zo]
+scope: source.zox
+
+contexts:
+  main:
+    - match: '-#.*$'
+      scope: comment.line.zox
+
+    - match: '"'
+      scope: punctuation.definition.string.begin.zox
+      push: string
+
+    - match: '\b\d+(\.\d+)?([eE][+-]?\d+)?\b'
+      scope: constant.numeric.zox
+
+    - match: '\b(true|false|nil)\b'
+      scope: constant.language.zox
+
+    - match: '\blet\b'
+      scope: keyword.declaration.zox
+
+    - match: '~>'
+      scope: keyword.control.import.zox
+
+    - match: '\$'
+      scope: keyword.declaration.function.zox
+
+    - match: '[?:]'
+      scope: keyword.control.conditional.zox
+
+    - match: '[#@]'
+      scope: keyword.control.loop.zox
+
+    - match: '~!!'
+      scope: keyword.control.flow.zox
+    - match: '__>'
+      scope: keyword.control.flow.zox
+    - match: '_>>'
+      scope: keyword.control.flow.zox
+
+    - match: '\b(println|print|len|find|keys|values|sum|typeof|copy|random|random_int)\b'
+      scope: support.function.builtin.zox
+
+    - match: '&(\+|-|\*|/|%|\||\^|e|<<|>>)'
+      scope: keyword.operator.element-wise.zox
+
+    - match: '\|>|<\|'
+      scope: keyword.operator.pipe.zox
+
+    - match: '&&|\|\|'
+      scope: keyword.operator.logical.zox
+
+    - match: '==|!=|<=|>=|<|>'
+      scope: keyword.operator.comparison.zox
+
+    - match: '->'
+      scope: punctuation.separator.mapping.zox
+
+    - match: '<<|>>'
+      scope: keyword.operator.bitwise.zox
+
+    - match: '\*\*'
+      scope: keyword.operator.arithmetic.zox
+
+    - match: '[+\-*/%]'
+      scope: keyword.operator.arithmetic.zox
+
+    - match: '[|&^]'
+      scope: keyword.operator.set.zox
+
+    - match: '!'
+      scope: keyword.operator.logical.zox
+
+    - match: '='
+      scope: keyword.operator.assignment.zox
+
+    - match: '\b[a-zA-Z_][a-zA-Z0-9_]*\b'
+      scope: variable.other.zox
+
+    - match: '[(){}\[\]]'
+      scope: punctuation.section.zox
+    - match: '[,;]'
+      scope: punctuation.separator.zox
+
+  string:
+    - meta_scope: string.quoted.double.zox
+    - match: '\\[ntrb f"''\\]'
+      scope: constant.character.escape.zox
+    - match: '"'
+      scope: punctuation.definition.string.end.zox
+      pop: true
+    - match: '$'
+      pop: true

@@ -138,24 +138,6 @@ void break_env_cycles(Environment *env) {
 }
 
 void free_environment(Environment *env) {
-  /* Break closure cycles: if any FunctionVal stored here captures this exact
-     env, the env and the function keep each other alive indefinitely.  Remove
-     the env's hold on those functions so the cycle is resolved.  The function
-     itself (via .env) still keeps this env alive as long as needed. */
-  if (env->ref_count > 1) {
-    for (size_t i = 0; i < env->capacity; i++) {
-      if (!env->entries[i].key) continue;
-      RuntimeVal *val = env->entries[i].value;
-      if (!val || val->type != FUNCTION_T) continue;
-      FunctionVal *fv = (FunctionVal *)val;
-      if (fv->env != env) continue;
-      free_safe(env->entries[i].key);
-      env->entries[i].key   = NULL;
-      env->entries[i].value = NULL;
-      env->size--;
-      release(val);
-    }
-  }
   release_env(env);
 }
 

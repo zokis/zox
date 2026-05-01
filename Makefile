@@ -62,6 +62,14 @@ testlibs: all libs
 	@echo "=========================================="
 	@pass=0; fail=0; 	for zo in tests/libs/*.zo; do 		name=$$(basename $$zo .zo); 		expected=tests/libs/$$name.expected; 		test -f "$$expected" || continue; 		./$(BIN) $$zo > /tmp/zox_got_$$name.txt 2>&1; 		if diff -q $$expected /tmp/zox_got_$$name.txt > /dev/null 2>&1; then 			echo "  PASS  $$name"; pass=$$((pass+1)); 		else 			echo "  FAIL  $$name"; fail=$$((fail+1)); 			diff $$expected /tmp/zox_got_$$name.txt; 		fi; 	done; 	echo "------------------------------------------"; 	echo "  Result: $$pass passed / $$fail failed"; 	echo "------------------------------------------"
 
+## Performance regression test (requires tests/perf_baseline.txt — run perf-update first).
+perf:
+	@bash scripts/perf_test.sh
+
+## Save current performance as the new baseline.
+perf-update:
+	@bash scripts/perf_test.sh --update
+
 ## Remove binary and compiled libs.
 clean:
 	rm -f $(BIN) $(LIB_SOS)

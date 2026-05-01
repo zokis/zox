@@ -17,7 +17,7 @@ $ make_list(n) {
     let acc = {};
     let k = 0;
     @(k = 0; k < n; k = k + 1) {
-        acc = acc + {(n - k) * 3 % 97}
+        acc << (n - k) * 3 % 97
     }
     acc
 }
@@ -69,7 +69,7 @@ $ map(lst, f) {
     let result = {};
     let i = 0;
     @(i = 0; i < len(lst); i = i + 1) {
-        result = result + {f(lst[i])}
+        result << f(lst[i])
     }
     result
 }
@@ -79,7 +79,7 @@ $ filter(lst, pred) {
     let i = 0;
     @(i = 0; i < len(lst); i = i + 1) {
         ?(pred(lst[i])) {
-            result = result + {lst[i]}
+            result << lst[i]
         }
     }
     result

@@ -78,7 +78,7 @@ static RuntimeVal *eval_import_dynamic(const char *so_path,
     error(error_msg);
   }
 
-  Environment *module_env = create_environment(env, strdup(so_path));
+  Environment *module_env = create_environment(env, (char *)so_path);
   init_fn(module_env);
 
   for (size_t i = 0; i < import_stmt->import_count; i++) {

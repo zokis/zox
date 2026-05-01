@@ -22,18 +22,41 @@ static Environment *alloc_environment(void) {
   return (Environment *)zox_alloc_obj(ZOX_ALLOC_ENV, sizeof(Environment), "Environment");
 }
 
+static Environment **all_envs = NULL;
+static size_t all_envs_count = 0;
+static size_t all_envs_cap = 0;
+
+static void register_env(Environment *env) {
+  if (all_envs_count >= all_envs_cap) {
+    all_envs_cap = all_envs_cap ? all_envs_cap * 2 : 64;
+    all_envs = (Environment **)realloc(all_envs, all_envs_cap * sizeof(Environment *));
+  }
+  all_envs[all_envs_count++] = env;
+}
+
+static void unregister_env(Environment *env) {
+  for (size_t i = 0; i < all_envs_count; i++) {
+    if (all_envs[i] == env) {
+      all_envs[i] = all_envs[all_envs_count - 1];
+      all_envs_count--;
+      return;
+    }
+  }
+}
+
 Environment *create_environment(Environment *parent, char *scope_name) {
   Environment *env = alloc_environment();
   env->parent     = parent;
   env->capacity   = INITIAL_CAPACITY;
   env->size       = 0;
   env->entries    = (HashEntry *)calloc(env->capacity, sizeof(HashEntry));
-  env->scope_name = scope_name;
+  env->scope_name = scope_name ? strdup(scope_name) : NULL;
   env->ref_count  = 1;
   env->owned_program = NULL;
   env->so_handles      = NULL;
   env->so_handle_count = 0;
   if (parent) retain_env(parent);
+  register_env(env);
   return env;
 }
 
@@ -52,12 +75,16 @@ static void destroy_environment(Environment *env) {
   if (env->owned_program) {
     free_program((Program *)env->owned_program);
   }
+  if (env->scope_name) {
+    free_safe(env->scope_name);
+  }
 #ifndef _WIN32
   for (size_t _i = 0; _i < env->so_handle_count; _i++)
     dlclose(env->so_handles[_i]);
   if (env->so_handles) free(env->so_handles);
 #endif
   Environment *parent = env->parent;
+  unregister_env(env);
   zox_free_obj(ZOX_ALLOC_ENV, env);
   if (parent) release_env(parent);
 }
@@ -68,37 +95,10 @@ void release_env(Environment *env) {
   if (env->ref_count <= 0) destroy_environment(env);
 }
 
-/* Break captured-env reference cycles before final environment release.
-
-   Imported functions capture module_env. That env can also contain private
-   functions capturing same module_env, forming cycles not visible from global.
-
-   Visited envs prevent infinite loops in cyclic graphs. */
-static Environment **visited_envs  = NULL;
-static size_t        visited_count = 0;
-static size_t        visited_cap   = 0;
-
-static int already_visited(Environment *env) {
-  for (size_t i = 0; i < visited_count; i++)
-    if (visited_envs[i] == env) return 1;
-  return 0;
-}
-
-static void mark_visited(Environment *env) {
-  if (visited_count >= visited_cap) {
-    visited_cap = visited_cap ? visited_cap * 2 : 16;
-    visited_envs = (Environment **)realloc(visited_envs,
-                                           visited_cap * sizeof(Environment *));
-  }
-  visited_envs[visited_count++] = env;
-}
-
 static void break_val_env(RuntimeVal *val);
 
-static void break_env_all(Environment *env) {
+static void break_env_internal(Environment *env) {
   if (!env) return;
-  if (already_visited(env)) return;
-  mark_visited(env);
   for (size_t i = 0; i < env->capacity; i++) {
     if (env->entries[i].key == NULL) continue;
     break_val_env(env->entries[i].value);
@@ -112,8 +112,6 @@ static void break_val_env(RuntimeVal *val) {
     if (fv->env) {
       Environment *captured = fv->env;
       fv->env = NULL;
-      /* captured env first -> break internal module cycles */
-      break_env_all(captured);
       release_env(captured);
     }
   } else if (val->type == LIST_T) {
@@ -129,12 +127,31 @@ static void break_val_env(RuntimeVal *val) {
 }
 
 void break_env_cycles(Environment *env) {
-  visited_count = 0;
-  break_env_all(env);
-  free(visited_envs);
-  visited_envs  = NULL;
-  visited_cap   = 0;
-  visited_count = 0;
+  /* Shutdown: Break all function-to-env links to resolve reference cycles.
+     We do this in two passes to avoid use-after-free during recursive destruction. */
+  
+  /* Pass 1: Break all links. */
+  for (size_t i = 0; i < all_envs_count; i++) {
+    Environment *e = all_envs[i];
+    for (size_t j = 0; j < e->capacity; j++) {
+      if (e->entries[j].key && e->entries[j].value->type == FUNCTION_T) {
+        ((FunctionVal *)e->entries[j].value)->env = NULL;
+      }
+    }
+  }
+
+  /* Pass 2: Safely destroy any remaining environments. 
+     Since all cycles are broken, destroy_environment will correctly free everything. */
+  while (all_envs_count > 0) {
+    destroy_environment(all_envs[all_envs_count - 1]);
+  }
+
+  if (all_envs) {
+    free(all_envs);
+    all_envs = NULL;
+    all_envs_count = 0;
+    all_envs_cap = 0;
+  }
 }
 
 void free_environment(Environment *env) {

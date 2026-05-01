@@ -266,10 +266,10 @@ RuntimeVal *builtin_print_value(Environment *env, RuntimeVal **args, size_t arg_
 }
 
 void register_builtins(Environment *env) {
-  char *no_params[]     = {};
-  char *single_param[]  = {"value"};
-  char *double_param[]  = {"param1", "param2"};
-  char *triple_param[]  = {"param1", "param2", "param3"};
+  static char *no_params[]     = {NULL};
+  static char *single_param[]  = {"value"};
+  static char *double_param[]  = {"param1", "param2"};
+  static char *triple_param[]  = {"param1", "param2", "param3"};
 
   declare_owned(env, "keys",
     (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_keys));

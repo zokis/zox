@@ -55,18 +55,25 @@ ListVal *dict_to_keys(DictVal *dict) {
 
 unsigned short int contains(RuntimeVal *obj, RuntimeVal *value) {
   ListVal *list;
+  int allocated = 0;
   if (obj->type == LIST_T) {
     list = (ListVal *)obj;
   } else if (obj->type == DICT_T) {
     list = dict_to_keys((DictVal *)obj);
+    allocated = 1;
   } else {
     error("contains function only works on lists and dictionaries");
     return 0;
   }
+  unsigned short int found = 0;
   for (size_t i = 0; i < list->size; i++) {
-    if (compare_runtimeval(list->items[i], value)) return 1;
+    if (compare_runtimeval(list->items[i], value)) {
+      found = 1;
+      break;
+    }
   }
-  return 0;
+  if (allocated) release((RuntimeVal *)list);
+  return found;
 }
 
 ssize_t getline(char **lineptr, size_t *n, FILE *stream) {

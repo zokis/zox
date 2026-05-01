@@ -1,4 +1,5 @@
 zox
+zox_test
 
 # Prerequisites
 *.d
@@ -23,6 +24,7 @@ zox
 *.a
 *.la
 *.lo
+*.so
 
 # Shared objects (inc. Windows DLLs)
 *.dll
@@ -52,3 +54,8 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+.idea/
+.cmake-build-release/
+.cmake-build-debug/
+*.zoxc

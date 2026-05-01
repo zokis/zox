@@ -1,0 +1,54 @@
+~> assert {assert_eq, assert_true, assert_len, assert_summary};
+
+-# lists of lists of dicts
+let teams = {
+    {
+        ["name" -> "Ana"; "scores" -> {10, 20}],
+        ["name" -> "Bia"; "scores" -> {30, 40}]
+    },
+    {
+        ["name" -> "Caio"; "scores" -> {50, 60}],
+        ["name" -> "Duda"; "scores" -> {70, 80}]
+    }
+};
+
+assert_eq(teams[0][0]{"name"}, "Ana");
+assert_eq(teams[0][1]{"scores"}[1], 40);
+assert_eq(teams[1][0]{"scores"}[0], 50);
+assert_eq(teams[1][1]{"name"}, "Duda");
+
+-# dicts with lists as values
+let grouped = [
+    "active" -> {"Ana", "Caio"};
+    "paused" -> {"Bia"};
+    "empty" -> {}
+];
+
+assert_len(grouped{"active"}, 2);
+assert_eq(grouped{"paused"}[0], "Bia");
+assert_len(grouped{"empty"}, 0);
+
+grouped{"active"} << "Duda";
+assert_eq(grouped{"active"}, {"Ana", "Caio", "Duda"});
+
+-# missing dict keys return nil
+assert_eq(grouped{"missing"}, nil);
+assert_true(grouped{"missing"} == nil);
+
+-# list slices clamp out-of-range bounds
+let xs = {10, 20, 30, 40};
+assert_eq(xs[-99:2], {10, 20});
+assert_eq(xs[2:99], {30, 40});
+assert_eq(xs[-99:99], {10, 20, 30, 40});
+assert_len(xs[99:100], 0);
+assert_len(xs[-99:-100], 0);
+
+-# element-wise scalar operators
+let nums = {8, 12, 16};
+assert_eq(nums &+ 4, {12, 16, 20});
+assert_eq(nums &- 2, {6, 10, 14});
+assert_eq(nums &* 3, {24, 36, 48});
+assert_eq(nums &/ 4, {2, 3, 4});
+assert_eq(nums &% 5, {3, 2, 1});
+
+assert_summary();

@@ -296,3 +296,26 @@ make full
 make test
 make testlibs
 ```
+
+## Performance
+
+Correctness tests catch broken behavior; the perf test catches regressions.
+
+```bash
+make perf-update   # save current median as baseline (first time, or after an intentional speedup)
+make perf          # compare current median against baseline; fails if >10% slower
+```
+
+The baseline is stored in `tests/perf_baseline.txt` (gitignored — machine-local so each
+developer compares against their own hardware, not someone else's). The script runs
+`tests/bench.zo` 10 times and uses the median to reduce scheduler noise.
+
+Updating the baseline deliberately:
+
+```bash
+# after a known improvement:
+make perf-update
+
+# or directly:
+bash scripts/perf_test.sh --update
+```

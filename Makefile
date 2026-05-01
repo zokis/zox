@@ -8,7 +8,7 @@ SRCS    = main.c \
           values.c \
           eval/eval_core.c eval/eval_ops.c eval/eval_control.c \
           eval/eval_collections.c eval/eval_funcs.c eval/eval_import.c \
-          malloc_safe.c env.c debug.c hash.c builtins.c global.c native_modules.c
+          malloc_safe.c zox_alloc.c env.c debug.c hash.c builtins.c global.c native_modules.c
 LIBS    = -lm -ldl -Wl,--export-dynamic
 BIN     = zox
 

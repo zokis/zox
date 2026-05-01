@@ -1,0 +1,76 @@
+-# benchmark: retain many nested values to stress memory usage
+
+~> string { toString };
+
+$ method_for(i) {
+    ?(i % 5 == 0) { "POST" } :? (i % 7 == 0) { "PUT" } : { "GET" }
+}
+
+$ status_for(i) {
+    ?(i % 17 == 0) { 500 } :? (i % 13 == 0) { 404 } :? (i % 11 == 0) { 401 } : { 200 }
+}
+
+$ make_log(i) {
+    let path = "/api/resource/" + toString(i % 1000);
+    let tag  = "request-" + toString(i);
+    [
+        "method" -> method_for(i);
+        "path"   -> path;
+        "status" -> status_for(i);
+        "ms"     -> (i * 37) % 1000;
+        "tag"    -> tag;
+        "bucket" -> "bucket-" + toString(i % 64)
+    ]
+}
+
+$ build_logs(n) {
+    let logs = {};
+    let i = 0;
+    @(i = 0; i < n; i = i + 1) {
+        logs << make_log(i)
+    }
+    logs
+}
+
+$ count_errors(logs) {
+    let errors = 0;
+    let i = 0;
+    @(i = 0; i < len(logs); i = i + 1) {
+        ?(logs[i]{"status"} >= 400) {
+            errors = errors + 1
+        }
+    }
+    errors
+}
+
+$ sum_latency(logs) {
+    let total = 0;
+    let i = 0;
+    @(i = 0; i < len(logs); i = i + 1) {
+        total = total + logs[i]{"ms"}
+    }
+    total
+}
+
+$ collect_error_paths(logs) {
+    let paths = {};
+    let i = 0;
+    @(i = 0; i < len(logs); i = i + 1) {
+        ?(logs[i]{"status"} >= 400) {
+            paths << logs[i]{"path"}
+        }
+    }
+    paths
+}
+
+let logs = build_logs(25000);
+let errors = count_errors(logs);
+let total_ms = sum_latency(logs);
+let error_paths = collect_error_paths(logs);
+
+println(len(logs))
+println(errors)
+println(total_ms)
+println(len(error_paths))
+println(logs[0]{"path"})
+println(logs[24999]{"tag"})

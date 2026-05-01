@@ -26,7 +26,7 @@ gcc -O2 -o zox \
   lexer.c parser/parser_core.c parser/parser_exprs.c parser/parser_stmts.c \
   values.c eval/eval_core.c eval/eval_ops.c eval/eval_control.c \
   eval/eval_collections.c eval/eval_funcs.c eval/eval_import.c \
-  malloc_safe.c env.c debug.c hash.c builtins.c global.c native_modules.c \
+  malloc_safe.c zox_alloc.c env.c debug.c hash.c builtins.c global.c native_modules.c \
   -lm -ldl -Wl,--export-dynamic
 ```
 
@@ -35,6 +35,7 @@ gcc -O2 -o zox \
 ```bash
 ./zox              # REPL
 ./zox file.zo      # run file
+./zox --arena=8MB file.zo # allocate Environment arena
 ```
 
 REPL:
@@ -261,6 +262,7 @@ Main areas:
 | Builtins | `builtins.c`, `builtins.h` |
 | Native modules | `native_modules.c`, `native_modules/*.c` |
 | Dynamic module API | `zox_module.h` |
+| Allocation | `malloc_safe.c`, `malloc_safe.h`, `zox_alloc.c`, `zox_alloc.h` |
 
 Runtime ownership:
 
@@ -269,11 +271,16 @@ Runtime ownership:
 - `evaluate()` returns values with caller ownership.
 - `declare_owned()` stores newly-created values without leaking the creator ref.
 - `break_env_cycles()` releases captured env cycles before shutdown.
+- `--arena=NMB` allocates Environment structs from a bump arena; malloc
+  fallback handles arena exhaustion.
+- Fixed-size runtime structs use per-type free-list pools; variable-size
+  buffers still use normal allocation.
 
 ## Docs
 
 - [`specs/language-spec.md`](specs/language-spec.md)
 - [`specs/architecture.md`](specs/architecture.md)
+- [`TODO.md`](TODO.md)
 
 ## Examples
 

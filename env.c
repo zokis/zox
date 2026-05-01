@@ -13,13 +13,17 @@
 #include "hash.h"
 #include "malloc_safe.h"
 #include "values.h"
+#include "zox_alloc.h"
 
 #define INITIAL_CAPACITY 16
 #define LOAD_FACTOR_THRESHOLD 0.75
 
+static Environment *alloc_environment(void) {
+  return (Environment *)zox_alloc_obj(ZOX_ALLOC_ENV, sizeof(Environment), "Environment");
+}
+
 Environment *create_environment(Environment *parent, char *scope_name) {
-  Environment *env = (Environment *)malloc_safe(
-      sizeof(Environment), "Failed to allocate memory for Environment");
+  Environment *env = alloc_environment();
   env->parent     = parent;
   env->capacity   = INITIAL_CAPACITY;
   env->size       = 0;
@@ -54,7 +58,7 @@ static void destroy_environment(Environment *env) {
   if (env->so_handles) free(env->so_handles);
 #endif
   Environment *parent = env->parent;
-  free_safe(env);
+  zox_free_obj(ZOX_ALLOC_ENV, env);
   if (parent) release_env(parent);
 }
 

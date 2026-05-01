@@ -23,7 +23,7 @@ source -> lexer -> parser -> AST -> evaluator -> RuntimeVal
 | Builtins | `builtins.c`, `builtins.h` |
 | Native modules | `native_modules.c`, `native_modules/*.c`, `native_modules.h` |
 | Dynamic module API | `zox_module.h` |
-| Utilities | `global.c`, `global.h`, `hash.c`, `hash.h`, `malloc_safe.c`, `malloc_safe.h`, `debug.c` |
+| Utilities | `global.c`, `global.h`, `hash.c`, `hash.h`, `malloc_safe.c`, `malloc_safe.h`, `zox_alloc.c`, `zox_alloc.h`, `debug.c` |
 
 ## Runtime Pipeline
 
@@ -154,6 +154,44 @@ Static singletons:
 
 Singletons use `ref_count = -1`; `retain()` and `release()` skip them.
 
+Runtime allocation (`zox_alloc.c`):
+
+- pooled fixed-size structs: `NumberVal`, `StringVal`, `ListVal`, `DictVal`, `Entry`, `FunctionVal`, `Environment`
+- not pooled: string contents, list item arrays, dict bucket arrays, AST arrays, token arrays
+- `--arena=NMB` pre-allocates N MB as a general backing arena for all pooled types:
+  - first allocation of each object bumps from the arena
+  - freed arena-owned objects return to the per-type free list for reuse
+  - peak allocations that exceed the arena go to `malloc` and are freed immediately on release — they do not accumulate in the free list
+- without `--arena`: per-type free lists with a cap of 64 objects; excess freed immediately
+- `--alloc-stats` prints per-kind counters (alloc, reuse, arena, heap, freed, pooled, depth) and arena usage to stderr
+
+Arena sizing:
+
+- `--arena` is a tuning knob, not a guaranteed speedup.
+- A too-small arena can be slower than no arena. Once the arena fills, overflow
+  allocations fall back to `malloc`, so the run may pay both arena bookkeeping
+  and heap allocation costs.
+- To estimate a useful size, run the target program with a deliberately large
+  arena and allocation stats:
+
+```bash
+./zox --arena=64MB --alloc-stats program.zo
+```
+
+- Use the final `arena used=... / total=...` line to choose a smaller value
+  with headroom. For example, `arena used=6233kB / total=65536kB` suggests
+  trying `--arena=8MB` or `--arena=12MB`.
+- Avoid sizes where usage is at or near the limit, such as
+  `arena used=4095kB / total=4096kB`; that indicates exhaustion or near
+  exhaustion and should be benchmarked against running without an arena.
+- Validate candidate sizes with repeated timing and RSS measurements, for
+  example:
+
+```bash
+RUNS=30 ARENA=8MB scripts/compare_arena.sh program.zo
+RUNS=30 ARENA=16MB scripts/compare_arena.sh program.zo
+```
+
 ## Environment
 
 `Environment` stores scoped variables with open addressing.
@@ -180,6 +218,7 @@ Responsibilities:
 - imported module AST ownership
 - dynamic module handle ownership
 - captured-env cycle breaking
+
 
 ## Ownership Contract
 

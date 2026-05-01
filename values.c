@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "malloc_safe.h"
+#include "zox_alloc.h"
 
 /* ref_count = -1 -> static singleton, retain/release no-op. */
 #define STATIC_REF (-1)
@@ -29,21 +30,23 @@ static void free_runtime_val(RuntimeVal *val) {
   if (!val) return;
   switch (val->type) {
     case NIL_T:
-    case NUMBER_T:
     case BOOLEAN_T:
       free_safe(val);
+      break;
+    case NUMBER_T:
+      zox_free_obj(ZOX_ALLOC_NUMBER, val);
       break;
     case STRING_T: {
       StringVal *sv = (StringVal *)val;
       free_safe(sv->value);
-      free_safe(sv);
+      zox_free_obj(ZOX_ALLOC_STRING, sv);
       break;
     }
     case LIST_T: {
       ListVal *lv = (ListVal *)val;
       for (size_t i = 0; i < lv->size; i++) release(lv->items[i]);
       free_safe(lv->items);
-      free_safe(lv);
+      zox_free_obj(ZOX_ALLOC_LIST, lv);
       break;
     }
     case DICT_T: {
@@ -54,19 +57,19 @@ static void free_runtime_val(RuntimeVal *val) {
           Entry *next = e->next;
           free_safe(e->key);
           release(e->value);
-          free_safe(e);
+          zox_free_obj(ZOX_ALLOC_ENTRY, e);
           e = next;
         }
       }
       free_safe(dv->entries);
-      free_safe(dv);
+      zox_free_obj(ZOX_ALLOC_DICT, dv);
       break;
     }
     case FUNCTION_T: {
       /* params/body owned by AST. */
       FunctionVal *fv = (FunctionVal *)val;
       if (fv->env != NULL) release_env(fv->env);
-      free_safe(val);
+      zox_free_obj(ZOX_ALLOC_FUNCTION, fv);
       break;
     }
   }
@@ -98,7 +101,7 @@ NumberVal *MK_NUMBER(double n) {
   if (n >= 0.0 && n <= 255.0 && n == (double)(int)n) {
     return &_num_singletons[(int)n];
   }
-  NumberVal *val = (NumberVal *)malloc_safe(sizeof(NumberVal), "NumberVal");
+  NumberVal *val = zox_alloc_obj(ZOX_ALLOC_NUMBER, sizeof(NumberVal), "NumberVal");
   val->base.type      = NUMBER_T;
   val->base.ref_count = 1;
   val->value          = n;
@@ -106,7 +109,7 @@ NumberVal *MK_NUMBER(double n) {
 }
 
 StringVal *MK_STRING(const char *str) {
-  StringVal *val = (StringVal *)malloc_safe(sizeof(StringVal), "StringVal");
+  StringVal *val = zox_alloc_obj(ZOX_ALLOC_STRING, sizeof(StringVal), "StringVal");
   val->base.type      = STRING_T;
   val->base.ref_count = 1;
   val->value          = strdup(str);
@@ -115,7 +118,7 @@ StringVal *MK_STRING(const char *str) {
 
 ListVal *MK_LIST(size_t capacity) {
   if (capacity == 0) capacity = 1;
-  ListVal *list = (ListVal *)malloc_safe(sizeof(ListVal), "ListVal");
+  ListVal *list = zox_alloc_obj(ZOX_ALLOC_LIST, sizeof(ListVal), "ListVal");
   list->base.type      = LIST_T;
   list->base.ref_count = 1;
   list->items = (RuntimeVal **)malloc_safe(sizeof(RuntimeVal *) * capacity, "ListVal items");
@@ -125,7 +128,7 @@ ListVal *MK_LIST(size_t capacity) {
 }
 
 Entry *MK_ENTRY(const char *key, RuntimeVal *value) {
-  Entry *entry  = malloc_safe(sizeof(Entry), "Entry");
+  Entry *entry  = zox_alloc_obj(ZOX_ALLOC_ENTRY, sizeof(Entry), "Entry");
   entry->key    = strdup(key);
   entry->value  = value;
   entry->next   = NULL;
@@ -134,7 +137,7 @@ Entry *MK_ENTRY(const char *key, RuntimeVal *value) {
 
 DictVal *MK_DICT(size_t capacity) {
   if (capacity == 0) capacity = 1;
-  DictVal *dict = (DictVal *)malloc_safe(sizeof(DictVal), "DictVal");
+  DictVal *dict = zox_alloc_obj(ZOX_ALLOC_DICT, sizeof(DictVal), "DictVal");
   dict->base.type      = DICT_T;
   dict->base.ref_count = 1;
   dict->entries = (Entry **)malloc_safe(sizeof(Entry *) * capacity, "DictVal items");
@@ -150,7 +153,7 @@ FunctionVal *MK_FUNCTION(char **params, size_t param_count, Stmt **body,
                          RuntimeVal *(*builtin_func)(Environment *env,
                                                      RuntimeVal **args,
                                                      size_t arg_count)) {
-  FunctionVal *val = (FunctionVal *)malloc_safe(sizeof(FunctionVal), "FunctionVal");
+  FunctionVal *val = zox_alloc_obj(ZOX_ALLOC_FUNCTION, sizeof(FunctionVal), "FunctionVal");
   val->base.type      = FUNCTION_T;
   val->base.ref_count = 1;
   val->params         = params;
@@ -167,7 +170,9 @@ RuntimeVal *create_native_fn(char **params, size_t param_count,
                              RuntimeVal *(*fn)(Environment *env,
                                                RuntimeVal **args,
                                                size_t arg_count)) {
-  FunctionVal *func_val = malloc_safe(sizeof(FunctionVal), "create_native_fn");
+  FunctionVal *func_val = zox_alloc_obj(ZOX_ALLOC_FUNCTION,
+                                        sizeof(FunctionVal),
+                                        "create_native_fn");
   func_val->base.type      = FUNCTION_T;
   func_val->base.ref_count = 1;
   func_val->params         = params;

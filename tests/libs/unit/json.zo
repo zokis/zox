@@ -1,0 +1,71 @@
+~> test { test, suite,
+           assert_eq, assert_type, assert_len,
+           test_summary };
+
+~> "./lib/json.so" { parse, stringify };
+
+suite("JSON parse - arrays");
+
+$ parse_number_array() {
+    let arr = parse("[1, 2, 3, 4, 5]");
+    assert_type(arr, "list");
+    assert_len(arr, 5);
+    assert_eq(arr[0], 1);
+    assert_eq(arr[4], 5)
+}
+
+$ parse_booleans_and_null() {
+    let bools = parse("[true, false, null]");
+    assert_eq(bools[0], true);
+    assert_eq(bools[1], false);
+    assert_eq(bools[2], nil)
+}
+
+$ parse_floats() {
+    let floats = parse("[3.14, 2.71, 1.41]");
+    assert_eq(floats[0], 3.14);
+    assert_eq(floats[1], 2.71)
+}
+
+suite("JSON parse - objects");
+
+$ parse_object_via_roundtrip() {
+    let obj = parse(stringify(["nome" -> "zox"; "versao" -> 1]));
+    assert_eq(obj{"nome"}, "zox");
+    assert_eq(obj{"versao"}, 1)
+}
+
+$ parse_nested_value() {
+    let nested = parse(stringify(["lista" -> {10, 20, 30}]));
+    assert_eq(nested{"lista"}[0], 10);
+    assert_eq(nested{"lista"}[2], 30)
+}
+
+suite("JSON stringify");
+
+$ stringify_return_type() {
+    let s = stringify({1, 2, 3});
+    assert_type(s, "string");
+    assert_eq(parse(s)[0], 1);
+    assert_eq(parse(s)[2], 3)
+}
+
+suite("JSON round-trip");
+
+$ full_roundtrip() {
+    let original = ["x" -> 10; "y" -> 20; "z" -> 30];
+    let rt = parse(stringify(original));
+    assert_eq(rt{"x"}, 10);
+    assert_eq(rt{"y"}, 20);
+    assert_eq(rt{"z"}, 30)
+}
+
+test("parse number array", parse_number_array);
+test("parse booleans and null", parse_booleans_and_null);
+test("parse floats", parse_floats);
+test("parse object via roundtrip", parse_object_via_roundtrip);
+test("parse nested value", parse_nested_value);
+test("stringify return type", stringify_return_type);
+test("full roundtrip", full_roundtrip);
+
+test_summary()

@@ -1,0 +1,52 @@
+~> os {exec};
+~> string {split, replace, toString};
+
+let zox_bin = "./zox";
+let libs_unit_dir = "tests/libs/unit";
+
+let raw = exec("ls " + libs_unit_dir + "/*.zo");
+let files = split(raw, "\n");
+
+let pass = 0;
+let fail = 0;
+let failures = {};
+
+println("");
+println("==========================================");
+println("  Zox Libs Unit Test Suite");
+println("==========================================");
+println("");
+
+@(let i = 0; i < len(files); i = i + 1) {
+    let zo_file = files[i];
+    ?(len(zo_file) == 0) { __> };
+
+    let test_name = replace(replace(zo_file, libs_unit_dir + "/", ""), ".zo", "");
+
+    let output = exec(zox_bin + " " + zo_file + " 2>&1");
+
+    ?(find(output, "passed") != nil) {
+        println("  PASS  " + test_name);
+        pass = pass + 1
+    } : {
+        println("  FAIL  " + test_name);
+        fail = fail + 1;
+        failures << test_name;
+        println(output)
+    }
+};
+
+println("");
+println("------------------------------------------");
+println("  Result: " + toString(pass) + " passed / " + toString(fail) + " failed");
+println("------------------------------------------");
+
+?(len(failures) > 0) {
+    println("");
+    println("Failed tests:");
+    @(let j = 0; j < len(failures); j = j + 1) {
+        println("  - " + failures[j])
+    }
+};
+
+_>> ?(fail == 0) { 0 } : { 1 }

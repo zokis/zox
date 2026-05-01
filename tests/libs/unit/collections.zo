@@ -1,0 +1,98 @@
+~> test { test, suite,
+           assert_eq, assert_len,
+           test_summary };
+
+~> "./lib/collections.so" { range, zip, flatten, unique, chunk, count, group_by };
+
+suite("Range");
+
+$ range_basic() {
+    let r = range(0, 5, 1);
+    assert_len(r, 5);
+    assert_eq(r[0], 0);
+    assert_eq(r[4], 4)
+}
+
+$ range_with_step() {
+    let r2 = range(0, 10, 2);
+    assert_len(r2, 5);
+    assert_eq(r2[2], 4)
+}
+
+$ range_reverse() {
+    let r3 = range(5, 0, -1);
+    assert_len(r3, 5);
+    assert_eq(r3[0], 5);
+    assert_eq(r3[4], 1)
+}
+
+suite("Zip");
+
+$ zip_same_size() {
+    let z = zip({1, 2, 3}, {10, 20, 30});
+    assert_len(z, 3);
+    assert_eq(z[0][0], 1);
+    assert_eq(z[0][1], 10);
+    assert_eq(z[2][1], 30)
+}
+
+$ zip_different_sizes() {
+    let z2 = zip({1, 2}, {10, 20, 30});
+    assert_len(z2, 2)
+}
+
+suite("Flatten");
+
+$ flatten_basic() {
+    let f = flatten({{1, 2}, {3, 4}, {5}});
+    assert_len(f, 5);
+    assert_eq(f[0], 1);
+    assert_eq(f[4], 5)
+}
+
+$ flatten_with_non_list() {
+    let f2 = flatten({{1, 2}, 3, {4}});
+    assert_len(f2, 4);
+    assert_eq(f2[2], 3)
+}
+
+suite("Unique");
+
+$ unique_remove_duplicates() {
+    let u = unique({1, 2, 1, 3, 2, 4});
+    assert_len(u, 4);
+    assert_eq(u[0], 1);
+    assert_eq(u[3], 4)
+}
+
+suite("Chunk");
+
+$ chunk_split() {
+    let c = chunk({1, 2, 3, 4, 5}, 2);
+    assert_len(c, 3);
+    assert_len(c[0], 2);
+    assert_len(c[2], 1);
+    assert_eq(c[0][0], 1);
+    assert_eq(c[1][0], 3)
+}
+
+suite("Count");
+
+$ count_occurrences() {
+    assert_eq(count({1, 2, 1, 3, 1}, 1), 3);
+    assert_eq(count({1, 2, 3}, 4), 0);
+    assert_eq(count({"a", "b", "a"}, "a"), 2)
+}
+
+test("range basic", range_basic);
+test("range with step", range_with_step);
+test("range reverse", range_reverse);
+test("zip same size", zip_same_size);
+test("zip different sizes", zip_different_sizes);
+test("flatten basic", flatten_basic);
+test("flatten with non list", flatten_with_non_list);
+test("unique remove duplicates", unique_remove_duplicates);
+test("chunk split", chunk_split);
+test("count occurrences", count_occurrences);
+
+test_summary()

@@ -1,0 +1,145 @@
+-# Test framework for Zox — named tests and suites.
+-#
+-# Usage:
+-#   ~> test { test, suite, assert_eq, assert_true, ..., test_summary };
+-#
+-#   suite("Collections");
+-#
+-#   $ slice() {
+-#       assert_eq({1,2,3}[1:], {2,3})
+-#   }
+-#   $ concat() {
+-#       assert_eq({1,2} + {3}, {1,2,3})
+-#   }
+-#   test("slice", slice);
+-#   test("concat", concat);
+-#
+-#   test_summary()
+-#
+-# Each test function runs in its own scope, so local variables don't leak.
+-# Tests are counted (not assertions). If any assertion inside the function
+-# fails, the whole test is FAIL. Failures print expected vs got inline.
+
+let _t_pass = 0;
+let _t_fail = 0;
+let _a_fail = 0;
+
+$ suite(name) {
+    println("");
+    println("  " + name)
+}
+
+$ test(name, body) {
+    let before = _a_fail;
+    body();
+    ? (_a_fail == before) {
+        _t_pass = _t_pass + 1;
+        print("    PASS  ");
+        println(name)
+    } : {
+        _t_fail = _t_fail + 1;
+        print("    FAIL  ");
+        println(name)
+    }
+}
+
+$ assert_eq(a, b) {
+    ? (a != b) {
+        _a_fail = _a_fail + 1;
+        print("           expected: "); println(b);
+        print("           got:      "); println(a)
+    }
+}
+
+$ assert_neq(a, b) {
+    ? (a == b) {
+        _a_fail = _a_fail + 1;
+        print("           assert_neq: both equal: "); println(a)
+    }
+}
+
+$ assert_true(cond) {
+    ? (cond != true) {
+        _a_fail = _a_fail + 1;
+        println("           assert_true: got false")
+    }
+}
+
+$ assert_false(cond) {
+    ? (cond != false) {
+        _a_fail = _a_fail + 1;
+        println("           assert_false: got true")
+    }
+}
+
+$ assert_lt(a, b) {
+    ? (a >= b) {
+        _a_fail = _a_fail + 1;
+        print("           assert_lt: "); print(a); print(" >= "); println(b)
+    }
+}
+
+$ assert_gt(a, b) {
+    ? (a <= b) {
+        _a_fail = _a_fail + 1;
+        print("           assert_gt: "); print(a); print(" <= "); println(b)
+    }
+}
+
+$ assert_lte(a, b) {
+    ? (a > b) {
+        _a_fail = _a_fail + 1;
+        print("           assert_lte: "); print(a); print(" > "); println(b)
+    }
+}
+
+$ assert_gte(a, b) {
+    ? (a < b) {
+        _a_fail = _a_fail + 1;
+        print("           assert_gte: "); print(a); print(" < "); println(b)
+    }
+}
+
+$ assert_in(elem, coll) {
+    ? (find(coll, elem) < 0) {
+        _a_fail = _a_fail + 1;
+        print("           assert_in: "); print(elem); println(" not found")
+    }
+}
+
+$ assert_not_in(elem, coll) {
+    ? (find(coll, elem) >= 0) {
+        _a_fail = _a_fail + 1;
+        print("           assert_not_in: "); print(elem); println(" found")
+    }
+}
+
+$ assert_len(coll, n) {
+    let actual = len(coll);
+    ? (actual != n) {
+        _a_fail = _a_fail + 1;
+        print("           assert_len: expected "); print(n); print(" got "); println(actual)
+    }
+}
+
+$ assert_type(val, expected) {
+    let actual = typeof(val);
+    ? (actual != expected) {
+        _a_fail = _a_fail + 1;
+        print("           assert_type: expected "); print(expected); print(" got "); println(actual)
+    }
+}
+
+$ assert_nil(val) {
+    ? (val != nil) {
+        _a_fail = _a_fail + 1;
+        print("           assert_nil: got "); println(val)
+    }
+}
+
+$ test_summary() {
+    println("");
+    println("------------------------------------------");
+    print("  "); print(_t_pass); print(" passed / "); print(_t_fail); println(" failed");
+    println("------------------------------------------")
+}

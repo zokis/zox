@@ -1,0 +1,115 @@
+~> test { test, suite,
+           assert_eq, assert_len, assert_true, assert_false,
+           test_summary };
+
+~> "./lib/functional.so" { map, filter, reduce, any, all, take, drop, zip_with, pipe };
+~> "./lib/collections.so" { range };
+
+suite("Map");
+
+$ dobra(x) { x * 2 }
+
+$ quadrado(x) { x * x }
+
+$ map_with_dobra() {
+    let nums = range(1, 6, 1);
+    let dobrados = map(nums, dobra);
+    assert_len(dobrados, 5);
+    assert_eq(dobrados[0], 2);
+    assert_eq(dobrados[4], 10)
+}
+
+$ map_with_quadrado() {
+    let nums = range(1, 6, 1);
+    let quadrados = map(nums, quadrado);
+    assert_eq(quadrados[0], 1);
+    assert_eq(quadrados[4], 25)
+}
+
+suite("Filter");
+
+$ eh_par(x) { x % 2 == 0 }
+
+$ filter_even() {
+    let nums = range(1, 6, 1);
+    let pares = filter(nums, eh_par);
+    assert_len(pares, 2);
+    assert_eq(pares[0], 2);
+    assert_eq(pares[1], 4)
+}
+
+suite("Reduce");
+
+$ soma(a, b) { a + b }
+
+$ maior(a, b) { ?(a > b) { a } : { b } }
+
+$ reduce_sum() {
+    let nums = range(1, 6, 1);
+    assert_eq(reduce(nums, soma, 0), 15)
+}
+
+$ reduce_max() {
+    let nums = range(1, 6, 1);
+    assert_eq(reduce(nums, maior, 0), 5)
+}
+
+suite("Any/All");
+
+$ any_all() {
+    let nums = range(1, 6, 1);
+    assert_true(any(nums, eh_par));
+    assert_false(all(nums, eh_par));
+    assert_false(any({1, 3, 5}, eh_par));
+    assert_true(all({2, 4, 6}, eh_par))
+}
+
+suite("Take/Drop");
+
+$ take_drop() {
+    let nums = range(1, 6, 1);
+    let t = take(nums, 3);
+    assert_len(t, 3);
+    assert_eq(t[0], 1);
+    assert_eq(t[2], 3);
+    let d = drop(nums, 3);
+    assert_len(d, 2);
+    assert_eq(d[0], 4);
+    assert_eq(d[1], 5)
+}
+
+suite("Zip with");
+
+$ zip_with_soma() {
+    let zw = zip_with({1, 2, 3}, {10, 20, 30}, soma);
+    assert_len(zw, 3);
+    assert_eq(zw[0], 11);
+    assert_eq(zw[2], 33)
+}
+
+suite("Pipe");
+
+$ pipe_simple() {
+    assert_eq(pipe(3, {dobra, quadrado}), 36);
+    assert_eq(pipe(2, {dobra, dobra, dobra}), 16)
+}
+
+suite("Pipeline");
+
+$ full_pipeline() {
+    let resultado = reduce(filter(map(range(1, 11, 1), quadrado), eh_par), soma, 0);
+    assert_eq(resultado, 220)
+}
+
+test("map with dobra", map_with_dobra);
+test("map with quadrado", map_with_quadrado);
+test("filter even", filter_even);
+test("reduce sum", reduce_sum);
+test("reduce max", reduce_max);
+test("any/all", any_all);
+test("take/drop", take_drop);
+test("zip with soma", zip_with_soma);
+test("pipe simple", pipe_simple);
+test("full pipeline", full_pipeline);
+
+test_summary()

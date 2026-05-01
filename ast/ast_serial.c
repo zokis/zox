@@ -1,4 +1,4 @@
-/* ast_serial.c - Serializacao e desserializacao binaria da AST (.zoxc) */
+/* Binary AST cache serialization (.zoxc). */
 #include "../ast.h"
 #include "../malloc_safe.h"
 
@@ -6,8 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-/* ── helpers de I/O binario ─────────────────────────────────────────────── */
 
 static void write_u8(FILE *f, uint8_t v)   { fwrite(&v, 1, 1, f); }
 static void write_u32(FILE *f, uint32_t v) { fwrite(&v, 4, 1, f); }
@@ -35,12 +33,10 @@ static char *read_str(FILE *f) {
   return s;
 }
 
-/* ── serializacao ───────────────────────────────────────────────────────── */
-
 static void serialize_node(FILE *f, Stmt *node);
 
 static void serialize_expr(FILE *f, Expr *e) {
-  if (!e) { write_u8(f, 255); return; }  /* sentinel: nulo */
+  if (!e) { write_u8(f, 255); return; }
   serialize_node(f, (Stmt *)e);
 }
 
@@ -212,8 +208,6 @@ static void serialize_node(FILE *f, Stmt *node) {
     break;
   }
 }
-
-/* ── desserializacao ────────────────────────────────────────────────────── */
 
 static Stmt *deserialize_node(FILE *f);
 
@@ -406,8 +400,6 @@ static Stmt *deserialize_node(FILE *f) {
   }
 }
 
-/* ── API publica ────────────────────────────────────────────────────────── */
-
 #define ZOXC_MAGIC   "ZOXC"
 #define ZOXC_VERSION 1
 
@@ -418,8 +410,7 @@ void ast_serialize(Program *program, FILE *f, uint64_t source_mtime) {
   serialize_node(f, (Stmt *)program);
 }
 
-/* Retorna o Program* desserializado, ou NULL se o cache for invalido.
-   source_mtime: mtime atual do .zox — se diferir do gravado, invalida. */
+/* mtime mismatch -> invalid cache */
 Program *ast_deserialize(FILE *f, uint64_t source_mtime) {
   char magic[4];
   if (fread(magic, 1, 4, f) != 4) return NULL;

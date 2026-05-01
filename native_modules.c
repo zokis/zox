@@ -1,5 +1,4 @@
-/* native_modules.c - Registro central dos modulos nativos.
-   Cada modulo esta em native_modules/<nome>.c              */
+/* Central native module registry. */
 
 #include "native_modules.h"
 

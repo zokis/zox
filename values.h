@@ -5,7 +5,7 @@
 #ifndef VALUE_H
 #define VALUE_H
 
-typedef struct Environment Environment;  // Forward declaration
+typedef struct Environment Environment;
 
 typedef enum {
   NIL_T,
@@ -14,7 +14,7 @@ typedef enum {
   STRING_T,
   LIST_T,
   DICT_T,
-  /* TABLE_T — reservado para reintroducao futura (ver TODO.md) */
+  /* TABLE_T reserved for future reintroduction. */
   FUNCTION_T
 } ValueType;
 
@@ -73,7 +73,7 @@ typedef struct {
   size_t capacity;
 } DictVal;
 
-/* TableVal — removido temporariamente (ver TODO.md) */
+/* TableVal temporarily removed. */
 
 typedef RuntimeVal *(*NativeFn)(Environment *env, RuntimeVal **args,
                                 int arg_count);
@@ -97,7 +97,7 @@ Entry *MK_ENTRY(const char *key, RuntimeVal *value);
 
 char *type_to_string(ValueType type);
 
-/* Reference counting */
+/* Reference counting. */
 void retain(RuntimeVal *val);
 void release(RuntimeVal *val);
 

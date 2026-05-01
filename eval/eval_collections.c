@@ -1,6 +1,4 @@
-/* ── eval_collections.c ───────────────────────────────────────────────────────
-   Listas e dicionários: criação, indexação, slicing, acesso por chave.
-──────────────────────────────────────────────────────────────────────────── */
+/* List/dict creation, indexing, slicing, key access. */
 #include "eval_internal.h"
 
 void list_append_val(ListVal *list, RuntimeVal *item) {

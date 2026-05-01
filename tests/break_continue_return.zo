@@ -1,4 +1,4 @@
--# break em while: para quando j == 5, soma deve ser 5
+-# while break: stops at j == 5, sum should be 5
 let soma = 0;
 let j = 0;
 #(j < 10) {
@@ -10,7 +10,7 @@ let j = 0;
 };
 println(soma);
 
--# continue em while: conta pares de 1..10, deve ser 5
+-# while continue: counts evens from 1..10, should be 5
 let pares = 0;
 let k = 0;
 #(k < 10) {
@@ -22,7 +22,7 @@ let k = 0;
 };
 println(pares);
 
--# break em for: para quando n == 7, total deve ser 7
+-# for break: stops at n == 7, total should be 7
 let total = 0;
 @(let n = 0; n < 100; n = n + 1) {
     ?(n == 7) {
@@ -32,7 +32,7 @@ let total = 0;
 };
 println(total);
 
--# continue em for: conta impares de 0..9, deve ser 5
+-# for continue: counts odds from 0..9, should be 5
 let impares = 0;
 @(let m = 0; m < 10; m = m + 1) {
     ?(m % 2 == 0) {
@@ -42,13 +42,13 @@ let impares = 0;
 };
 println(impares);
 
--# return simples
+-# simple return
 $ dobro(x) {
     _>> x * 2
 };
 println(dobro(7));
 
--# return antecipado
+-# early return
 $ primeiro_negativo(lista) {
     let idx = 0;
     #(idx < len(lista)) {
@@ -62,7 +62,7 @@ $ primeiro_negativo(lista) {
 println(primeiro_negativo({1, 2, -3, 4}));
 println(primeiro_negativo({1, 2, 3}));
 
--# return em recursao (fatorial)
+-# recursive return (factorial)
 $ fatorial(n) {
     ?(n <= 1) {
         _>> 1

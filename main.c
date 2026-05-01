@@ -57,7 +57,6 @@ static char *make_cache_path(const char *zo_path) {
   return cache;
 }
 
-/* Executa um Program ja construido (da cache ou do parser). */
 void run_program(Program *program, Environment *env) {
   RuntimeVal *result = eval_program(program, env);
   release(result);
@@ -119,11 +118,9 @@ int main(int argc, char **argv) {
     const char *filename = argv[1];
     error_cursor.file = filename;
 
-    /* 1. stat() para obter mtime — sem abrir o fonte ainda */
     char    *cache_path = make_cache_path(filename);
     uint64_t mtime      = file_mtime(filename);
 
-    /* 2. tenta carregar cache (so stat + leitura do .zoxc) */
     Program *program = NULL;
     Token   *tokens  = NULL;
     Parser  *parser  = NULL;
@@ -131,7 +128,6 @@ int main(int argc, char **argv) {
 
     if (mtime > 0) program = try_load_cache(cache_path, mtime);
 
-    /* 3. cache miss: le o fonte e parseia */
     if (!program) {
       char *source_code = read_file(filename);
       if (!source_code) { free_safe(cache_path); return 1; }

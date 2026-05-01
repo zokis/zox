@@ -13,8 +13,7 @@ typedef struct {
   jmp_buf error_jmp;
 } ExecutionContext;
 
-/* Cursor atualizado a cada token consumido pelo parser.
-   Usado por error() para mostrar linha/coluna mesmo em erros de runtime. */
+/* Parser-updated cursor -> runtime errors keep source position. */
 typedef struct {
   int         line;
   short int   column;
@@ -24,7 +23,6 @@ typedef struct {
 extern ExecutionContext global_context;
 extern ErrorCursor      error_cursor;
 
-/* Argumentos da linha de comando para o modulo os */
 extern int    zox_argc;
 extern char **zox_argv;
 

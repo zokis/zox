@@ -1,4 +1,4 @@
-/* parser_exprs.c - Expressoes: aritmeticas, logicas, bitwise, unarias, literais, identifiers. */
+/* Expression parsing. */
 #include "parser_internal.h"
 
 Expr *parse_expr(Parser *parser) { return parse_relational_expr(parser); }
@@ -237,13 +237,11 @@ Expr *parse_identifier_expr(Parser *parser) {
       expect(parser, CloseBracketTk, "Expected ']' after list index.");
       if (at(parser).type == EqualsTk) {
         eat(parser);
-        /* identifier simples (varname): usa assign_list_expr classico */
         if (identifier->stmt.kind == IdentifierAst) {
           free_expr(identifier);
           return (Expr *)assign_list_expr(varname, start,
                                           (Expr *)parse_expr(parser));
         }
-        /* identifier composto (ex: b[3]): usa no generico */
         return (Expr *)assign_list_expr_node(identifier, start,
                                              (Expr *)parse_expr(parser));
       }
@@ -254,13 +252,11 @@ Expr *parse_identifier_expr(Parser *parser) {
       expect(parser, CloseBraceTk, "Expected '}' after dict key.");
       if (at(parser).type == EqualsTk) {
         eat(parser);
-        /* identifier simples (varname): usa assign_dict_expr classico */
         if (identifier->stmt.kind == IdentifierAst) {
           free_expr(identifier);
           return (Expr *)assign_dict_expr(varname, key,
                                           (Expr *)parse_expr(parser));
         }
-        /* identifier composto (ex: b[3]): usa no generico */
         return (Expr *)assign_dict_expr_node(identifier, key,
                                              (Expr *)parse_expr(parser));
       }

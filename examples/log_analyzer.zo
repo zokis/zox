@@ -1,11 +1,11 @@
--# log_analyzer.zo — analisador de logs HTTP
+-# HTTP log analyzer.
 -#
--# Demonstra o uso combinado de:
+-# Combined module demo:
 -#   collections.so  (group_by, unique, count, range)
 -#   functional.so   (map, filter, reduce, pipe)
--#   json.so         (stringify para exportar o relatorio)
+-#   json.so         (stringify report export)
 -#
--# Uso:
+-# Usage:
 -#   make full
 -#   ./zox examples/log_analyzer.zo
 
@@ -13,8 +13,8 @@
 ~> "./lib/functional.so"  { map, filter, reduce, pipe };
 ~> "./lib/json.so"        { stringify };
 
--# ── dataset: entradas de log simuladas ─────────────────────────────────────
--# cada entrada e um dict com: method, path, status, ms (tempo de resposta)
+-# simulated log entries
+-# each entry: method, path, status, ms
 
 let logs = {
     ["method" -> "GET";  "path" -> "/api/users";    "status" -> 200; "ms" -> 45],
@@ -42,12 +42,12 @@ let logs = {
 println("=== HTTP Log Analyzer ===")
 println("")
 
--# ── 1. total de requisicoes ─────────────────────────────────────────────────
+-# total requests
 let total = len(logs);
 print("Total de requisicoes: ")
 println(total)
 
--# ── 2. requisicoes com erro (status >= 400) ─────────────────────────────────
+-# failed requests (status >= 400)
 $ eh_erro(entry) { entry{"status"} >= 400 }
 $ eh_sucesso(entry) { entry{"status"} < 400 }
 
@@ -59,7 +59,7 @@ println(len(sucessos))
 print("Erros    (4xx/5xx): ")
 println(len(erros))
 
--# ── 3. tempo medio de resposta ───────────────────────────────────────────────
+-# average response time
 $ get_ms(entry) { entry{"ms"} }
 $ add(a, b)     { a + b }
 
@@ -70,7 +70,7 @@ let tempo_medio = tempo_total / total;
 print("Tempo medio (ms):   ")
 println(tempo_medio)
 
--# ── 4. tempo medio so dos erros ──────────────────────────────────────────────
+-# average failed-request time
 let tempos_erro  = map(erros, get_ms);
 let total_erro_ms = reduce(tempos_erro, add, 0);
 let medio_erro_ms = ?(len(erros) > 0) { total_erro_ms / len(erros) } : { 0 };
@@ -81,7 +81,7 @@ println(medio_erro_ms)
 println("")
 println("=== Requisicoes por endpoint ===")
 
--# ── 5. contagem por path ─────────────────────────────────────────────────────
+-# count by path
 $ get_path(entry) { entry{"path"} }
 
 let paths        = map(logs, get_path);
@@ -100,7 +100,7 @@ let i = 0;
 println("")
 println("=== Distribuicao de status codes ===")
 
--# ── 6. distribuicao de status codes ─────────────────────────────────────────
+-# status code distribution
 $ get_status_str(entry) {
     let s = entry{"status"};
     ?(s < 300) { "2xx" } : { ?(s < 400) { "3xx" } : { ?(s < 500) { "4xx" } : { "5xx" } } }
@@ -122,7 +122,7 @@ let j = 0;
 println("")
 println("=== Endpoints com erro ===")
 
--# ── 7. paths que tiveram erro ────────────────────────────────────────────────
+-# paths with errors
 $ get_path_erro(entry) { entry{"path"} }
 
 let paths_com_erro = unique(map(erros, get_path_erro));
@@ -135,7 +135,7 @@ let k = 0;
 println("")
 println("=== Relatorio JSON ===")
 
--# ── 8. exporta resumo em JSON ────────────────────────────────────────────────
+-# export JSON summary
 let relatorio = [
     "total"           -> total;
     "sucessos"        -> len(sucessos);

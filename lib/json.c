@@ -1,14 +1,12 @@
-/* json.c — módulo externo Zox para parsing e serialização JSON
+/* External Zox module: JSON parse/stringify.
    Compile: gcc -shared -fPIC -O2 -o json.so json.c -I..
-   Uso em Zox: ~> "./lib/json.so" { parse, stringify }; */
+   Use: ~> "./lib/json.so" { parse, stringify }; */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include "../zox_module.h"
-
-/* ── parser JSON ────────────────────────────────────────────────────────── */
 
 typedef struct {
   const char *src;
@@ -23,7 +21,7 @@ static void skip_ws(JsonParser *p) {
 static RuntimeVal *json_parse_value(JsonParser *p);
 
 static RuntimeVal *json_parse_string(JsonParser *p) {
-  p->pos++; /* consome " de abertura */
+  p->pos++;
   size_t cap = 64, len = 0;
   char *buf = malloc(cap);
   while (p->src[p->pos] && p->src[p->pos] != '"') {
@@ -47,7 +45,7 @@ static RuntimeVal *json_parse_string(JsonParser *p) {
     p->pos++;
   }
   buf[len] = '\0';
-  p->pos++; /* consome " de fechamento */
+  p->pos++;
   RuntimeVal *v = (RuntimeVal *)MK_STRING(buf);
   free(buf);
   return v;
@@ -72,7 +70,7 @@ static RuntimeVal *json_parse_number(JsonParser *p) {
 }
 
 static RuntimeVal *json_parse_array(JsonParser *p) {
-  p->pos++; /* [ */
+  p->pos++;
   ListVal *list = MK_LIST(4);
   skip_ws(p);
   if (p->src[p->pos] == ']') { p->pos++; return (RuntimeVal *)list; }
@@ -90,14 +88,13 @@ static RuntimeVal *json_parse_array(JsonParser *p) {
 }
 
 static RuntimeVal *json_parse_object(JsonParser *p) {
-  p->pos++; /* { */
+  p->pos++;
   DictVal *dict = MK_DICT(4);
   skip_ws(p);
   if (p->src[p->pos] == '}') { p->pos++; return (RuntimeVal *)dict; }
   while (1) {
     skip_ws(p);
     if (p->src[p->pos] != '"') break;
-    /* chave */
     RuntimeVal *key_val = json_parse_string(p);
     const char *key = ((StringVal *)key_val)->value;
     skip_ws(p);
@@ -127,8 +124,6 @@ static RuntimeVal *json_parse_value(JsonParser *p) {
   if (strncmp(p->src + p->pos, "null",  4) == 0) { p->pos += 4; return (RuntimeVal *)MK_NIL(); }
   return (RuntimeVal *)MK_NIL();
 }
-
-/* ── stringify ──────────────────────────────────────────────────────────── */
 
 typedef struct { char *buf; size_t len; size_t cap; } Buf;
 
@@ -204,8 +199,6 @@ static void stringify_val(RuntimeVal *val, Buf *b) {
   }
 }
 
-/* ── builtins expostos ao Zox ───────────────────────────────────────────── */
-
 static RuntimeVal *json_parse(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 1 || args[0]->type != STRING_T) {
     fprintf(stderr, "json.parse: expects one string argument\n");
@@ -227,8 +220,6 @@ static RuntimeVal *json_stringify(Environment *env, RuntimeVal **args, size_t ar
   free(b.buf);
   return result;
 }
-
-/* ── ponto de entrada do módulo ─────────────────────────────────────────── */
 
 ZOX_MODULE_INIT {
   char *single[] = {"value"};

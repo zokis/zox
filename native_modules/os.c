@@ -1,7 +1,5 @@
 #include "nm_internal.h"
 
-/* ── os module ─────────────────────────────────────────────────────────────── */
-
 static RuntimeVal *os_exit(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 1 || args[0]->type != NUMBER_T) error("exit() expects one number");
   exit((int)((NumberVal *)args[0])->value);
@@ -45,7 +43,6 @@ static RuntimeVal *os_exec(Environment *env, RuntimeVal **args, size_t argc) {
   pclose(fp);
   if (!buf) return (RuntimeVal *)MK_STRING("");
   buf[total] = '\0';
-  /* remove trailing newline */
   if (total > 0 && buf[total - 1] == '\n') buf[total - 1] = '\0';
   RuntimeVal *r = (RuntimeVal *)MK_STRING(buf);
   free_safe(buf);

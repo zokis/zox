@@ -1,7 +1,7 @@
 #ifndef EVAL_INTERNAL_H
 #define EVAL_INTERNAL_H
 
-/* Header interno do modulo eval - nao incluir fora de eval/*.c */
+/* Internal eval header. */
 
 #include "../eval.h"
 #include "../values.h"
@@ -26,7 +26,7 @@
 #define PATH_SEPARATOR "/"
 #endif
 
-/* ControlFlow - definido em eval_core.c, usado nos submodulos */
+/* ControlFlow defined in eval_core.c. */
 typedef enum { CF_NONE = 0, CF_BREAK, CF_CONTINUE, CF_RETURN } ControlFlowKind;
 
 extern ControlFlowKind cf_signal;

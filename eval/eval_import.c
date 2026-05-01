@@ -1,20 +1,16 @@
-/* eval_import.c - importacao de modulos: nativos, .zo e .so dinamicos */
+/* Module imports: native, .zo, .so, .dll. */
 #include "eval_internal.h"
 
 #ifndef _WIN32
 #include <dlfcn.h>
 #endif
 
-/* Retorna "native" se for modulo built-in, path do .so/.zo se encontrado,
-   ou NULL se nao existir. */
 char *find_module_path(const char *module_name) {
-  /* modulo nativo built-in */
   for (int i = 0; native_modules[i].name != NULL; i++) {
     if (strcmp(native_modules[i].name, module_name) == 0)
       return strdup("native");
   }
 
-  /* path direto terminando em .so ou .zo */
   size_t len = strlen(module_name);
   if ((len > 3 && strcmp(module_name + len - 3, ".so") == 0) ||
       (len > 4 && strcmp(module_name + len - 4, ".dll") == 0) ||
@@ -36,17 +32,14 @@ char *find_module_path(const char *module_name) {
   while (*p) { if (*p == '.') *p = PATH_SEPARATOR[0]; p++; }
 
   for (int i = 0; i < (int)(sizeof(paths) / sizeof(paths[0])); i++) {
-    /* tenta .zo */
     snprintf(full_path, sizeof(full_path), "%s%s%s.zo",
              paths[i], PATH_SEPARATOR, module_path);
     if (access(full_path, F_OK) != -1) return strdup(full_path);
 #ifndef _WIN32
-    /* tenta .so */
     snprintf(full_path, sizeof(full_path), "%s%s%s.so",
              paths[i], PATH_SEPARATOR, module_path);
     if (access(full_path, F_OK) != -1) return strdup(full_path);
 #else
-    /* tenta .dll */
     snprintf(full_path, sizeof(full_path), "%s%s%s.dll",
              paths[i], PATH_SEPARATOR, module_path);
     if (access(full_path, F_OK) != -1) return strdup(full_path);
@@ -55,7 +48,6 @@ char *find_module_path(const char *module_name) {
   return NULL;
 }
 
-/* Carrega modulo dinamico (.so/.dll), chama zox_init_module e importa simbolos */
 static RuntimeVal *eval_import_dynamic(const char *so_path,
                                        ImportStmt *import_stmt,
                                        Environment *env) {
@@ -103,7 +95,7 @@ static RuntimeVal *eval_import_dynamic(const char *so_path,
     declare_var(env, item->alias ? item->alias : item->name, val);
   }
 
-  /* adiciona handle ao array do env pai — sera fechado quando o env for destruido */
+  /* parent env owns dlopen handle */
   env->so_handles = realloc(env->so_handles,
                             sizeof(void *) * (env->so_handle_count + 1));
   env->so_handles[env->so_handle_count++] = handle;
@@ -128,7 +120,6 @@ RuntimeVal *eval_import_stmt(ImportStmt *import_stmt, Environment *env) {
     error(error_msg);
   }
 
-  /* 1. modulo nativo built-in */
   if (strcmp(module_path, "native") == 0) {
     for (int i = 0; native_modules[i].name != NULL; i++) {
       if (strcmp(native_modules[i].name, import_stmt->module_name) == 0) {
@@ -153,14 +144,12 @@ RuntimeVal *eval_import_stmt(ImportStmt *import_stmt, Environment *env) {
     }
   }
 
-  /* 2. modulo dinamico .so/.dll */
   if (is_dynamic_lib(module_path)) {
     RuntimeVal *result = eval_import_dynamic(module_path, import_stmt, env);
     free_safe(module_path);
     return result;
   }
 
-  /* 3. modulo .zo */
   char *module_code = read_file(module_path);
   Environment *module_env = create_environment(env, import_stmt->module_name);
   size_t token_count;

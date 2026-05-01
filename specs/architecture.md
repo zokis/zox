@@ -158,13 +158,13 @@ typedef struct {
 ### Environment (escopo)
 ```c
 struct Environment {
-    Environment *parent;       // escopo pai (encadeamento)
-    HashEntry   *entries;      // variáveis armazenadas (open addressing)
+    Environment *parent;       // parent scope chain
+    HashEntry   *entries;      // stored variables, open addressing
     size_t       capacity;
     size_t       size;
-    char        *scope_name;   // nome do escopo (debug)
+    char        *scope_name;   // debug scope name
     int          ref_count;    // reference counting
-    void        *owned_program;// AST do módulo importado — liberada junto com o env
+    void        *owned_program;// imported module AST owned by env
 };
 ```
 
@@ -172,10 +172,10 @@ struct Environment {
 ```c
 typedef struct {
     ValueType type;
-    int       ref_count;  // -1 = singleton (nunca liberar)
+    int       ref_count;  // -1 = singleton, never freed
 } RuntimeVal;
 
-// Especializações:
+// Specializations:
 NumberVal   { ValueType type; int ref_count; double value; }
 BooleanVal  { ValueType type; int ref_count; int value; }
 StringVal   { ValueType type; int ref_count; char *value; }

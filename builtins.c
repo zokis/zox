@@ -1,4 +1,3 @@
-// builtins.c
 #include "builtins.h"
 
 #include <stddef.h>
@@ -82,10 +81,7 @@ RuntimeVal *builtin_typeof(Environment *env, RuntimeVal **args, size_t arg_count
   return (RuntimeVal *)MK_STRING(type_to_string(args[0]->type));
 }
 
-/* deep_copy - copia recursiva de qualquer RuntimeVal.
-   Tipos imutaveis (number, string, bool, nil, function) retornam o proprio
-   valor com retain (sem custo de copia real).
-   Tipos mutaveis (list, dict) criam novos objetos com copias dos filhos. */
+/* Mutable values deep-copy; immutable values/functions share with retain. */
 static RuntimeVal *deep_copy(RuntimeVal *val) {
   switch (val->type) {
   case NUMBER_T:

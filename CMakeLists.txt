@@ -3,7 +3,7 @@ project(zox C)
 
 set(CMAKE_C_STANDARD 11)
 
-# ── Sources ────────────────────────────────────────────────────────────────────
+# Sources.
 set(SOURCES
     main.c
     ast/ast_nodes.c
@@ -31,31 +31,31 @@ set(SOURCES
 
 add_executable(zox ${SOURCES})
 
-# Inclui o diretório raiz para que os headers sejam encontrados
+# Root include dir for project headers.
 target_include_directories(zox PRIVATE ${CMAKE_SOURCE_DIR})
 
-# ── Flags de compilação ────────────────────────────────────────────────────────
+# Compiler flags.
 if (MSVC)
     target_compile_options(zox PRIVATE /W3)
 else()
     target_compile_options(zox PRIVATE -Wall -Wextra)
 endif()
 
-# ── Bibliotecas por plataforma ─────────────────────────────────────────────────
+# Platform libraries.
 if (WIN32)
-    # No Windows: math.h já está embutida no MSVC/MinGW; sem suporte a .so/.dll dinâmico por ora
-    message(STATUS "Build Windows: módulos dinâmicos (.dll) desabilitados")
+    # Windows: math.h built in; dynamic .so/.dll modules disabled for now.
+    message(STATUS "Windows build: dynamic modules (.dll) disabled")
 else()
-    # Linux / macOS: linka libm e libdl para módulos dinâmicos (.so)
+    # Linux/macOS: libm/libdl for dynamic modules.
     target_link_libraries(zox PRIVATE m dl)
 
-    # Exporta todos os símbolos para que módulos .so possam usar funções do core
+    # Export core symbols for .so modules.
     if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_link_options(zox PRIVATE -Wl,--export-dynamic)
     endif()
 endif()
 
-# ── Perfil Debug vs Release ────────────────────────────────────────────────────
+# Debug vs release profile.
 if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32)
     target_compile_options(zox PRIVATE -g -fsanitize=address -fno-omit-frame-pointer)
     target_link_options(zox PRIVATE -fsanitize=address)

@@ -1,6 +1,6 @@
--# bench.zo - benchmark: fib recursivo, ordenacao, dicts, closures, strings
+-# benchmark: recursive fib, sorting, dicts, closures, strings
 
--# ── 1. Fibonacci recursivo (500x fib(14)) ──────────────────────────────────
+-# recursive Fibonacci (500x fib(14))
 $ fib(n) {
     ?(n <= 1) { n } : { fib(n-1) + fib(n-2) }
 }
@@ -12,7 +12,7 @@ let i = 0;
 }
 println(fib_total)
 
--# ── 2. Bubble sort em lista de 200 elementos ────────────────────────────────
+-# bubble sort on 200-item list
 $ make_list(n) {
     let acc = {};
     let k = 0;
@@ -43,7 +43,7 @@ let sorted   = bubble_sort(unsorted);
 println(sorted[0])
 println(sorted[199])
 
--# ── 3. Contagem de frequencias em dict (300 elementos) ──────────────────────
+-# frequency count in dict (300 items)
 ~> string { toString };
 
 $ freq_count(lst) {
@@ -65,7 +65,7 @@ let data = make_list(300);
 let freq = freq_count(data);
 println(len(freq))
 
--# ── 4. map + filter + reduce com closures (400 elementos) ───────────────────
+-# map + filter + reduce with closures (400 items)
 $ map(lst, f) {
     let result = {};
     let i = 0;
@@ -109,7 +109,7 @@ let evens   = filter(shifted, is_even_pred);
 let total   = reduce(evens, add_two, 0);
 println(total)
 
--# ── 5. Concatenacao de strings em loop (1000 iteracoes) ──────────────────────
+-# string concatenation loop (1000 iterations)
 $ build_string(n) {
     let s = "";
     let i = 0;
@@ -121,7 +121,7 @@ $ build_string(n) {
 
 println(build_string(1000))
 
--# ── 6. Produto cartesiano de duas listas de 30 elementos ────────────────────
+-# Cartesian product of two 30-item lists
 $ cartesian(a, b) {
     let result = {};
     let i = 0;
@@ -139,7 +139,7 @@ let ys    = make_list(30);
 let pairs = cartesian(xs, ys);
 println(len(pairs))
 
--# ── 7. Recursao mutua is_even/is_odd ate 200 ───────────────────────────────
+-# mutual recursion is_even/is_odd up to 200
 $ is_even(n) { ?(n == 0) { true } : { is_odd(n - 1) } }
 $ is_odd(n)  { ?(n == 0) { false } : { is_even(n - 1) } }
 

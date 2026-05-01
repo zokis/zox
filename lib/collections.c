@@ -1,13 +1,12 @@
-/* collections.c — módulo externo Zox: operações sobre listas e dicts
+/* External Zox module: list/dict operations.
    Compile: make buildlib LIB=collections
-   Uso:     ~> "./lib/collections.so" { range, zip, flatten, unique, chunk, count, group_by }; */
+   Use:     ~> "./lib/collections.so" { range, zip, flatten, unique, chunk, count, group_by }; */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "../zox_module.h"
 
-/* ── range(start, end, step) ────────────────────────────────────────────── */
 static RuntimeVal *col_range(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc < 2 || args[0]->type != NUMBER_T || args[1]->type != NUMBER_T) {
     fprintf(stderr, "collections.range: expects range(start, end [, step])\n");
@@ -30,7 +29,6 @@ static RuntimeVal *col_range(Environment *env, RuntimeVal **args, size_t argc) {
   return (RuntimeVal *)list;
 }
 
-/* ── zip(a, b) ──────────────────────────────────────────────────────────── */
 static RuntimeVal *col_zip(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[0]->type != LIST_T || args[1]->type != LIST_T) {
     fprintf(stderr, "collections.zip: expects two lists\n");
@@ -50,7 +48,6 @@ static RuntimeVal *col_zip(Environment *env, RuntimeVal **args, size_t argc) {
   return (RuntimeVal *)result;
 }
 
-/* ── flatten(lst) — um nível de profundidade ────────────────────────────── */
 static RuntimeVal *col_flatten(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 1 || args[0]->type != LIST_T) {
     fprintf(stderr, "collections.flatten: expects one list\n");
@@ -71,7 +68,6 @@ static RuntimeVal *col_flatten(Environment *env, RuntimeVal **args, size_t argc)
   return (RuntimeVal *)result;
 }
 
-/* ── unique(lst) — remove duplicatas mantendo ordem ────────────────────── */
 static int rval_eq(RuntimeVal *a, RuntimeVal *b) {
   if (a->type != b->type) return 0;
   switch (a->type) {
@@ -100,7 +96,6 @@ static RuntimeVal *col_unique(Environment *env, RuntimeVal **args, size_t argc) 
   return (RuntimeVal *)result;
 }
 
-/* ── chunk(lst, n) — divide em sublistas de tamanho n ──────────────────── */
 static RuntimeVal *col_chunk(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[0]->type != LIST_T || args[1]->type != NUMBER_T) {
     fprintf(stderr, "collections.chunk: expects (list, number)\n");
@@ -121,7 +116,6 @@ static RuntimeVal *col_chunk(Environment *env, RuntimeVal **args, size_t argc) {
   return (RuntimeVal *)result;
 }
 
-/* ── count(lst, val) — ocorrencias de val na lista ─────────────────────── */
 static RuntimeVal *col_count(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[0]->type != LIST_T) {
     fprintf(stderr, "collections.count: expects (list, value)\n");
@@ -134,7 +128,6 @@ static RuntimeVal *col_count(Environment *env, RuntimeVal **args, size_t argc) {
   return (RuntimeVal *)MK_NUMBER(n);
 }
 
-/* ── group_by(lst, f) — agrupa elementos pelo resultado de f ────────────── */
 static RuntimeVal *col_group_by(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[0]->type != LIST_T || args[1]->type != FUNCTION_T) {
     fprintf(stderr, "collections.group_by: expects (list, function)\n");
@@ -149,7 +142,6 @@ static RuntimeVal *col_group_by(Environment *env, RuntimeVal **args, size_t argc
     RuntimeVal *fargs[] = {item};
     RuntimeVal *key_val = zox_call_function(f, env, fargs, 1);
 
-    /* converte chave para string */
     char key_buf[64];
     if (key_val->type == STRING_T)
       snprintf(key_buf, sizeof(key_buf), "%s", ((StringVal *)key_val)->value);
@@ -161,7 +153,6 @@ static RuntimeVal *col_group_by(Environment *env, RuntimeVal **args, size_t argc
       snprintf(key_buf, sizeof(key_buf), "nil");
     release(key_val);
 
-    /* busca ou cria lista para essa chave */
     RuntimeVal *bucket = NULL;
     for (size_t bi = 0; bi < dict->capacity; bi++) {
       for (Entry *e = dict->entries[bi]; e; e = e->next) {
@@ -173,7 +164,7 @@ static RuntimeVal *col_group_by(Environment *env, RuntimeVal **args, size_t argc
       bucket = (RuntimeVal *)MK_LIST(4);
       dict_set_val(dict, key_buf, bucket);
       release(bucket);
-      /* rebusca para pegar o ponteiro que o dict guarda */
+      /* re-read bucket pointer owned by dict */
       for (size_t bi = 0; bi < dict->capacity; bi++) {
         for (Entry *e = dict->entries[bi]; e; e = e->next) {
           if (strcmp(e->key, key_buf) == 0) { bucket = e->value; break; }
@@ -186,7 +177,6 @@ static RuntimeVal *col_group_by(Environment *env, RuntimeVal **args, size_t argc
   return (RuntimeVal *)dict;
 }
 
-/* ── ponto de entrada ───────────────────────────────────────────────────── */
 ZOX_MODULE_INIT {
   char *p1[]  = {"value"};
   char *p2[]  = {"a", "b"};

@@ -1,4 +1,4 @@
-/* parser_core.c - Nucleo do parser: criacao, helpers base, parse_stmt e produce_ast. */
+/* Parser core: setup, base helpers, statements, AST production. */
 #include "parser_internal.h"
 
 Parser *create_parser(Token *tokens, long long int token_count) {
@@ -18,7 +18,7 @@ Token at(Parser *parser) { return parser->tokens[parser->current]; }
 
 Token eat(Parser *parser) {
   Token t = parser->tokens[parser->current++];
-  /* Atualiza cursor global para que error() mostre a posicao correta */
+  /* keep runtime errors anchored to latest token */
   error_cursor.line   = t.line;
   error_cursor.column = t.column;
   return t;
@@ -53,7 +53,6 @@ Stmt *parse_stmt(Parser *parser) {
     if (at(parser).type == SemiColonTk) eat(parser);
     return (Stmt *)create_return(val);
   }
-  /* Expressao generica: consome ';' opcional apos ela */
   Stmt *expr = (Stmt *)parse_expr(parser);
   if (at(parser).type == SemiColonTk) eat(parser);
   return expr;

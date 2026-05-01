@@ -10,7 +10,7 @@ $ maior(a, b) { ?(a > b) { a } : { b } }
 
 let nums = range(1, 6, 1);   -# {1,2,3,4,5}
 
--# map com funcao Zox
+-# map with Zox function
 let dobrados = map(nums, dobra);
 assert_len(dobrados, 5)
 assert_eq(dobrados[0], 2)
@@ -20,13 +20,13 @@ let quadrados = map(nums, quadrado);
 assert_eq(quadrados[0], 1)
 assert_eq(quadrados[4], 25)
 
--# filter com funcao Zox
+-# filter with Zox function
 let pares = filter(nums, eh_par);
 assert_len(pares, 2)
 assert_eq(pares[0], 2)
 assert_eq(pares[1], 4)
 
--# reduce com funcao Zox
+-# reduce with Zox function
 assert_eq(reduce(nums, soma, 0), 15)
 assert_eq(reduce(nums, maior, 0), 5)
 
@@ -47,13 +47,13 @@ assert_len(d, 2)
 assert_eq(d[0], 4)
 assert_eq(d[1], 5)
 
--# zip_with com funcao Zox
+-# zip_with with Zox function
 let zw = zip_with({1, 2, 3}, {10, 20, 30}, soma);
 assert_len(zw, 3)
 assert_eq(zw[0], 11)
 assert_eq(zw[2], 33)
 
--# pipe com funcoes Zox
+-# pipe with Zox functions
 assert_eq(pipe(3, {dobra, quadrado}), 36)
 assert_eq(pipe(2, {dobra, dobra, dobra}), 16)
 

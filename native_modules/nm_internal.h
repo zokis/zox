@@ -1,7 +1,7 @@
 #ifndef NM_INTERNAL_H
 #define NM_INTERNAL_H
 
-/* Header interno do modulo native_modules - nao incluir fora de native_modules/*.c */
+/* Internal native_modules header. */
 
 #include <ctype.h>
 #include <math.h>

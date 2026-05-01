@@ -16,75 +16,75 @@ CFLAGS_RELEASE = -O2
 CFLAGS_DEV     = -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS_LIB     = -shared -fPIC -O2
 
-# Descobre automaticamente todos os .c em lib/
+# Auto-discover lib/*.c files.
 LIB_SRCS := $(wildcard lib/*.c)
 LIB_SOS  := $(LIB_SRCS:.c=.so)
 
 .PHONY: all dev test libs buildlib full fulldev testlib testlibs clean install listlibs help
 
-## Build release do core (padrão)
+## Build release core (default).
 all:
 	$(CC) $(CFLAGS_RELEASE) -o $(BIN) $(SRCS) $(LIBS)
 
-## Build do core com AddressSanitizer
+## Build core with AddressSanitizer.
 dev:
 	$(CC) $(CFLAGS_DEV) -o $(BIN) $(SRCS) $(LIBS)
 
-## Compila todas as libs em lib/*.c -> lib/*.so
+## Build all lib/*.c files into lib/*.so.
 libs: $(LIB_SOS)
 
 lib/%.so: lib/%.c
 	$(CC) $(CFLAGS_LIB) -o $@ $< -I.
 
-## Compila lib especifica:  make buildlib LIB=json
+## Build specific lib: make buildlib LIB=json.
 buildlib:
 	$(CC) $(CFLAGS_LIB) -o lib/$(LIB).so lib/$(LIB).c -I.
 
-## Build completo: core + todas as libs
+## Build core and all libs.
 full: all libs
 
-## Build de dev completo: core dev + todas as libs
+## Build dev core and all libs.
 fulldev: dev libs
 
-## Compila (release) e roda a suite de testes
+## Build release and run test suite.
 test: all
 	./$(BIN) tests/run_tests.zo
 
 
-## Testa uma lib especifica:  make testlib LIB=json
+## Test specific lib: make testlib LIB=json.
 testlib: lib/$(LIB).so
 	@./$(BIN) tests/libs/$(LIB).zo > /tmp/zox_got_$(LIB).txt 2>&1; 	if diff -q tests/libs/$(LIB).expected /tmp/zox_got_$(LIB).txt > /dev/null 2>&1; then 		echo "  PASS  $(LIB)"; 	else 		echo "  FAIL  $(LIB)"; 		diff tests/libs/$(LIB).expected /tmp/zox_got_$(LIB).txt; 	fi
 
-## Testa todas as libs em tests/libs/
+## Test all libs in tests/libs/.
 testlibs: all libs
 	@echo "=========================================="
 	@echo "  Zox Lib Test Suite"
 	@echo "=========================================="
-	@pass=0; fail=0; 	for zo in tests/libs/*.zo; do 		name=$$(basename $$zo .zo); 		expected=tests/libs/$$name.expected; 		test -f "$$expected" || continue; 		./$(BIN) $$zo > /tmp/zox_got_$$name.txt 2>&1; 		if diff -q $$expected /tmp/zox_got_$$name.txt > /dev/null 2>&1; then 			echo "  PASS  $$name"; pass=$$((pass+1)); 		else 			echo "  FAIL  $$name"; fail=$$((fail+1)); 			diff $$expected /tmp/zox_got_$$name.txt; 		fi; 	done; 	echo "------------------------------------------"; 	echo "  Resultado: $$pass passou(ram) / $$fail falhou(ram)"; 	echo "------------------------------------------"
+	@pass=0; fail=0; 	for zo in tests/libs/*.zo; do 		name=$$(basename $$zo .zo); 		expected=tests/libs/$$name.expected; 		test -f "$$expected" || continue; 		./$(BIN) $$zo > /tmp/zox_got_$$name.txt 2>&1; 		if diff -q $$expected /tmp/zox_got_$$name.txt > /dev/null 2>&1; then 			echo "  PASS  $$name"; pass=$$((pass+1)); 		else 			echo "  FAIL  $$name"; fail=$$((fail+1)); 			diff $$expected /tmp/zox_got_$$name.txt; 		fi; 	done; 	echo "------------------------------------------"; 	echo "  Result: $$pass passed / $$fail failed"; 	echo "------------------------------------------"
 
-## Remove binario e libs compiladas
+## Remove binary and compiled libs.
 clean:
 	rm -f $(BIN) $(LIB_SOS)
 
-## Instala em /usr/local/bin
+## Install into /usr/local/bin.
 install: all
 	cp $(BIN) /usr/local/bin/$(BIN)
 
-## Lista libs disponíveis
+## List available libs.
 listlibs:
-	@echo "Libs disponíveis em lib/:"
+	@echo "Available libs in lib/:"
 	@for f in $(LIB_SRCS); do echo "  $$(basename $$f .c)"; done
 
-## Ajuda
+## Help.
 help:
-	@echo "Targets disponíveis:"
-	@echo "  make          — compila o core (release)"
-	@echo "  make dev      — compila o core com AddressSanitizer"
-	@echo "  make libs     — compila todas as libs em lib/*.c"
-	@echo "  make buildlib LIB=json  — compila lib/json.so"
-	@echo "  make full     — core + todas as libs"
-	@echo "  make fulldev  — core dev + todas as libs"
-	@echo "  make test     — compila e roda a suite de testes"
-	@echo "  make listlibs — lista libs disponíveis"
-	@echo "  make clean    — remove binário e .so compilados"
-	@echo "  make install  — instala em /usr/local/bin"
+	@echo "Available targets:"
+	@echo "  make          - build core (release)"
+	@echo "  make dev      - build core with AddressSanitizer"
+	@echo "  make libs     - build all libs in lib/*.c"
+	@echo "  make buildlib LIB=json  - build lib/json.so"
+	@echo "  make full     - core + all libs"
+	@echo "  make fulldev  - dev core + all libs"
+	@echo "  make test     - build and run test suite"
+	@echo "  make listlibs - list available libs"
+	@echo "  make clean    - remove binary and compiled .so files"
+	@echo "  make install  - install into /usr/local/bin"

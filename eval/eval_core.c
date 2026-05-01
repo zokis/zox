@@ -1,14 +1,7 @@
-/* eval_core.c - Nucleo do evaluator: ControlFlow, eval_program e evaluate (dispatch). */
+/* Evaluator core: ControlFlow, eval_program, evaluate. */
 #include "eval_internal.h"
 
-/* ControlFlow signal
-   Mecanismo leve para propagar break/continue/return pelo evaluator sem
-   usar longjmp. Um sinal global e setado quando o no e encontrado; os
-   callers verificam e propagam sem executar mais instrucoes.
-   O sinal e limpo em:
-     - eval_while_expr / eval_for_expr: ao capturar BREAK ou CONTINUE
-     - eval_call_expr:                  ao capturar RETURN
-*/
+/* Lightweight break/continue/return propagation without longjmp. */
 ControlFlowKind cf_signal    = CF_NONE;
 RuntimeVal     *cf_return_val = NULL;
 

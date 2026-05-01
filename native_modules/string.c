@@ -1,7 +1,5 @@
 #include "nm_internal.h"
 
-/* ── string module ─────────────────────────────────────────────────────────── */
-
 static RuntimeVal *str_upper(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 1 || args[0]->type != STRING_T) error("upper() expects one string");
   char *src = ((StringVal *)args[0])->value;
@@ -67,7 +65,7 @@ static RuntimeVal *str_replace(Environment *env, RuntimeVal **args, size_t argc)
   size_t to_len   = strlen(to);
   if (from_len == 0) return (RuntimeVal *)MK_STRING(src);
 
-  /* contagem de ocorrencias para pre-alocar */
+  /* count matches -> exact allocation */
   size_t count = 0;
   char *p = src;
   while ((p = strstr(p, from)) != NULL) { count++; p += from_len; }
@@ -99,7 +97,7 @@ static RuntimeVal *str_split(Environment *env, RuntimeVal **args, size_t argc) {
   ListVal *list = MK_LIST(4);
 
   if (delim_len == 0) {
-    /* split em caracteres individuais */
+    /* empty delimiter -> split into chars */
     for (size_t i = 0; src[i]; i++) {
       char buf[2] = {src[i], '\0'};
       RuntimeVal *item = (RuntimeVal *)MK_STRING(buf);
@@ -122,7 +120,6 @@ static RuntimeVal *str_split(Environment *env, RuntimeVal **args, size_t argc) {
     release(item);
     p = found + delim_len;
   }
-  /* ultimo segmento */
   RuntimeVal *last = (RuntimeVal *)MK_STRING(p);
   list_append_val(list, last);
   release(last);
@@ -136,7 +133,6 @@ static RuntimeVal *str_join(Environment *env, RuntimeVal **args, size_t argc) {
   char    *delim  = ((StringVal *)args[1])->value;
   size_t   dlen   = strlen(delim);
 
-  /* calcula tamanho total */
   size_t total = 1;
   for (size_t i = 0; i < list->size; i++) {
     if (list->items[i]->type != STRING_T) error("join() list must contain only strings");
@@ -199,4 +195,3 @@ void init_string_module(Environment *env) {
   declare_owned(env, "toNumber",   (RuntimeVal *)MK_NATIVE_FN(s1, 1, str_to_number));
   declare_owned(env, "toString",   (RuntimeVal *)MK_NATIVE_FN(s1, 1, str_to_string));
 }
-

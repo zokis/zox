@@ -29,7 +29,6 @@ Environment *create_environment(Environment *parent, char *scope_name) {
   env->owned_program = NULL;
   env->so_handles      = NULL;
   env->so_handle_count = 0;
-  /* o env pai ganha uma referencia adicional enquanto este filho existir */
   if (parent) retain_env(parent);
   return env;
 }
@@ -38,7 +37,6 @@ void retain_env(Environment *env) {
   if (env) env->ref_count++;
 }
 
-/* Libera as entradas e a estrutura do env em si */
 static void destroy_environment(Environment *env) {
   for (size_t i = 0; i < env->capacity; i++) {
     if (env->entries[i].key != NULL) {
@@ -57,7 +55,6 @@ static void destroy_environment(Environment *env) {
 #endif
   Environment *parent = env->parent;
   free_safe(env);
-  /* solta a referencia que este env segurava no pai */
   if (parent) release_env(parent);
 }
 
@@ -67,25 +64,12 @@ void release_env(Environment *env) {
   if (env->ref_count <= 0) destroy_environment(env);
 }
 
-/* ── break_env_cycles ────────────────────────────────────────────────────────
-   Percorre recursivamente todos os valores e envs acessiveis a partir de
-   `env` e solta os envs capturados por FunctionVals, quebrando ciclos de
-   referencia antes de free_environment() no final do programa.
+/* Break captured-env reference cycles before final environment release.
 
-   Problema: funcoes importadas de um modulo capturam o module_env. Esse env
-   tambem contem funcoes nao-importadas que capturam o mesmo module_env —
-   um ciclo que nao e visivel a partir do env_global diretamente.
+   Imported functions capture module_env. That env can also contain private
+   functions capturing same module_env, forming cycles not visible from global.
 
-   Solucao: ao encontrar uma FunctionVal com env capturado, primeiro
-   percorremos esse env capturado (se ainda nao visitado), depois zeramos
-   fv->env e fazemos release. Isso garante que os ciclos internos do
-   module_env tambem sejam quebrados antes do release final.
-
-   Visitados sao rastreados com um array dinamico de ponteiros de Environment
-   para evitar loops infinitos em grafos ciclicos.
-──────────────────────────────────────────────────────────────────────────── */
-
-/* array dinamico de envs ja visitados */
+   Visited envs prevent infinite loops in cyclic graphs. */
 static Environment **visited_envs  = NULL;
 static size_t        visited_count = 0;
 static size_t        visited_cap   = 0;
@@ -124,8 +108,7 @@ static void break_val_env(RuntimeVal *val) {
     if (fv->env) {
       Environment *captured = fv->env;
       fv->env = NULL;
-      /* percorre o env capturado antes de soltar, para quebrar ciclos
-         internos (ex: funcoes nao-importadas de um module_env) */
+      /* captured env first -> break internal module cycles */
       break_env_all(captured);
       release_env(captured);
     }
@@ -142,7 +125,7 @@ static void break_val_env(RuntimeVal *val) {
 }
 
 void break_env_cycles(Environment *env) {
-  visited_count = 0;  /* reset antes de cada uso */
+  visited_count = 0;
   break_env_all(env);
   free(visited_envs);
   visited_envs  = NULL;
@@ -150,7 +133,6 @@ void break_env_cycles(Environment *env) {
   visited_count = 0;
 }
 
-/* alias semantico para compatibilidade com o codigo existente */
 void free_environment(Environment *env) {
   release_env(env);
 }
@@ -194,8 +176,8 @@ void declare_var(Environment *env, const char *varname, RuntimeVal *value) {
 }
 
 void declare_owned(Environment *env, const char *varname, RuntimeVal *value) {
-  declare_var(env, varname, value);  /* retain: ref -> 2 */
-  release(value);                    /* solta criacao: ref -> 1 */
+  declare_var(env, varname, value);
+  release(value);
 }
 
 void assign_var(Environment *env, const char *varname, RuntimeVal *value) {

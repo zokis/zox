@@ -20,7 +20,7 @@ Token create_token(const char *value, TokenType type, int line,
 
 int isalpha_custom(char c) {
   return isalpha(c) ||
-         (unsigned char)c >= 128; // Extend to include UTF-8 characters
+         (unsigned char)c >= 128;
 }
 
 int isskippable(char c) { return c == ' ' || c == '\n' || c == '\t' || '\r'; }
@@ -46,7 +46,7 @@ int utf8_char_len(char c) {
     return 3;
   else if ((c & 0xF8) == 0xF0)
     return 4;
-  return 1; // Invalid UTF-8 character
+  return 1;
 }
 
 Token handle_ampersand_token(const char **src, int *line,
@@ -332,9 +332,8 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
       src++;
       column++;
     } else {
-      // Handle UTF-8 characters
       if (char_len > 1) {
-        char utf8_char[5] = {0}; // UTF-8 characters can be up to 4 bytes
+        char utf8_char[5] = {0}; // UTF-8 chars max 4 bytes
         strncpy(utf8_char, src, char_len);
         ensure_capacity(&tokens, &capacity, *tokenCount, "tokenize 'UTF8Char'");
         tokens[(*tokenCount)++] =

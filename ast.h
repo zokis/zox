@@ -30,10 +30,10 @@ typedef enum {
   DictKeyAst,         // 18
   AssignListVarAst,   // 19
   AssignDictVarAst,   // 20
-  /* TableLiteralAst reservado para reintroducao futura */
+  /* TableLiteralAst reserved for future reintroduction. */
   ImportAst,          // 22
-  AssignListExprAst,  // 26 atribuicao em lista via expressao: expr[i] = v
-  AssignDictExprAst,  // 27 atribuicao em dict via expressao: expr{k} = v
+  AssignListExprAst,  // 26 expr[i] = v
+  AssignDictExprAst,  // 27 expr{k} = v
   BreakAst,           // 23
   ContinueAst,        // 24
   ReturnAst           // 25
@@ -206,7 +206,6 @@ typedef struct {
   int is_slice;
 } ListIndex;
 
-/* Atribuicao em lista via expressao composta: expr[i] = value */
 typedef struct {
   Expr base;
   Expr *target;
@@ -214,7 +213,6 @@ typedef struct {
   Expr *value;
 } AssignListExpr;
 
-/* Atribuicao em dict via expressao composta: expr{k} = value */
 typedef struct {
   Expr base;
   Expr *target;

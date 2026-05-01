@@ -1,6 +1,4 @@
-/* ── parser_stmts.c ───────────────────────────────────────────────────────────
-   Statements: var declaration, import, if, while, for, func def, call expr.
-──────────────────────────────────────────────────────────────────────────── */
+/* Statement parsing. */
 #include "parser_internal.h"
 
 Expr *parse_var_declaration(Parser *parser) {
@@ -29,7 +27,7 @@ Stmt *parse_import_stmt(Parser *parser) {
       at(parser).type == IdentifierTk) {
     module_name = eat(parser).value;
   } else if (at(parser).type == StringTk) {
-    /* path direto: ~> "./lib/json.so" { ... } */
+    /* direct path: ~> "./lib/json.so" { ... } */
     module_name = eat(parser).value;
   } else {
     Token tk = at(parser);

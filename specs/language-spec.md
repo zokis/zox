@@ -534,7 +534,7 @@ println(fatorial(10))  -# 3628800
 
 ### Break e continue
 ```zox
--# soma os primeiros 5 múltiplos de 3
+-# sum first 5 multiples of 3
 let soma = 0;
 let count = 0;
 @(let i = 1; i < 1000; i = i + 1) {

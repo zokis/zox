@@ -6,10 +6,7 @@
 
 #include "malloc_safe.h"
 
-/* ── singletons estaticos ─────────────────────────────────────────────────
-   ref_count = -1 significa "valor estatico: retain/release sao no-op".
-   Nunca sao liberados, nunca sao alocados dinamicamente.
-──────────────────────────────────────────────────────────────────────────── */
+/* ref_count = -1 -> static singleton, retain/release no-op. */
 #define STATIC_REF (-1)
 
 static NilVal     _nil_singleton   = { .base = { NIL_T,     STATIC_REF } };
@@ -28,7 +25,6 @@ static void init_singletons(void) {
   _singletons_initialized = 1;
 }
 
-/* ── liberacao recursiva de cada tipo ────────────────────────────────────── */
 static void free_runtime_val(RuntimeVal *val) {
   if (!val) return;
   switch (val->type) {
@@ -67,16 +63,14 @@ static void free_runtime_val(RuntimeVal *val) {
       break;
     }
     case FUNCTION_T: {
-      /* params e body pertencem a AST — nao liberamos aqui */
+      /* params/body owned by AST. */
       FunctionVal *fv = (FunctionVal *)val;
-      if (fv->env != NULL) release_env(fv->env);  /* solta o env capturado */
+      if (fv->env != NULL) release_env(fv->env);
       free_safe(val);
       break;
     }
   }
 }
-
-/* ── reference counting ───────────────────────────────────────────────────── */
 
 void retain(RuntimeVal *val) {
   if (!val || val->ref_count == STATIC_REF) return;
@@ -88,8 +82,6 @@ void release(RuntimeVal *val) {
   val->ref_count--;
   if (val->ref_count <= 0) free_runtime_val(val);
 }
-
-/* ── construtores ─────────────────────────────────────────────────────────── */
 
 NilVal *MK_NIL() {
   init_singletons();
@@ -166,7 +158,7 @@ FunctionVal *MK_FUNCTION(char **params, size_t param_count, Stmt **body,
   val->body           = body;
   val->body_count     = body_count;
   val->env            = env;
-  if (env != NULL) retain_env(env);  /* closure segura o env de definicao */
+  if (env != NULL) retain_env(env);  /* closure keeps definition env */
   val->builtin_func   = builtin_func;
   return val;
 }
@@ -186,8 +178,6 @@ RuntimeVal *create_native_fn(char **params, size_t param_count,
   func_val->builtin_func   = fn;
   return (RuntimeVal *)func_val;
 }
-
-/* ── utilitarios ──────────────────────────────────────────────────────────── */
 
 char *type_to_string(ValueType type) {
   switch (type) {

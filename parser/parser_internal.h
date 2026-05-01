@@ -1,9 +1,7 @@
 #ifndef PARSER_INTERNAL_H
 #define PARSER_INTERNAL_H
 
-/* ── Cabeçalho interno do módulo parser ──────────────────────────────────────
-   Compartilhado apenas entre os arquivos parser/*.c.
-──────────────────────────────────────────────────────────────────────────── */
+/* Internal parser header. */
 
 #include "../parser.h"
 #include "../ast.h"
@@ -18,13 +16,13 @@
 
 extern ExecutionContext global_context;
 
-/* ── Helpers base (definidos em parser_core.c) ────────────────────────────── */
+/* Base helpers from parser_core.c. */
 short int not_eof(Parser *parser);
 Token     at(Parser *parser);
 Token     eat(Parser *parser);
 Token     expect(Parser *parser, TokenType type, const char *err);
 
-/* ── Protótipos das funções de parse ────────────────────────────────────── */
+/* Parse function prototypes. */
 Expr *parse_expr(Parser *parser);
 Expr *parse_relational_expr(Parser *parser);
 Expr *parse_logical_or(Parser *parser);

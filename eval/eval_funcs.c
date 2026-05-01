@@ -1,4 +1,4 @@
-/* eval_funcs.c - Definicao e chamada de funcoes, variaveis e atribuicoes. */
+/* Function calls, variables, assignments. */
 #include "eval_internal.h"
 
 RuntimeVal *eval_var_expr(VarDeclaration *var, Environment *env) {
@@ -38,7 +38,6 @@ RuntimeVal *eval_assign_dict_var_expr(AssignDictVar *var, Environment *env) {
   return value;
 }
 
-/* Atribuicao em lista via expressao composta: expr[i] = value */
 RuntimeVal *eval_assign_list_expr(AssignListExpr *node, Environment *env) {
   RuntimeVal *value    = evaluate(&(node->value->stmt), env);
   RuntimeVal *list_val = evaluate(&(node->target->stmt), env);
@@ -57,7 +56,6 @@ RuntimeVal *eval_assign_list_expr(AssignListExpr *node, Environment *env) {
   return value;
 }
 
-/* Atribuicao em dict via expressao composta: expr{k} = value */
 RuntimeVal *eval_assign_dict_expr(AssignDictExpr *node, Environment *env) {
   RuntimeVal *value    = evaluate(&(node->value->stmt), env);
   RuntimeVal *dict_val = evaluate(&(node->target->stmt), env);
@@ -84,11 +82,7 @@ RuntimeVal *eval_func_def(FuncDef *func_def, Environment *env) {
   return (RuntimeVal *)func_val;
 }
 
-/* eval_call_expr
-   Todos os argumentos chegam com ref+1 (de evaluate).
-   declare_var faz retain => ref+2. release imediato => ref+1 (so func_env).
-   Retorno: retain antes de free_environment => ref+1 para o chamador.
-*/
+/* Args arrive ref+1; func_env keeps them after caller release. */
 RuntimeVal *eval_call_expr(CallExpr *call_expr, Environment *env) {
   RuntimeVal *callee = evaluate(&(call_expr->callee->stmt), env);
   if (callee->type != FUNCTION_T) error("Attempted to call a non-function value.\n");
@@ -146,9 +140,7 @@ RuntimeVal *eval_call_expr(CallExpr *call_expr, Environment *env) {
   return lastEvaluated;
 }
 
-/* zox_call_function — chama qualquer FunctionVal (builtin ou Zox puro)
-   com args já avaliados. Retorna com ref+1 para o chamador.
-   Exportada via eval.h para uso em modulos externos (.so). */
+/* Calls builtin or Zox FunctionVal with already-evaluated args. */
 RuntimeVal *zox_call_function(FunctionVal *func, Environment *env,
                                RuntimeVal **args, size_t arg_count) {
   if (arg_count != func->param_count) {
@@ -159,11 +151,9 @@ RuntimeVal *zox_call_function(FunctionVal *func, Environment *env,
     error(msg);
   }
 
-  /* builtin C */
   if (func->builtin_func)
     return func->builtin_func(env, args, arg_count);
 
-  /* funcao Zox puro */
   Environment *func_env = create_environment(func->env, "func_env");
   for (size_t i = 0; i < arg_count; i++) {
     declare_var(func_env, func->params[i], args[i]);

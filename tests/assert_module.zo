@@ -3,7 +3,7 @@
             assert_in, assert_not_in, assert_len, assert_contains,
             assert_summary };
 
--# aritmetica basica
+-# basic arithmetic
 assert_eq(1 + 1, 2);
 assert_eq(10 - 3, 7);
 assert_eq(3 * 4, 12);
@@ -11,7 +11,7 @@ assert_eq(10 / 2, 5);
 assert_eq(10 % 3, 1);
 assert_eq(2 ** 3, 8);
 
--# comparacoes
+-# comparisons
 assert_true(5 > 3);
 assert_true(3 < 5);
 assert_true(5 >= 5);
@@ -24,7 +24,7 @@ assert_lte(2, 3);
 assert_gte(5, 5);
 assert_gte(6, 5);
 
--# igualdade e diferenca
+-# equality and inequality
 assert_eq(42, 42);
 assert_neq(1, 2);
 
@@ -37,14 +37,14 @@ assert_contains("hello world", "world");
 assert_contains("hello world", "hello");
 assert_not_in("xyz", "hello world");
 
--# booleanos
+-# booleans
 assert_true(true);
 assert_false(false);
 assert_eq(true, true);
 assert_eq(false, false);
 assert_neq(true, false);
 
--# listas — tamanho e pertencimento
+-# lists: size and membership
 let nums = {10, 20, 30, 40, 50};
 assert_len(nums, 5);
 assert_in(20, nums);
@@ -53,7 +53,7 @@ assert_not_in(99, nums);
 assert_eq(nums[0], 10);
 assert_eq(nums[4], 50);
 
--# funcoes e recursao
+-# functions and recursion
 $ fat(n) {
     ? (n <= 1) { 1 } : { n * fat(n - 1) }
 }

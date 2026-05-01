@@ -1,4 +1,4 @@
-/* ast_free.c - Liberacao recursiva de nos da AST. */
+/* Recursive AST node release. */
 #include "../ast.h"
 
 #include <stddef.h>
@@ -6,7 +6,6 @@
 
 #include "../malloc_safe.h"
 
-/* Acessa os literais pre-alocados via funcoes getter de ast_nodes.c */
 extern NilLiteral     *get_preallocated_nil(void);
 extern BooleanLiteral *get_preallocated_true(void);
 extern BooleanLiteral *get_preallocated_false(void);

@@ -18,8 +18,8 @@ struct Environment {
   size_t size;
   char *scope_name;
   int ref_count;
-  void *owned_program; /* AST do modulo importado — liberada junto com o env */
-  void **so_handles;   /* array de handles dlopen() — fechados junto com o env */
+  void *owned_program; /* imported module AST owned by env */
+  void **so_handles;   /* dlopen handles owned by env */
   size_t so_handle_count;
 };
 

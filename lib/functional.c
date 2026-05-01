@@ -1,13 +1,13 @@
-/* functional.c -- modulo externo Zox: higher-order functions
+/* External Zox module: higher-order functions.
    Compile: make buildlib LIB=functional
-   Uso:     ~> "./lib/functional.so" { map, filter, reduce, any, all, take, drop, zip_with, pipe }; */
+   Use:     ~> "./lib/functional.so" { map, filter, reduce, any, all, take, drop, zip_with, pipe }; */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "../zox_module.h"
 
-/* helpers: delegam para zox_call_function -- suporta builtins E funcoes Zox puro */
+/* zox_call_function supports builtins and pure Zox functions. */
 static RuntimeVal *call1(Environment *env, FunctionVal *f, RuntimeVal *arg) {
   RuntimeVal *args[] = {arg};
   return zox_call_function(f, env, args, 1);
@@ -18,7 +18,6 @@ static RuntimeVal *call2(Environment *env, FunctionVal *f, RuntimeVal *a, Runtim
   return zox_call_function(f, env, args, 2);
 }
 
-/* -- map(lst, f) --------------------------------------------------------- */
 static RuntimeVal *fn_map(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[0]->type != LIST_T || args[1]->type != FUNCTION_T) {
     fprintf(stderr, "functional.map: expects (list, function)\n");
@@ -35,7 +34,6 @@ static RuntimeVal *fn_map(Environment *env, RuntimeVal **args, size_t argc) {
   return (RuntimeVal *)result;
 }
 
-/* -- filter(lst, pred) --------------------------------------------------- */
 static RuntimeVal *fn_filter(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[0]->type != LIST_T || args[1]->type != FUNCTION_T) {
     fprintf(stderr, "functional.filter: expects (list, function)\n");
@@ -54,7 +52,6 @@ static RuntimeVal *fn_filter(Environment *env, RuntimeVal **args, size_t argc) {
   return (RuntimeVal *)result;
 }
 
-/* -- reduce(lst, f, init) ------------------------------------------------ */
 static RuntimeVal *fn_reduce(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 3 || args[0]->type != LIST_T || args[1]->type != FUNCTION_T) {
     fprintf(stderr, "functional.reduce: expects (list, function, init)\n");
@@ -71,7 +68,6 @@ static RuntimeVal *fn_reduce(Environment *env, RuntimeVal **args, size_t argc) {
   return acc;
 }
 
-/* -- any(lst, pred) ------------------------------------------------------ */
 static RuntimeVal *fn_any(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[0]->type != LIST_T || args[1]->type != FUNCTION_T) {
     fprintf(stderr, "functional.any: expects (list, function)\n");
@@ -89,7 +85,6 @@ static RuntimeVal *fn_any(Environment *env, RuntimeVal **args, size_t argc) {
   return (RuntimeVal *)MK_BOOL(0);
 }
 
-/* -- all(lst, pred) ------------------------------------------------------ */
 static RuntimeVal *fn_all(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[0]->type != LIST_T || args[1]->type != FUNCTION_T) {
     fprintf(stderr, "functional.all: expects (list, function)\n");
@@ -107,7 +102,6 @@ static RuntimeVal *fn_all(Environment *env, RuntimeVal **args, size_t argc) {
   return (RuntimeVal *)MK_BOOL(1);
 }
 
-/* -- take(lst, n) -------------------------------------------------------- */
 static RuntimeVal *fn_take(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[0]->type != LIST_T || args[1]->type != NUMBER_T) {
     fprintf(stderr, "functional.take: expects (list, number)\n");
@@ -121,7 +115,6 @@ static RuntimeVal *fn_take(Environment *env, RuntimeVal **args, size_t argc) {
   return (RuntimeVal *)result;
 }
 
-/* -- drop(lst, n) -------------------------------------------------------- */
 static RuntimeVal *fn_drop(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[0]->type != LIST_T || args[1]->type != NUMBER_T) {
     fprintf(stderr, "functional.drop: expects (list, number)\n");
@@ -135,7 +128,6 @@ static RuntimeVal *fn_drop(Environment *env, RuntimeVal **args, size_t argc) {
   return (RuntimeVal *)result;
 }
 
-/* -- zip_with(a, b, f) --------------------------------------------------- */
 static RuntimeVal *fn_zip_with(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 3 || args[0]->type != LIST_T ||
       args[1]->type != LIST_T || args[2]->type != FUNCTION_T) {
@@ -155,7 +147,6 @@ static RuntimeVal *fn_zip_with(Environment *env, RuntimeVal **args, size_t argc)
   return (RuntimeVal *)result;
 }
 
-/* -- pipe(val, {f1, f2, ...}) -------------------------------------------- */
 static RuntimeVal *fn_pipe(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[1]->type != LIST_T) {
     fprintf(stderr, "functional.pipe: expects (value, list_of_functions)\n");
@@ -177,7 +168,6 @@ static RuntimeVal *fn_pipe(Environment *env, RuntimeVal **args, size_t argc) {
   return acc;
 }
 
-/* -- ponto de entrada ---------------------------------------------------- */
 ZOX_MODULE_INIT {
   char *p2[]  = {"a", "b"};
   char *p3[]  = {"a", "b", "f"};

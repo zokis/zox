@@ -1,4 +1,4 @@
-/* ast_nodes.c - Criacao de todos os nos da AST e literais pre-alocados. */
+/* AST node builders and preallocated literals. */
 #include "../ast.h"
 
 #include <math.h>

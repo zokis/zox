@@ -1,6 +1,4 @@
-/* ── eval_ops.c ───────────────────────────────────────────────────────────────
-   Operações binárias e unárias: numérico, string, lista, dict.
-──────────────────────────────────────────────────────────────────────────── */
+/* Binary/unary operations: number, string, list, dict. */
 #include "eval_internal.h"
 
 NumberVal *eval_numeric_binary_expr(NumberVal *lhs, NumberVal *rhs,
@@ -222,10 +220,7 @@ Expr *runtime_value_to_expr(RuntimeVal *val) {
   return NULL;
 }
 
-/* ── eval_binary_expr_evaluated ───────────────────────────────────────────
-   Recebe lhs e rhs com ref+1 (responsabilidade do chamador).
-   Retorna novo valor com ref=1 (nascimento).
-──────────────────────────────────────────────────────────────────────────── */
+/* lhs/rhs arrive ref+1; caller releases them. */
 RuntimeVal *eval_binary_expr_evaluated(RuntimeVal *lhs, RuntimeVal *rhs,
                                        const char *operator) {
   if ((lhs->type == NUMBER_T || lhs->type == BOOLEAN_T) &&

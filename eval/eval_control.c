@@ -1,6 +1,4 @@
-/* ── eval_control.c ───────────────────────────────────────────────────────────
-   Estruturas de controle: if, while, for.
-──────────────────────────────────────────────────────────────────────────── */
+/* Control flow: if, while, for. */
 #include "eval_internal.h"
 
 short int is_while_finished(WhileExpr *while_expr, Environment *env) {

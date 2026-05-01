@@ -56,8 +56,8 @@ Mkfile.old
 dkms.conf
 
 .idea/
-.cmake-build-release/
-.cmake-build-debug/
+cmake-build-release/
+cmake-build-debug/
 *.zoxc
 
 tmpdocs/

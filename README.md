@@ -215,7 +215,7 @@ println(data{"ok"});
 | `copy(value)` | deep-copy lists/dicts |
 | `typeof(value)` | runtime type name |
 | `random()` | float in `[0, 1)` |
-| `randomInt(min, max)` | integer in `[min, max]` |
+| `random_int(min, max)` | integer in `[min, max]` |
 
 ## Modules
 

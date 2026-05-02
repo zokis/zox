@@ -50,4 +50,17 @@ test("dict get", dict_get);
 test("dict get with num", dict_get_with_num);
 test("float key precision", float_key_precision);
 
+suite("Dict setdefault");
+
+$ dict_setdefault() {
+    let d = ["a" -> 1];
+    assert_eq(setdefault(d, "a", 2), 1);
+    assert_eq(d{"a"}, 1);
+    
+    assert_eq(setdefault(d, "b", 2), 2);
+    assert_eq(d{"b"}, 2)
+}
+
+test("dict setdefault", dict_setdefault);
+
 test_summary()

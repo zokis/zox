@@ -10,8 +10,8 @@
 
 set -euo pipefail
 
-BASELINE="tests/perf_baseline.txt"
-BENCH="tests/bench.zo"
+BASELINE="tests/benchmarks/perf_baseline.txt"
+BENCH="tests/benchmarks/bench.zo"
 RUNS=10
 THRESHOLD_PCT=10   # fail if median is >10% slower than baseline
 

@@ -48,19 +48,16 @@ fulldev: dev libs
 
 ## Build release and run test suite.
 test: all
-	./$(BIN) tests/run_tests.zo
+	./$(BIN) tests/run_unit_tests.zo
 
 
 ## Test specific lib: make testlib LIB=json.
-testlib: lib/$(LIB).so
-	@./$(BIN) tests/libs/$(LIB).zo > /tmp/zox_got_$(LIB).txt 2>&1; 	if diff -q tests/libs/$(LIB).expected /tmp/zox_got_$(LIB).txt > /dev/null 2>&1; then 		echo "  PASS  $(LIB)"; 	else 		echo "  FAIL  $(LIB)"; 		diff tests/libs/$(LIB).expected /tmp/zox_got_$(LIB).txt; 	fi
+testlib: all libs
+	@./$(BIN) tests/libs/unit/$(LIB).zo
 
-## Test all libs in tests/libs/.
+## Test all libs in tests/libs/unit/.
 testlibs: all libs
-	@echo "=========================================="
-	@echo "  Zox Lib Test Suite"
-	@echo "=========================================="
-	@pass=0; fail=0; 	for zo in tests/libs/*.zo; do 		name=$$(basename $$zo .zo); 		expected=tests/libs/$$name.expected; 		test -f "$$expected" || continue; 		./$(BIN) $$zo > /tmp/zox_got_$$name.txt 2>&1; 		if diff -q $$expected /tmp/zox_got_$$name.txt > /dev/null 2>&1; then 			echo "  PASS  $$name"; pass=$$((pass+1)); 		else 			echo "  FAIL  $$name"; fail=$$((fail+1)); 			diff $$expected /tmp/zox_got_$$name.txt; 		fi; 	done; 	echo "------------------------------------------"; 	echo "  Result: $$pass passed / $$fail failed"; 	echo "------------------------------------------"
+	./$(BIN) tests/run_libs_unit_tests.zo
 
 ## Performance regression test (requires tests/perf_baseline.txt — run perf-update first).
 perf:

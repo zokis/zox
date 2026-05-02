@@ -113,6 +113,7 @@ RuntimeVal *evaluate(Stmt *astNode, Environment *env) {
     }
     RuntimeVal *ok_val = dict_get_val(d, "ok");
     if (!ok_val) error("Unwrap operator !? expects a result dictionary with 'ok' or 'err' key.");
+    retain(ok_val);
     release(val);
     return ok_val; /* caller takes ownership */
   }

@@ -137,6 +137,12 @@ RuntimeVal *eval_arena_block(ArenaBlockExpr *arena_expr, Environment *env) {
   }
 
   /* Promotion phase: deep clone into heap (force_heap) then reset arena. */
+  if (cf_signal == CF_RETURN) {
+    release(lastEvaluated);
+    lastEvaluated = cf_take_return_val();
+    cf_signal = CF_NONE;
+  }
+
   zox_alloc_force_heap(1);
   RuntimeVal *promoted = promote_val(lastEvaluated);
   if (promoted == lastEvaluated) retain(promoted);

@@ -118,7 +118,8 @@ $ parse_tz_offset(tz_str) {
 
         ?(colon_idx == -1) {
             -# Format: +HHMM or +HH
-            let hours = toNumber(offset_str[0:2]);
+            let hours = 0;
+            ?(len(offset_str) >= 2) { hours = toNumber(offset_str[0:2]) } : { hours = toNumber(offset_str) };
             ?(len(offset_str) > 2) {
                 let mins = toNumber(offset_str[2:]);
                 _>> hours * 60 + mins
@@ -139,7 +140,8 @@ $ parse_tz_offset(tz_str) {
         let colon_idx = find(offset_str, ":");
 
         ?(colon_idx == -1) {
-            let hours = toNumber(offset_str[0:2]);
+            let hours = 0;
+            ?(len(offset_str) >= 2) { hours = toNumber(offset_str[0:2]) } : { hours = toNumber(offset_str) };
             ?(len(offset_str) > 2) {
                 let mins = toNumber(offset_str[2:]);
                 _>> -(hours * 60 + mins)

@@ -2,7 +2,7 @@
 
 -# run_infinite: Executa uma tarefa para sempre com isolamento de arena.
 $ run_infinite(worker, delay_ms) {
-    @(true) {
+    #(true) {
         |{
             worker()
         }|;
@@ -15,7 +15,7 @@ $ run_infinite(worker, delay_ms) {
 -# run_stateful: Executa tarefa infinita mantendo um estado entre iterações.
 $ run_stateful(worker, initial_state, delay_ms) {
     let state = initial_state;
-    @(true) {
+    #(true) {
         state = |{
             _>> worker(state)
         }|;

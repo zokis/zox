@@ -37,7 +37,11 @@ typedef enum {
   BreakAst,           // 23
   ContinueAst,        // 24
   ReturnAst,          // 25
-  ArenaBlockAst       // 28
+  ArenaBlockAst,      // 28
+  ReturnSuccessAst,   // 29
+  ReturnErrorAst,     // 30
+  UnwrapAst,          // 31
+  MatchAst            // 32
 } NodeType;
 
 typedef struct Stmt {
@@ -194,12 +198,30 @@ typedef struct { Stmt base; } BreakStmt;
 typedef struct { Stmt base; } ContinueStmt;
 
 typedef struct {
-  Stmt base;
+  Expr base;
   Expr *value;
 } ReturnStmt;
 
 typedef struct {
   Expr base;
+  Expr *expr;
+} UnwrapExpr;
+
+typedef struct {
+  Expr *condition;
+  Expr *branch;
+} MatchCase;
+
+typedef struct {
+  Expr base;
+  Expr *target;
+  MatchCase **cases;
+  size_t case_count;
+} MatchExpr;
+
+typedef struct {
+  Expr base;
+
   Expr *list;
   Expr *index;
   Expr *start;
@@ -260,6 +282,11 @@ ArenaBlockExpr *create_arena_block(Stmt **body, size_t body_count);
 BreakStmt *create_break();
 ContinueStmt *create_continue();
 ReturnStmt *create_return(Expr *value);
+ReturnStmt *create_return_success(Expr *value);
+ReturnStmt *create_return_error(Expr *value);
+UnwrapExpr *create_unwrap_expr(Expr *expr);
+MatchExpr  *create_match_expr(Expr *target, MatchCase **cases, size_t case_count);
+MatchCase  *create_match_case(Expr *condition, Expr *branch);
 
 void free_expr(Expr *expr);
 void free_stmt(Stmt *stmt);

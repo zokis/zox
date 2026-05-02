@@ -114,6 +114,20 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
       continue;
     }
 
+    /* 4-character tokens */
+    if (*src == '_' && *(src + 1) == '>' && *(src + 2) == '>') {
+      if (*(src + 3) == '@') {
+        add_token(&tokens, &capacity, tokenCount, create_token("_>>@", ReturnSuccessTk, line, column));
+        src += 4; column += 4; continue;
+      } else if (*(src + 3) == '!') {
+        add_token(&tokens, &capacity, tokenCount, create_token("_>>!", ReturnErrorTk, line, column));
+        src += 4; column += 4; continue;
+      } else {
+        add_token(&tokens, &capacity, tokenCount, create_token("_>>", ReturnTk, line, column));
+        src += 3; column += 3; continue;
+      }
+    }
+
     /* 3-character tokens */
     if (*src == '~' && *(src + 1) == '!' && *(src + 2) == '!') {
       add_token(&tokens, &capacity, tokenCount, create_token("~!!", BreakTk, line, column));
@@ -123,12 +137,20 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
       add_token(&tokens, &capacity, tokenCount, create_token("__>", ContinueTk, line, column));
       src += 3; column += 3; continue;
     }
-    if (*src == '_' && *(src + 1) == '>' && *(src + 2) == '>') {
-      add_token(&tokens, &capacity, tokenCount, create_token("_>>", ReturnTk, line, column));
-      src += 3; column += 3; continue;
-    }
 
     /* 2-character tokens */
+    if (*src == '?' && *(src + 1) == '?') {
+      add_token(&tokens, &capacity, tokenCount, create_token("??", MatchTk, line, column));
+      src += 2; column += 2; continue;
+    }
+    if (*src == '=' && *(src + 1) == '>') {
+      add_token(&tokens, &capacity, tokenCount, create_token("=>", FatArrowTk, line, column));
+      src += 2; column += 2; continue;
+    }
+    if (*src == '!' && *(src + 1) == '?') {
+      add_token(&tokens, &capacity, tokenCount, create_token("!?", UnwrapTk, line, column));
+      src += 2; column += 2; continue;
+    }
     if (*src == '~' && *(src + 1) == '>') {
       add_token(&tokens, &capacity, tokenCount, create_token("~>", ImportTk, line, column));
       src += 2; column += 2; continue;

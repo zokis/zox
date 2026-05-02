@@ -253,7 +253,44 @@ ContinueStmt *create_continue(void) {
 
 ReturnStmt *create_return(Expr *value) {
   ReturnStmt *s = malloc_safe(sizeof(ReturnStmt), "ReturnStmt");
-  s->base.kind = ReturnAst;
+  s->base.stmt.kind = ReturnAst;
   s->value = value;
   return s;
+}
+
+ReturnStmt *create_return_success(Expr *value) {
+  ReturnStmt *s = malloc_safe(sizeof(ReturnStmt), "ReturnSuccess");
+  s->base.stmt.kind = ReturnSuccessAst;
+  s->value = value;
+  return s;
+}
+
+ReturnStmt *create_return_error(Expr *value) {
+  ReturnStmt *s = malloc_safe(sizeof(ReturnStmt), "ReturnError");
+  s->base.stmt.kind = ReturnErrorAst;
+  s->value = value;
+  return s;
+}
+
+UnwrapExpr *create_unwrap_expr(Expr *expr) {
+  UnwrapExpr *u = malloc_safe(sizeof(UnwrapExpr), "UnwrapExpr");
+  u->base.stmt.kind = UnwrapAst;
+  u->expr = expr;
+  return u;
+}
+
+MatchExpr *create_match_expr(Expr *target, MatchCase **cases, size_t case_count) {
+  MatchExpr *m = malloc_safe(sizeof(MatchExpr), "MatchExpr");
+  m->base.stmt.kind = MatchAst;
+  m->target = target;
+  m->cases = cases;
+  m->case_count = case_count;
+  return m;
+}
+
+MatchCase *create_match_case(Expr *condition, Expr *branch) {
+  MatchCase *c = malloc_safe(sizeof(MatchCase), "MatchCase");
+  c->condition = condition;
+  c->branch = branch;
+  return c;
 }

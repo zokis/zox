@@ -53,6 +53,7 @@ RuntimeVal *evaluate(Stmt *astNode, Environment *env) {
   case AssignVarAst:       return eval_assign_var_expr((AssignVar *)astNode, env);
   case IfAst:              return eval_if_expr((IfExpr *)astNode, env);
   case WhileAst:           return eval_while_expr((WhileExpr *)astNode, env);
+  case MatchAst:           return eval_match_expr((MatchExpr *)astNode, env);
   case ForAst:             return eval_for_expr((ForExpr *)astNode, env);
   case ArenaBlockAst:      return eval_arena_block((ArenaBlockExpr *)astNode, env);
   case StringLiteralAst:   return eval_string_literal((StringLiteral *)astNode);
@@ -79,6 +80,41 @@ RuntimeVal *evaluate(Stmt *astNode, Environment *env) {
     RuntimeVal *val = ret->value ? evaluate(&(ret->value->stmt), env) : (RuntimeVal *)MK_NIL();
     cf_set_return(val);
     return (RuntimeVal *)MK_NIL();
+  }
+  case ReturnSuccessAst: {
+    ReturnStmt *ret = (ReturnStmt *)astNode;
+    RuntimeVal *val = ret->value ? evaluate(&(ret->value->stmt), env) : (RuntimeVal *)MK_NIL();
+    DictVal *res = MK_DICT(1);
+    dict_set_val(res, "ok", val);
+    cf_set_return((RuntimeVal *)res);
+    release(val);
+    return (RuntimeVal *)MK_NIL();
+  }
+  case ReturnErrorAst: {
+    ReturnStmt *ret = (ReturnStmt *)astNode;
+    RuntimeVal *val = ret->value ? evaluate(&(ret->value->stmt), env) : (RuntimeVal *)MK_NIL();
+    DictVal *res = MK_DICT(1);
+    dict_set_val(res, "err", val);
+    cf_set_return((RuntimeVal *)res);
+    release(val);
+    return (RuntimeVal *)MK_NIL();
+  }
+  case UnwrapAst: {
+    UnwrapExpr *u = (UnwrapExpr *)astNode;
+    RuntimeVal *val = evaluate(&(u->expr->stmt), env);
+    if (val->type != DICT_T) error("Unwrap operator !? expects a result dictionary {ok: v} or {err: v}.");
+    DictVal *d = (DictVal *)val;
+    RuntimeVal *err_val = dict_get_val(d, "err");
+    if (err_val) {
+      /* Propagate early return: the value IS the result dict. */
+      cf_set_return(val);
+      release(err_val);
+      return (RuntimeVal *)MK_NIL();
+    }
+    RuntimeVal *ok_val = dict_get_val(d, "ok");
+    if (!ok_val) error("Unwrap operator !? expects a result dictionary with 'ok' or 'err' key.");
+    release(val);
+    return ok_val; /* caller takes ownership */
   }
   default: error("This AST Node has not yet been setup for interpretation.\n");
   }

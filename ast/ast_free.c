@@ -187,7 +187,9 @@ static void free_node(Stmt *node) {
   case BreakAst:
   case ContinueAst:
     break;
-  case ReturnAst: {
+  case ReturnAst:
+  case ReturnSuccessAst:
+  case ReturnErrorAst: {
     ReturnStmt *r = (ReturnStmt *)node;
     if (r->value) free_node((Stmt *)r->value);
     break;
@@ -196,6 +198,22 @@ static void free_node(Stmt *node) {
     ArenaBlockExpr *a = (ArenaBlockExpr *)node;
     for (size_t i = 0; i < a->body_count; i++) free_node(a->body[i]);
     free_safe(a->body);
+    break;
+  }
+  case UnwrapAst: {
+    UnwrapExpr *u = (UnwrapExpr *)node;
+    if (u->expr) free_node((Stmt *)u->expr);
+    break;
+  }
+  case MatchAst: {
+    MatchExpr *m = (MatchExpr *)node;
+    if (m->target) free_node((Stmt *)m->target);
+    for (size_t i = 0; i < m->case_count; i++) {
+      if (m->cases[i]->condition) free_node((Stmt *)m->cases[i]->condition);
+      if (m->cases[i]->branch)    free_node((Stmt *)m->cases[i]->branch);
+      free_safe(m->cases[i]);
+    }
+    free_safe(m->cases);
     break;
   }
   default:

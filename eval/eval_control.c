@@ -148,3 +148,35 @@ RuntimeVal *eval_arena_block(ArenaBlockExpr *arena_expr, Environment *env) {
 
   return promoted;
 }
+
+RuntimeVal *eval_match_expr(MatchExpr *match_expr, Environment *env) {
+  RuntimeVal *target_val = evaluate(&(match_expr->target->stmt), env);
+  RuntimeVal *result = (RuntimeVal *)MK_NIL();
+
+  for (size_t i = 0; i < match_expr->case_count; i++) {
+    MatchCase *c = match_expr->cases[i];
+    int matched = 0;
+
+    if (c->condition == NULL) {
+      matched = 1; /* Wildcard '_' */
+    } else {
+      RuntimeVal *cond_val = evaluate(&(c->condition->stmt), env);
+      /* If target is a value, compare for equality. 
+         If condition is a boolean, check if it's true. */
+      if (cond_val->type == BOOLEAN_T) {
+        matched = ((BooleanVal *)cond_val)->value;
+      } else {
+        matched = compare_runtimeval(target_val, cond_val);
+      }
+      release(cond_val);
+    }
+
+    if (matched) {
+      result = evaluate(&(c->branch->stmt), env);
+      break; /* Short-circuit: first match wins */
+    }
+  }
+
+  release(target_val);
+  return result;
+}

@@ -18,8 +18,10 @@ extern ExecutionContext global_context;
 
 /* Base helpers from parser_core.c. */
 short int not_eof(Parser *parser);
-Token     at(Parser *parser);
-Token     eat(Parser *parser);
+Token at(Parser *parser);
+Token lookahead(Parser *parser, int distance);
+Token eat(Parser *parser);
+
 Token     expect(Parser *parser, TokenType type, const char *err);
 
 /* Parse function prototypes. */
@@ -39,6 +41,7 @@ char *parse_string(const char *raw_value);
 Expr *parse_identifier_expr(Parser *parser);
 Stmt *parse_import_stmt(Parser *parser);
 Expr *parse_primary_expr(Parser *parser);
+Expr *parse_match_expr(Parser *parser);
 Expr *parse_arena_block(Parser *parser);
 Expr *parse_if_expr(Parser *parser);
 Expr *parse_while_expr(Parser *parser);

@@ -261,6 +261,9 @@ Expr *parse_identifier_expr(Parser *parser) {
                                              (Expr *)parse_expr(parser));
       }
       identifier = (Expr *)create_dict_key(identifier, key);
+    } else if (at(parser).type == UnwrapTk) {
+      eat(parser);
+      identifier = (Expr *)create_unwrap_expr(identifier);
     } else {
       break;
     }
@@ -272,6 +275,8 @@ Expr *parse_primary_expr(Parser *parser) {
   TokenType tk = at(parser).type;
 
   switch (tk) {
+  case MatchTk:
+    return parse_match_expr(parser);
   case OpenArenaTk:
     return parse_arena_block(parser);
   case ImportTk:
@@ -355,4 +360,35 @@ Expr *parse_arena_block(Parser *parser) {
 
   expect(parser, CloseArenaTk, "Expected '}|' to end arena block.");
   return (Expr *)create_arena_block(body, body_count);
+}
+
+Expr *parse_match_expr(Parser *parser) {
+  expect(parser, MatchTk, "Expected '?\\?' to start match expression.");
+  expect(parser, OpenParenTk, "Expected ')' after '?\\?' keyword.");
+  Expr *target = parse_expr(parser);
+  expect(parser, CloseParenTk, "Expected ')' after match target.");
+  expect(parser, OpenBraceTk, "Expected '{' after match target.");
+
+  size_t case_count = 0;
+  MatchCase **cases = NULL;
+
+  while (at(parser).type != CloseBraceTk && at(parser).type != EOFTk) {
+    Expr *condition = NULL;
+    if (at(parser).type == IdentifierTk && strcmp(at(parser).value, "_") == 0) {
+      eat(parser);
+      condition = NULL; /* Wildcard */
+    } else {
+      condition = parse_expr(parser);
+    }
+    expect(parser, FatArrowTk, "Expected '=>' after match condition.");
+    Expr *branch = parse_expr(parser);
+    
+    cases = realloc_safe(cases, sizeof(MatchCase *) * (case_count + 1), "parse_match_expr cases");
+    cases[case_count++] = create_match_case(condition, branch);
+    
+    if (at(parser).type == CommaTk) eat(parser);
+  }
+
+  expect(parser, CloseBraceTk, "Expected '}' to end match expression.");
+  return (Expr *)create_match_expr(target, cases, case_count);
 }

@@ -202,11 +202,26 @@ static void serialize_node(FILE *f, Stmt *node) {
   case ContinueAst:
     break;
   case ReturnAst:
+  case ReturnSuccessAst:
+  case ReturnErrorAst:
     serialize_expr(f, ((ReturnStmt *)node)->value);
     break;
   case ArenaBlockAst: {
     ArenaBlockExpr *a = (ArenaBlockExpr *)node;
     serialize_body(f, a->body, a->body_count);
+    break;
+  }
+  case UnwrapAst:
+    serialize_expr(f, ((UnwrapExpr *)node)->expr);
+    break;
+  case MatchAst: {
+    MatchExpr *m = (MatchExpr *)node;
+    serialize_expr(f, m->target);
+    write_u32(f, (uint32_t)m->case_count);
+    for (size_t i = 0; i < m->case_count; i++) {
+      serialize_expr(f, m->cases[i]->condition);
+      serialize_expr(f, m->cases[i]->branch);
+    }
     break;
   }
   default:
@@ -401,10 +416,24 @@ static Stmt *deserialize_node(FILE *f) {
   case BreakAst:    return (Stmt *)create_break();
   case ContinueAst: return (Stmt *)create_continue();
   case ReturnAst:   return (Stmt *)create_return(deserialize_expr(f));
+  case ReturnSuccessAst: return (Stmt *)create_return_success(deserialize_expr(f));
+  case ReturnErrorAst:   return (Stmt *)create_return_error(deserialize_expr(f));
   case ArenaBlockAst: {
     size_t count;
     Stmt **body = deserialize_body(f, &count);
     return (Stmt *)create_arena_block(body, count);
+  }
+  case UnwrapAst:   return (Stmt *)create_unwrap_expr(deserialize_expr(f));
+  case MatchAst: {
+    Expr *target = deserialize_expr(f);
+    uint32_t count = read_u32(f);
+    MatchCase **cases = malloc_safe(sizeof(MatchCase *) * count, "deserialize_match cases");
+    for (uint32_t i = 0; i < count; i++) {
+      Expr *cond = deserialize_expr(f);
+      Expr *branch = deserialize_expr(f);
+      cases[i] = create_match_case(cond, branch);
+    }
+    return (Stmt *)create_match_expr(target, cases, (size_t)count);
   }
   default:          return NULL;
   }

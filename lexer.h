@@ -38,7 +38,12 @@ typedef enum {
   ContinueTk,          // 31  __>
   ReturnTk,            // 32  _>>
   OpenArenaTk,         // 33  |{
-  CloseArenaTk         // 34  }|
+  CloseArenaTk,        // 34  }|
+  ReturnSuccessTk,     // 35  _>>@
+  ReturnErrorTk,       // 36  _>>!
+  UnwrapTk,            // 37  !? (postfix)
+  MatchTk,             // 38  ??
+  FatArrowTk           // 39  =>
 } TokenType;
 
 typedef struct {

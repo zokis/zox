@@ -1,0 +1,194 @@
+~> test { test, suite,
+           assert_eq, assert_true, assert_false,
+           test_summary };
+
+~> "./lib/date.zo" {
+    is_leap_year, days_in_month,
+    from_components, parse,
+    year, month, day, hour, minute, second, timezone,
+    add_days, add_hours, subtract_days,
+    set_timezone,
+    equals, before, after,
+    diff_days,
+    to_string, format
+};
+
+suite("Leap year");
+
+$ leap_year_basic() {
+    assert_true(is_leap_year(2024));
+    assert_false(is_leap_year(2023));
+    assert_true(is_leap_year(2000));
+    assert_false(is_leap_year(1900))
+}
+
+suite("Days in month");
+
+$ days_per_month() {
+    assert_eq(days_in_month(2024, 1), 31);
+    assert_eq(days_in_month(2024, 2), 29);
+    assert_eq(days_in_month(2023, 2), 28);
+    assert_eq(days_in_month(2024, 4), 30)
+}
+
+suite("From components");
+
+$ from_components_basic() {
+    let d = from_components(2024, 5, 2, 14, 30, 45, "UTC");
+    assert_eq(year(d), 2024);
+    assert_eq(month(d), 5);
+    assert_eq(day(d), 2);
+    assert_eq(hour(d), 14);
+    assert_eq(minute(d), 30);
+    assert_eq(second(d), 45);
+    assert_eq(timezone(d), "UTC")
+}
+
+$ from_components_with_offset() {
+    let d = from_components(2024, 5, 2, 14, 30, 45, "UTC-3");
+    assert_eq(timezone(d), "UTC-3")
+}
+
+suite("Parse YYYY-MM-DD");
+
+$ parse_ymd_date() {
+    let d = parse("2024-05-02");
+    assert_eq(year(d), 2024);
+    assert_eq(month(d), 5);
+    assert_eq(day(d), 2)
+}
+
+suite("Parse DD-MM-YYYY");
+
+$ parse_dmy_date() {
+    let d = parse("02-05-2024");
+    assert_eq(year(d), 2024);
+    assert_eq(month(d), 5);
+    assert_eq(day(d), 2)
+}
+
+suite("Parse with time");
+
+$ parse_ymd_with_time() {
+    let d = parse("2024-05-02 14:30:45");
+    assert_eq(year(d), 2024);
+    assert_eq(month(d), 5);
+    assert_eq(day(d), 2);
+    assert_eq(hour(d), 14);
+    assert_eq(minute(d), 30);
+    assert_eq(second(d), 45)
+}
+
+$ parse_dmy_with_time() {
+    let d = parse("02-05-2024 14:30:45");
+    assert_eq(year(d), 2024);
+    assert_eq(month(d), 5);
+    assert_eq(day(d), 2);
+    assert_eq(hour(d), 14)
+}
+
+suite("Parse ISO 8601");
+
+$ parse_iso_utc() {
+    let d = parse("2024-05-02T14:30:45Z");
+    assert_eq(year(d), 2024);
+    assert_eq(month(d), 5);
+    assert_eq(day(d), 2);
+    assert_eq(hour(d), 14)
+}
+
+suite("Add/Subtract operations");
+
+$ add_days_operation() {
+    let d1 = from_components(2024, 5, 1, 0, 0, 0, "UTC");
+    let d2 = add_days(d1, 5);
+    assert_eq(day(d2), 6)
+}
+
+$ add_hours_operation() {
+    let d1 = from_components(2024, 5, 1, 10, 0, 0, "UTC");
+    let d2 = add_hours(d1, 5);
+    assert_eq(hour(d2), 15)
+}
+
+$ subtract_days_operation() {
+    let d1 = from_components(2024, 5, 10, 0, 0, 0, "UTC");
+    let d2 = subtract_days(d1, 5);
+    assert_eq(day(d2), 5)
+}
+
+suite("Comparisons");
+
+$ equals_same_date() {
+    let d1 = from_components(2024, 5, 2, 14, 30, 45, "UTC");
+    let d2 = from_components(2024, 5, 2, 14, 30, 45, "UTC");
+    assert_true(equals(d1, d2))
+}
+
+$ before_comparison() {
+    let d1 = from_components(2024, 5, 1, 0, 0, 0, "UTC");
+    let d2 = from_components(2024, 5, 2, 0, 0, 0, "UTC");
+    assert_true(before(d1, d2));
+    assert_false(before(d2, d1))
+}
+
+$ after_comparison() {
+    let d1 = from_components(2024, 5, 2, 0, 0, 0, "UTC");
+    let d2 = from_components(2024, 5, 1, 0, 0, 0, "UTC");
+    assert_true(after(d1, d2));
+    assert_false(after(d2, d1))
+}
+
+suite("Difference");
+
+$ diff_days_calculation() {
+    let d1 = from_components(2024, 5, 1, 0, 0, 0, "UTC");
+    let d2 = from_components(2024, 5, 6, 0, 0, 0, "UTC");
+    assert_eq(diff_days(d1, d2), 5);
+    assert_eq(diff_days(d2, d1), 5)
+}
+
+suite("Formatting");
+
+$ to_string_iso() {
+    let d = from_components(2024, 5, 2, 14, 30, 45, "UTC");
+    let s = to_string(d);
+    -# Check that it contains expected parts
+    assert_true(find(s, "2024") != -1);
+    assert_true(find(s, "05") != -1);
+    assert_true(find(s, "02") != -1)
+}
+
+$ format_ymd() {
+    let d = from_components(2024, 5, 2, 14, 30, 45, "UTC");
+    let s = format(d, "YYYY-MM-DD");
+    assert_eq(s, "2024-05-02")
+}
+
+$ format_dmy() {
+    let d = from_components(2024, 5, 2, 14, 30, 45, "UTC");
+    let s = format(d, "DD/MM/YYYY");
+    assert_eq(s, "02/05/2024")
+}
+
+test("leap year basic", leap_year_basic);
+test("days per month", days_per_month);
+test("from components basic", from_components_basic);
+test("from components with offset", from_components_with_offset);
+test("parse ymd date", parse_ymd_date);
+test("parse dmy date", parse_dmy_date);
+test("parse ymd with time", parse_ymd_with_time);
+test("parse dmy with time", parse_dmy_with_time);
+test("parse iso utc", parse_iso_utc);
+test("add days operation", add_days_operation);
+test("add hours operation", add_hours_operation);
+test("subtract days operation", subtract_days_operation);
+test("equals same date", equals_same_date);
+test("before comparison", before_comparison);
+test("after comparison", after_comparison);
+test("diff days calculation", diff_days_calculation);
+test("to string iso", to_string_iso);
+test("format ymd", format_ymd);
+test("format dmy", format_dmy);
+
+test_summary()

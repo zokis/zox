@@ -1,0 +1,430 @@
+-# Date library - pure Zox implementation
+-# Internal representation: {timestamp: seconds_since_1970, tz_offset: minutes, tz_name: string}
+
+~> string { split, startsWith, replace, toNumber, toString };
+~> math { floor, abs };
+
+-# Check if year is leap year
+$ is_leap_year(year) {
+    ?(year % 400 == 0) { _>> true };
+    ?(year % 100 == 0) { _>> false };
+    ?(year % 4 == 0) { _>> true };
+    _>> false
+}
+
+-# Days in month (1-indexed)
+$ days_in_month(year, month) {
+    let days_per_month = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+    ?(month < 1 || month > 12) { _>> 0 };
+
+    let base = days_per_month[month - 1];
+    ?(month == 2 && is_leap_year(year)) {
+        _>> base + 1
+    } : {
+        _>> base
+    }
+}
+
+-# Total days from 1970-01-01 to given date (inclusive)
+$ days_since_epoch(year, month, day) {
+    let total_days = 0;
+
+    -# Days from complete years since 1970
+    @(let y = 1970; y < year; y = y + 1) {
+        ?(is_leap_year(y)) {
+            total_days = total_days + 366
+        } : {
+            total_days = total_days + 365
+        }
+    };
+
+    -# Days from complete months in current year
+    @(let m = 1; m < month; m = m + 1) {
+        total_days = total_days + days_in_month(year, m)
+    };
+
+    -# Add days (day is 1-indexed, so -1)
+    total_days = total_days + day - 1;
+
+    _>> total_days
+}
+
+-# Inverse: components from timestamp
+$ components_from_timestamp(ts) {
+    let remaining = ts;
+    let year = 1970;
+
+    -# Calculate year
+    @(1; remaining >= 0; 0) {
+        let days_in_year = ?(is_leap_year(year)) { 366 } : { 365 };
+        let secs_in_year = days_in_year * 86400;
+
+        ?(remaining >= secs_in_year) {
+            remaining = remaining - secs_in_year;
+            year = year + 1
+        } : {
+            ~!!
+        }
+    };
+
+    -# Calculate month and day
+    let month = 1;
+    @(1; remaining >= 0; 0) {
+        let days = days_in_month(year, month);
+        let secs_in_month = days * 86400;
+
+        ?(remaining >= secs_in_month) {
+            remaining = remaining - secs_in_month;
+            month = month + 1
+        } : {
+            ~!!
+        }
+    };
+
+    let day = floor(remaining / 86400) + 1;
+    remaining = remaining % 86400;
+
+    let hour = floor(remaining / 3600);
+    remaining = remaining % 3600;
+
+    let minute = floor(remaining / 60);
+    let second = remaining % 60;
+
+    _>> [
+        "year" -> year;
+        "month" -> month;
+        "day" -> day;
+        "hour" -> hour;
+        "minute" -> minute;
+        "second" -> second
+    ]
+}
+
+-# Parse timezone offset (e.g., "UTC-3" → -180, "+05:30" → 330)
+$ parse_tz_offset(tz_str) {
+    ?(tz_str == "UTC" || tz_str == "Z") { _>> 0 };
+
+    let has_plus = find(tz_str, "+") != -1;
+    let has_minus = find(tz_str, "-") != -1;
+    let is_negative = has_minus && ?(startsWith(tz_str, "UTC")) { true } : { false };
+
+    ?(has_plus) {
+        -# Format: +HH:mm or +HHMM or +HH
+        let parts = split(tz_str, "+");
+        ?(len(parts) < 2) { _>> 0 };
+        let offset_str = parts[1];
+        let colon_idx = find(offset_str, ":");
+
+        ?(colon_idx == -1) {
+            -# Format: +HHMM or +HH
+            let hours = toNumber(offset_str[0:2]);
+            ?(len(offset_str) > 2) {
+                let mins = toNumber(offset_str[2:]);
+                _>> hours * 60 + mins
+            } : {
+                _>> hours * 60
+            }
+        } : {
+            -# Format: +HH:mm
+            let hours = toNumber(offset_str[0:colon_idx]);
+            let mins = toNumber(offset_str[colon_idx + 1:]);
+            _>> hours * 60 + mins
+        }
+    } : ?(has_minus && is_negative) {
+        -# Format: -HH:mm or -HHMM or "UTC-HH"
+        let parts = split(tz_str, "-");
+        ?(len(parts) < 2) { _>> 0 };
+        let offset_str = parts[len(parts) - 1];
+        let colon_idx = find(offset_str, ":");
+
+        ?(colon_idx == -1) {
+            let hours = toNumber(offset_str[0:2]);
+            ?(len(offset_str) > 2) {
+                let mins = toNumber(offset_str[2:]);
+                _>> -(hours * 60 + mins)
+            } : {
+                _>> -(hours * 60)
+            }
+        } : {
+            let hours = toNumber(offset_str[0:colon_idx]);
+            let mins = toNumber(offset_str[colon_idx + 1:]);
+            _>> -(hours * 60 + mins)
+        }
+    } : {
+        _>> 0
+    }
+}
+
+-# Pad number to 2 digits
+$ pad2(n) {
+    let s = toString(n);
+    ?(len(s) < 2) {
+        _>> "0" + s
+    } : {
+        _>> s
+    }
+}
+
+-# Detect date format (iso, ymd, dmy)
+$ detect_format(date_str) {
+    let has_T = find(date_str, "T") != -1;
+    let first_dash = find(date_str, "-");
+
+    ?(has_T) {
+        _>> "iso"
+    } : {
+        -# Count dashes to determine format
+        let parts = split(date_str, "-");
+        ?(len(parts) < 3) { _>> "unknown" };
+
+        let first = parts[0];
+        ?(len(first) == 4) {
+            _>> "ymd"
+        } : {
+            _>> "dmy"
+        }
+    }
+}
+
+-# Parse date string in various formats
+$ parse(date_str) {
+    let fmt = detect_format(date_str);
+    let year = 1970;
+    let month = 1;
+    let day = 1;
+    let hour = 0;
+    let minute = 0;
+    let second = 0;
+    let tz_name = "UTC";
+    let tz_offset = 0;
+
+    ?(fmt == "iso") {
+        -# ISO 8601: YYYY-MM-DDTHH:mm:ssZ or with offset
+        let parts = split(date_str, "T");
+        ?(len(parts) != 2) { _>> ["timestamp" -> 0; "tz_offset" -> 0; "tz_name" -> "UTC"] };
+
+        let date_part = parts[0];
+        let time_part = parts[1];
+
+        -# Parse date
+        let date_comps = split(date_part, "-");
+        ?(len(date_comps) != 3) { _>> ["timestamp" -> 0; "tz_offset" -> 0; "tz_name" -> "UTC"] };
+
+        year = toNumber(date_comps[0]);
+        month = toNumber(date_comps[1]);
+        day = toNumber(date_comps[2]);
+
+        -# Parse time and tz
+        let tz_str = "Z";
+        let time_clean = time_part;
+
+        ?(find(time_part, "Z") != -1) {
+            let parts2 = split(time_part, "Z");
+            time_clean = parts2[0];
+            tz_str = "Z"
+        } : ?(find(time_part, "+") != -1) {
+            let parts2 = split(time_part, "+");
+            time_clean = parts2[0];
+            tz_str = "+" + parts2[1]
+        } : ?(find(time_part, "-") != -1) {
+            -# Last dash is TZ offset
+            let idx = find(time_part, "-");
+            @(let i = idx + 1; i < len(time_part); i = i + 1) {
+                ?(find(time_part[i:], "-") != -1) {
+                    idx = i + find(time_part[i:], "-")
+                }
+            };
+            time_clean = time_part[0:idx];
+            tz_str = time_part[idx:]
+        };
+
+        let time_comps = split(time_clean, ":");
+        ?(len(time_comps) >= 1) { hour = toNumber(time_comps[0]) };
+        ?(len(time_comps) >= 2) { minute = toNumber(time_comps[1]) };
+        ?(len(time_comps) >= 3) { second = toNumber(time_comps[2]) };
+
+        tz_offset = parse_tz_offset(tz_str);
+        tz_name = tz_str
+    } : ?(fmt == "ymd") {
+        -# YYYY-MM-DD or YYYY-MM-DD HH:mm:ss
+        let parts = split(date_str, " ");
+        let date_part = parts[0];
+
+        let date_comps = split(date_part, "-");
+        ?(len(date_comps) != 3) { _>> ["timestamp" -> 0; "tz_offset" -> 0; "tz_name" -> "UTC"] };
+
+        year = toNumber(date_comps[0]);
+        month = toNumber(date_comps[1]);
+        day = toNumber(date_comps[2]);
+
+        ?(len(parts) > 1) {
+            let time_comps = split(parts[1], ":");
+            ?(len(time_comps) >= 1) { hour = toNumber(time_comps[0]) };
+            ?(len(time_comps) >= 2) { minute = toNumber(time_comps[1]) };
+            ?(len(time_comps) >= 3) { second = toNumber(time_comps[2]) }
+        }
+    } : ?(fmt == "dmy") {
+        -# DD-MM-YYYY or DD-MM-YYYY HH:mm:ss
+        let parts = split(date_str, " ");
+        let date_part = parts[0];
+
+        let date_comps = split(date_part, "-");
+        ?(len(date_comps) != 3) { _>> ["timestamp" -> 0; "tz_offset" -> 0; "tz_name" -> "UTC"] };
+
+        day = toNumber(date_comps[0]);
+        month = toNumber(date_comps[1]);
+        year = toNumber(date_comps[2]);
+
+        ?(len(parts) > 1) {
+            let time_comps = split(parts[1], ":");
+            ?(len(time_comps) >= 1) { hour = toNumber(time_comps[0]) };
+            ?(len(time_comps) >= 2) { minute = toNumber(time_comps[1]) };
+            ?(len(time_comps) >= 3) { second = toNumber(time_comps[2]) }
+        }
+    };
+
+    let ts = days_since_epoch(year, month, day) * 86400 + hour * 3600 + minute * 60 + second;
+
+    _>> [
+        "timestamp" -> ts;
+        "tz_offset" -> tz_offset;
+        "tz_name" -> tz_name
+    ]
+}
+
+-# Create date from components
+$ from_components(year, month, day, hour, minute, second, tz) {
+    let ts = days_since_epoch(year, month, day) * 86400 + hour * 3600 + minute * 60 + second;
+    let tz_offset = parse_tz_offset(tz);
+
+    _>> [
+        "timestamp" -> ts;
+        "tz_offset" -> tz_offset;
+        "tz_name" -> tz
+    ]
+}
+
+-# Extract year
+$ year(date) {
+    let comp = components_from_timestamp(date{"timestamp"});
+    _>> comp{"year"}
+}
+
+-# Extract month
+$ month(date) {
+    let comp = components_from_timestamp(date{"timestamp"});
+    _>> comp{"month"}
+}
+
+-# Extract day
+$ day(date) {
+    let comp = components_from_timestamp(date{"timestamp"});
+    _>> comp{"day"}
+}
+
+-# Extract hour
+$ hour(date) {
+    let ts = date{"timestamp"};
+    let secs_today = ts % 86400;
+    _>> floor(secs_today / 3600)
+}
+
+-# Extract minute
+$ minute(date) {
+    let ts = date{"timestamp"};
+    let secs_today = ts % 86400;
+    let secs_hour = secs_today % 3600;
+    _>> floor(secs_hour / 60)
+}
+
+-# Extract second
+$ second(date) {
+    _>> date{"timestamp"} % 60
+}
+
+-# Get timezone
+$ timezone(date) {
+    _>> date{"tz_name"}
+}
+
+-# Add days
+$ add_days(date, n) {
+    let new_ts = date{"timestamp"} + n * 86400;
+    _>> [
+        "timestamp" -> new_ts;
+        "tz_offset" -> date{"tz_offset"};
+        "tz_name" -> date{"tz_name"}
+    ]
+}
+
+-# Add hours
+$ add_hours(date, n) {
+    let new_ts = date{"timestamp"} + n * 3600;
+    _>> [
+        "timestamp" -> new_ts;
+        "tz_offset" -> date{"tz_offset"};
+        "tz_name" -> date{"tz_name"}
+    ]
+}
+
+-# Subtract days
+$ subtract_days(date, n) {
+    _>> add_days(date, -n)
+}
+
+-# Set timezone
+$ set_timezone(date, tz) {
+    _>> [
+        "timestamp" -> date{"timestamp"};
+        "tz_offset" -> parse_tz_offset(tz);
+        "tz_name" -> tz
+    ]
+}
+
+-# Compare dates
+$ equals(d1, d2) {
+    _>> d1{"timestamp"} == d2{"timestamp"}
+}
+
+$ before(d1, d2) {
+    _>> d1{"timestamp"} < d2{"timestamp"}
+}
+
+$ after(d1, d2) {
+    _>> d1{"timestamp"} > d2{"timestamp"}
+}
+
+-# Difference in days
+$ diff_days(d1, d2) {
+    let diff_secs = abs(d1{"timestamp"} - d2{"timestamp"});
+    _>> floor(diff_secs / 86400)
+}
+
+-# Convert to ISO 8601 string
+$ to_string(date) {
+    let comp = components_from_timestamp(date{"timestamp"});
+    let y = toString(comp{"year"});
+    let m = pad2(comp{"month"});
+    let d = pad2(comp{"day"});
+    let h = pad2(comp{"hour"});
+    let min = pad2(comp{"minute"});
+    let s = pad2(comp{"second"});
+
+    _>> y + "-" + m + "-" + d + "T" + h + ":" + min + ":" + s + "Z"
+}
+
+-# Format with pattern (simple: replace YYYY, MM, DD, HH, mm, ss)
+$ format(date, pattern) {
+    let comp = components_from_timestamp(date{"timestamp"});
+    let result = pattern;
+
+    result = replace(result, "YYYY", toString(comp{"year"}));
+    result = replace(result, "MM", pad2(comp{"month"}));
+    result = replace(result, "DD", pad2(comp{"day"}));
+    result = replace(result, "HH", pad2(comp{"hour"}));
+    result = replace(result, "mm", pad2(comp{"minute"}));
+    result = replace(result, "ss", pad2(comp{"second"}));
+
+    _>> result
+}

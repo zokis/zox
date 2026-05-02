@@ -28,6 +28,7 @@ static void free_runtime_val(RuntimeVal *val) {
   switch (val->type) {
     case NIL_T:
     case BOOLEAN_T:
+    case MODULE_T:
       free_safe(val);
       break;
     case NUMBER_T:
@@ -47,18 +48,38 @@ static void free_runtime_val(RuntimeVal *val) {
       break;
     }
     case DICT_T: {
-      DictVal *dv = (DictVal *)val;
-      for (size_t i = 0; i < dv->capacity; i++) {
-        if (dv->entries[i].key != NULL) {
-          free_safe(dv->entries[i].key);
-          release(dv->entries[i].value);
+      DictVal *d = (DictVal *)val;
+      for (size_t i = 0; i < d->capacity; i++) {
+        if (d->entries[i].key) {
+          free_safe(d->entries[i].key);
+          release(d->entries[i].value);
         }
       }
-      free_safe(dv->entries);
-      zox_free_obj(ZOX_ALLOC_DICT, dv);
+      free_safe(d->entries);
+      zox_free_obj(ZOX_ALLOC_DICT, d);
+      break;
+    }
+    case TYPE_T: {
+      TypeVal *tv = (TypeVal *)val;
+      free_safe(tv->name);
+      for (size_t i = 0; i < tv->field_count; i++) free_safe(tv->fields[i]);
+      free_safe(tv->fields);
+      zox_free_obj(ZOX_ALLOC_DICT, tv);
+      break;
+    }
+    case STRUCT_T: {
+      StructVal *sv = (StructVal *)val;
+      size_t field_count = sv->type_def->field_count;
+      for (size_t i = 0; i < field_count; i++) {
+        release(sv->values[i]);
+      }
+      free_safe(sv->values);
+      release((RuntimeVal *)sv->type_def);
+      zox_free_obj(ZOX_ALLOC_LIST, sv);
       break;
     }
     case FUNCTION_T: {
+
       /* params/body owned by AST. */
       FunctionVal *fv = (FunctionVal *)val;
       if (fv->env != NULL) release_env(fv->env);
@@ -181,6 +202,28 @@ char *type_to_string(ValueType type) {
     case FUNCTION_T: return "function";
     case LIST_T:     return "list";
     case DICT_T:     return "dict";
+    case TYPE_T:     return "type_def";
+    case STRUCT_T:   return "struct";
     default:         return "unknown";
   }
+}
+
+TypeVal *MK_TYPE(const char *name, char **fields, size_t field_count) {
+  TypeVal *tv = (TypeVal *)zox_alloc_obj(ZOX_ALLOC_DICT, sizeof(TypeVal), "TypeVal");
+  tv->base.type = TYPE_T;
+  tv->base.ref_count = 1;
+  tv->name = strdup(name);
+  tv->fields = fields;
+  tv->field_count = field_count;
+  return tv;
+}
+
+StructVal *MK_STRUCT(TypeVal *type_def, RuntimeVal **values) {
+  StructVal *sv = (StructVal *)zox_alloc_obj(ZOX_ALLOC_LIST, sizeof(StructVal), "StructVal");
+  sv->base.type = STRUCT_T;
+  sv->base.ref_count = 1;
+  sv->type_def = type_def;
+  retain((RuntimeVal *)type_def);
+  sv->values = values;
+  return sv;
 }

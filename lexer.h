@@ -43,7 +43,8 @@ typedef enum {
   ReturnErrorTk,       // 36  _>>!
   UnwrapTk,            // 37  !? (postfix)
   MatchTk,             // 38  ??
-  FatArrowTk           // 39  =>
+  FatArrowTk,          // 39  =>
+  TypeTk               // 40  type
 } TokenType;
 
 typedef struct {

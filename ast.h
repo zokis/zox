@@ -41,7 +41,10 @@ typedef enum {
   ReturnSuccessAst,   // 29
   ReturnErrorAst,     // 30
   UnwrapAst,          // 31
-  MatchAst            // 32
+  MatchAst,           // 32
+  TypeDeclarationAst, // 33
+  MemberExprAst,      // 34
+  AssignMemberExprAst // 35 obj.field = val
 } NodeType;
 
 typedef struct Stmt {
@@ -220,6 +223,26 @@ typedef struct {
 } MatchExpr;
 
 typedef struct {
+  Stmt base;
+  char *name;
+  char **fields;
+  size_t field_count;
+} TypeDeclaration;
+
+typedef struct {
+  Expr base;
+  Expr *object;
+  char *member;
+} MemberExpr;
+
+typedef struct {
+  Expr base;
+  Expr *object;
+  char *member;
+  Expr *value;
+} AssignMemberExpr;
+
+typedef struct {
   Expr base;
 
   Expr *list;
@@ -287,6 +310,9 @@ ReturnStmt *create_return_error(Expr *value);
 UnwrapExpr *create_unwrap_expr(Expr *expr);
 MatchExpr  *create_match_expr(Expr *target, MatchCase **cases, size_t case_count);
 MatchCase  *create_match_case(Expr *condition, Expr *branch);
+TypeDeclaration *create_type_declaration(char *name, char **fields, size_t field_count);
+MemberExpr *create_member_expr(Expr *object, char *member);
+AssignMemberExpr *create_assign_member_expr(Expr *object, char *member, Expr *value);
 
 void free_expr(Expr *expr);
 void free_stmt(Stmt *stmt);

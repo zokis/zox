@@ -186,3 +186,24 @@ RuntimeVal *eval_match_expr(MatchExpr *match_expr, Environment *env) {
   release(target_val);
   return result;
 }
+
+RuntimeVal *eval_member_expr(MemberExpr *member_expr, Environment *env) {
+  RuntimeVal *object = evaluate(&(member_expr->object->stmt), env);
+  if (object->type != STRUCT_T) error("Accessing member of non-struct value.");
+  
+  StructVal *sv = (StructVal *)object;
+  for (size_t i = 0; i < sv->type_def->field_count; i++) {
+    if (strcmp(sv->type_def->fields[i], member_expr->member) == 0) {
+      RuntimeVal *val = sv->values[i];
+      retain(val);
+      release(object);
+      return val;
+    }
+  }
+  
+  char error_msg[100];
+  snprintf(error_msg, sizeof(error_msg), "Struct 'type<%s>' has no field '%s'.", 
+           sv->type_def->name, member_expr->member);
+  error(error_msg);
+  return (RuntimeVal *)MK_NIL();
+}

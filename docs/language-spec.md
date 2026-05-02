@@ -180,6 +180,114 @@ let add5 = make_adder(5);
 println(add5(10)) -# 15
 ```
 
+## Custom Types
+
+Custom types are lightweight, struct-like values with named fields.
+
+Declaration:
+
+```zox
+type Point { x, y };
+```
+
+Instantiation uses a constructor-like call:
+
+```zox
+let p = Point(3, 4);
+```
+
+Field access and assignment use dot notation:
+
+```zox
+println(p.x);
+p.y = 99;
+```
+
+Fields can also be accessed by index:
+
+```zox
+println(p[0]); -# first field
+p[1] = 123;
+```
+
+Introspection:
+
+- `typeof(value)` returns a tag like `type<Point>`
+- `len(value)` returns the field count
+
+Types can be nested:
+
+```zox
+type Address { city, zip };
+type Person { name, address };
+let p = Person("Alice", Address("NYC", "10001"));
+println(p.address.city)
+```
+
+## Scoped Arenas / Promotion Blocks
+
+Promotion blocks use the `|{ ... }|` form.
+
+They execute a temporary scope intended for short-lived allocations. The final
+value returned with `_>>` is promoted out of the block (deep-cloned when
+necessary), so the caller receives a stable value.
+
+```zox
+let x = |{
+    let nested = { {1}, {2} };
+    _>> nested
+}|;
+println(x[0][0])
+```
+
+## Result Values
+
+Functions can return a Result-like dictionary using:
+
+- `_>>@ expr` return an ok result
+- `_>>! expr` return an err result
+
+Propagation/unwrapping uses `!?`:
+
+```zox
+$ divide(a, b) {
+    ?(b == 0) { _>>! "division by zero" } : { _>>@ a / b }
+}
+
+$ calculate(a, b, c) {
+    let d = divide(a, b)!?; -# unwrap ok or early-return err
+    _>>@ d + c
+}
+```
+
+Common helpers include: `ok`, `err`, `is_ok`, `is_err`, `get_ok`, `get_err`.
+
+## Pattern Matching
+
+Pattern matching uses `?? (value) { ... }` with `=>` arms and `_` as a wildcard.
+
+```zox
+let x = 2;
+let res = ?? (x) {
+    1 => "one",
+    2 => "two",
+    _ => "unknown"
+};
+println(res)
+```
+
+Arms can also be boolean guards:
+
+```zox
+let age = 20;
+let group = ?? (age) {
+    age >= 65 => "senior",
+    age >= 18 => "adult",
+    _ => "minor"
+};
+println(group)
+```
+
 ## Collections
 
 Lists:

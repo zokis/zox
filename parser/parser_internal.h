@@ -40,6 +40,7 @@ Expr *parse_dict_literal(Parser *parser);
 char *parse_string(const char *raw_value);
 Expr *parse_identifier_expr(Parser *parser);
 Stmt *parse_import_stmt(Parser *parser);
+Stmt *parse_type_declaration(Parser *parser);
 Expr *parse_primary_expr(Parser *parser);
 Expr *parse_match_expr(Parser *parser);
 Expr *parse_arena_block(Parser *parser);
@@ -47,6 +48,7 @@ Expr *parse_if_expr(Parser *parser);
 Expr *parse_while_expr(Parser *parser);
 Expr *parse_for_expr(Parser *parser);
 Expr *parse_func_def(Parser *parser);
+Expr *parse_member_expr(Parser *parser, Expr *object);
 Expr *parse_call_expr(Parser *parser, Expr *callee);
 Stmt *parse_stmt(Parser *parser);
 

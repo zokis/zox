@@ -291,6 +291,20 @@ RuntimeVal *eval_binary_expr_evaluated(RuntimeVal *lhs, RuntimeVal *rhs,
     }
     return (RuntimeVal *)eval_dict_binary_expr((DictVal *)lhs, (DictVal *)rhs, operator);
   }
+  if (lhs->type == STRUCT_T && rhs->type == STRUCT_T) {
+    if (!strcmp(operator, "==") || !strcmp(operator, "!=")) {
+      StructVal *sa = (StructVal *)lhs, *sb = (StructVal *)rhs;
+      if (sa->type_def != sb->type_def)
+        return (RuntimeVal *)MK_BOOL(!strcmp(operator, "!="));
+      int eq = 1;
+      for (size_t i = 0; i < sa->type_def->field_count && eq; i++) {
+        RuntimeVal *cmp = eval_binary_expr_evaluated(sa->values[i], sb->values[i], "==");
+        eq = (cmp->type == BOOLEAN_T && ((BooleanVal *)cmp)->value);
+        release(cmp);
+      }
+      return (RuntimeVal *)MK_BOOL(!strcmp(operator, "==") ? eq : !eq);
+    }
+  }
   if (lhs->type != rhs->type) {
     if (!strcmp(operator, "==")) return (RuntimeVal *)MK_BOOL(0);
     if (!strcmp(operator, "!=")) return (RuntimeVal *)MK_BOOL(1);

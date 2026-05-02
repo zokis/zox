@@ -56,7 +56,7 @@ It recognizes:
 - single-quoted and double-quoted strings
 - identifiers, including UTF-8 identifier chars
 - keywords and symbolic forms: `let`, `$`, `?`, `:?`, `@`, `#`, `~>`,
-  `~!!`, `__>`, `_>>`
+  `type`, `~!!`, `__>`, `_>>`, `_>>@`, `_>>!`, `??`, `!?`, `=>`, `|{`, `}|`
 - comments starting with `-#`
 - operators, delimiters, import aliases
 

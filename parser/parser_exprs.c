@@ -214,6 +214,37 @@ char *parse_string(const char *raw_value) {
   return parsed_value;
 }
 
+Expr *parse_member_expr(Parser *parser, Expr *object) {
+  expect(parser, DotTk, "Expected '.'");
+  Token member = expect(parser, IdentifierTk, "Expected field name after '.'.");
+
+  if (at(parser).type == EqualsTk) {
+    eat(parser);
+    Expr *value = parse_expr(parser);
+    return (Expr *)create_assign_member_expr(object, strdup(member.value), value);
+  }
+
+  Expr *identifier = (Expr *)create_member_expr(object, strdup(member.value));
+
+  while (1) {
+    if (at(parser).type == OpenParenTk) {
+      identifier = (Expr *)parse_call_expr(parser, identifier);
+    } else if (at(parser).type == DotTk) {
+      eat(parser);
+      Token next_member = expect(parser, IdentifierTk, "Expected field name after '.'.");
+      if (at(parser).type == EqualsTk) {
+        eat(parser);
+        Expr *value = parse_expr(parser);
+        return (Expr *)create_assign_member_expr(identifier, strdup(next_member.value), value);
+      }
+      identifier = (Expr *)create_member_expr(identifier, strdup(next_member.value));
+    } else {
+      break;
+    }
+  }
+  return identifier;
+}
+
 Expr *parse_identifier_expr(Parser *parser) {
   const char *varname = eat(parser).value;
   Expr *identifier = (Expr *)create_identifier(varname);
@@ -274,6 +305,8 @@ Expr *parse_identifier_expr(Parser *parser) {
                                              (Expr *)parse_expr(parser));
       }
       identifier = (Expr *)create_dict_key(identifier, key);
+    } else if (at(parser).type == DotTk) {
+      identifier = parse_member_expr(parser, identifier);
     } else if (at(parser).type == UnwrapTk) {
       eat(parser);
       identifier = (Expr *)create_unwrap_expr(identifier);

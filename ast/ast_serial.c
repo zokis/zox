@@ -224,6 +224,28 @@ static void serialize_node(FILE *f, Stmt *node) {
     }
     break;
   }
+  case TypeDeclarationAst: {
+    TypeDeclaration *td = (TypeDeclaration *)node;
+    write_str(f, td->name);
+    write_u32(f, (uint32_t)td->field_count);
+    for (size_t i = 0; i < td->field_count; i++) {
+      write_str(f, td->fields[i]);
+    }
+    break;
+  }
+  case MemberExprAst: {
+    MemberExpr *m = (MemberExpr *)node;
+    serialize_expr(f, m->object);
+    write_str(f, m->member);
+    break;
+  }
+  case AssignMemberExprAst: {
+    AssignMemberExpr *m = (AssignMemberExpr *)node;
+    serialize_expr(f, m->object);
+    write_str(f, m->member);
+    serialize_expr(f, m->value);
+    break;
+  }
   default:
     break;
   }
@@ -434,6 +456,26 @@ static Stmt *deserialize_node(FILE *f) {
       cases[i] = create_match_case(cond, branch);
     }
     return (Stmt *)create_match_expr(target, cases, (size_t)count);
+  }
+  case TypeDeclarationAst: {
+    char *name = read_str(f);
+    uint32_t count = read_u32(f);
+    char **fields = malloc_safe(sizeof(char *) * count, "deserialize_type fields");
+    for (uint32_t i = 0; i < count; i++) {
+      fields[i] = read_str(f);
+    }
+    return (Stmt *)create_type_declaration(name, fields, (size_t)count);
+  }
+  case MemberExprAst: {
+    Expr *obj = deserialize_expr(f);
+    char *member = read_str(f);
+    return (Stmt *)create_member_expr(obj, member);
+  }
+  case AssignMemberExprAst: {
+    Expr *obj = deserialize_expr(f);
+    char *member = read_str(f);
+    Expr *val = deserialize_expr(f);
+    return (Stmt *)create_assign_member_expr(obj, member, val);
   }
   default:          return NULL;
   }

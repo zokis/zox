@@ -42,6 +42,8 @@ Stmt *parse_stmt(Parser *parser) {
 
   if (at(parser).type == ImportTk) {
     stmt = parse_import_stmt(parser);
+  } else if (at(parser).type == TypeTk) {
+    stmt = parse_type_declaration(parser);
   } else if (at(parser).type == LetTk) {
     stmt = (Stmt *)parse_var_declaration(parser);
   } else if (at(parser).type == WhileTk) {

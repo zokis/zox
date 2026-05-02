@@ -58,7 +58,10 @@ RuntimeVal *evaluate(Stmt *astNode, Environment *env) {
   case ArenaBlockAst:      return eval_arena_block((ArenaBlockExpr *)astNode, env);
   case StringLiteralAst:   return eval_string_literal((StringLiteral *)astNode);
   case FuncDefAst:         return eval_func_def((FuncDef *)astNode, env);
+  case TypeDeclarationAst: return eval_type_declaration((TypeDeclaration *)astNode, env);
   case CallExprAst:        return eval_call_expr((CallExpr *)astNode, env);
+  case MemberExprAst:      return eval_member_expr((MemberExpr *)astNode, env);
+  case AssignMemberExprAst: return eval_assign_member_expr((AssignMemberExpr *)astNode, env);
   case ListLiteralAst:     return eval_list_literal((ListLiteral *)astNode, env);
   case DictLiteralAst:     return eval_dict_literal((DictLiteral *)astNode, env);
   case ListIndexAst:       return eval_list_index((ListIndex *)astNode, env);

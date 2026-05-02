@@ -9,6 +9,9 @@
     { "include": "#constant" },
     { "include": "#keyword" },
     { "include": "#builtin" },
+    { "include": "#operator-match-arm" },
+    { "include": "#operator-unwrap" },
+    { "include": "#operator-promotion" },
     { "include": "#operator-elementwise" },
     { "include": "#operator-pipe" },
     { "include": "#operator-logical" },
@@ -48,18 +51,32 @@
     "keyword": {
       "patterns": [
         { "name": "keyword.declaration.zox",         "match": "\\blet\\b" },
+        { "name": "keyword.declaration.type.zox",    "match": "\\btype\\b" },
         { "name": "keyword.declaration.function.zox","match": "\\$" },
         { "name": "keyword.control.import.zox",      "match": "~>" },
+        { "name": "keyword.control.match.zox",       "match": "\\?\\?" },
         { "name": "keyword.control.conditional.zox", "match": "[?:]" },
         { "name": "keyword.control.loop.zox",        "match": "[#@]" },
         { "name": "keyword.control.flow.zox",        "match": "~!!" },
         { "name": "keyword.control.flow.zox",        "match": "__>" },
-        { "name": "keyword.control.flow.zox",        "match": "_>>" }
+        { "name": "keyword.control.flow.zox",        "match": "_>>@|_>>!|_>>" }
       ]
     },
     "builtin": {
       "name": "support.function.builtin.zox",
-      "match": "\\b(println|print|len|find|keys|values|sum|typeof|copy|random|random_int)\\b"
+      "match": "\\b(println|print|len|find|keys|values|sum|typeof|copy|random|random_int|has_key|get|setdefault|ok|err|is_ok|is_err|get_ok|get_err)\\b"
+    },
+    "operator-match-arm": {
+      "name": "keyword.operator.match-arm.zox",
+      "match": "=>"
+    },
+    "operator-unwrap": {
+      "name": "keyword.operator.unwrap.zox",
+      "match": "!\\?"
+    },
+    "operator-promotion": {
+      "name": "keyword.operator.promotion.zox",
+      "match": "\\|\\{|\\}\\|"
     },
     "operator-elementwise": {
       "name": "keyword.operator.element-wise.zox",
@@ -80,6 +97,10 @@
     "operator-arrow": {
       "name": "punctuation.separator.mapping.zox",
       "match": "->"
+    },
+    "operator-match": {
+      "name": "keyword.control.match.zox",
+      "match": "\\?\\?"
     },
     "operator-shift": {
       "name": "keyword.operator.bitwise.zox",

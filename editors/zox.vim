@@ -21,9 +21,10 @@ syntax match zoxNumber "\b\d\+\(\.\d\+\)\?\([eE][+-]\?\d\+\)\?\b"
 syntax keyword zoxConstant true false nil
 
 " Declaracoes
-syntax keyword zoxDecl let
+syntax keyword zoxDecl let type
 syntax match   zoxFunc  "\$"
 syntax match   zoxImport "~>"
+syntax match   zoxMatch "\?\?"
 
 " Controle de fluxo
 syntax match zoxConditional "[?:]"
@@ -31,9 +32,15 @@ syntax match zoxLoop        "[#@]"
 syntax match zoxFlow        "\~!!"
 syntax match zoxFlow        "__>"
 syntax match zoxFlow        "_>>"
+syntax match zoxFlow        "_>>@"
+syntax match zoxFlow        "_>>!"
+
+syntax match zoxMatchArm "=>"
+syntax match zoxUnwrap   "!\?"
+syntax match zoxPromo    "|\{|}\|"
 
 " Builtins
-syntax keyword zoxBuiltin println print len find keys values sum typeof copy random random_int
+syntax keyword zoxBuiltin println print len find keys values sum typeof copy random random_int has_key get setdefault ok err is_ok is_err get_ok get_err
 
 " Operadores element-wise
 syntax match zoxElemWise "&[+\-*/%|^e]"
@@ -83,6 +90,10 @@ highlight link zoxConditional Conditional
 highlight link zoxLoop        Repeat
 highlight link zoxFlow        Statement
 highlight link zoxBuiltin     Special
+highlight link zoxMatch       Keyword
+highlight link zoxMatchArm    Operator
+highlight link zoxUnwrap      Operator
+highlight link zoxPromo       Operator
 highlight link zoxElemWise    Operator
 highlight link zoxPipe        Operator
 highlight link zoxLogical     Operator

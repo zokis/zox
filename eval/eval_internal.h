@@ -50,6 +50,7 @@ Expr       *runtime_value_to_expr(RuntimeVal *val);
 short int   is_while_finished(WhileExpr *while_expr, Environment *env);
 RuntimeVal *eval_while_expr(WhileExpr *while_expr, Environment *env);
 RuntimeVal *eval_match_expr(MatchExpr *match_expr, Environment *env);
+RuntimeVal *eval_member_expr(MemberExpr *member_expr, Environment *env);
 RuntimeVal *eval_arena_block(ArenaBlockExpr *arena_expr, Environment *env);
 RuntimeVal *eval_if_expr(IfExpr *if_expr, Environment *env);
 RuntimeVal *eval_for_expr(ForExpr *for_expr, Environment *env);
@@ -73,8 +74,10 @@ RuntimeVal *eval_assign_list_var_expr(AssignListVar *var, Environment *env);
 RuntimeVal *eval_assign_dict_var_expr(AssignDictVar *var, Environment *env);
 RuntimeVal *eval_assign_list_expr(AssignListExpr *node, Environment *env);
 RuntimeVal *eval_assign_dict_expr(AssignDictExpr *node, Environment *env);
+RuntimeVal *eval_assign_member_expr(AssignMemberExpr *node, Environment *env);
 RuntimeVal *eval_identifier_expr(Identifier *ident, Environment *env);
 RuntimeVal *eval_func_def(FuncDef *func_def, Environment *env);
+RuntimeVal *eval_type_declaration(TypeDeclaration *type_decl, Environment *env);
 RuntimeVal *eval_call_expr(CallExpr *call_expr, Environment *env);
 
 /* eval_import.c */

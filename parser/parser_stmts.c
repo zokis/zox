@@ -193,3 +193,24 @@ Expr *parse_call_expr(Parser *parser, Expr *callee) {
   expect(parser, CloseParenTk, "Expected ')' after arguments.");
   return (Expr *)create_call_expr(callee, args, arg_count);
 }
+
+Stmt *parse_type_declaration(Parser *parser) {
+  expect(parser, TypeTk, "Expected 'type' keyword.");
+  Token name = expect(parser, IdentifierTk, "Expected type name after 'type' keyword.");
+  expect(parser, OpenBraceTk, "Expected '{' after type name.");
+
+  char **fields = NULL;
+  size_t count = 0;
+
+  while (at(parser).type != CloseBraceTk && at(parser).type != EOFTk) {
+    if (count > 0) {
+      expect(parser, CommaTk, "Expected ',' between fields.");
+    }
+    Token field = expect(parser, IdentifierTk, "Expected field name.");
+    fields = realloc_safe(fields, sizeof(char *) * (count + 1), "parse_type_declaration fields");
+    fields[count++] = strdup(field.value);
+  }
+
+  expect(parser, CloseBraceTk, "Expected '}' after fields.");
+  return (Stmt *)create_type_declaration(strdup(name.value), fields, count);
+}

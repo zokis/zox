@@ -1,0 +1,193 @@
+~> test { suite, test, assert_eq, assert_true, assert_nil, test_summary };
+
+suite("Custom Types — Basic");
+
+test("instantiation and dot access", $ basic_instantiation() {
+    type Point { x, y };
+    let p = Point(3, 4);
+    assert_eq(p.x, 3);
+    assert_eq(p.y, 4)
+});
+
+test("index access", $ index_access() {
+    type Point { x, y, z };
+    let p = Point(1, 2, 3);
+    assert_eq(p[0], 1);
+    assert_eq(p[1], 2);
+    assert_eq(p[2], 3)
+});
+
+test("dot notation assignment", $ dot_assign() {
+    type User { name, age };
+    let u = User("Alice", 30);
+    u.age = 31;
+    assert_eq(u.age, 31)
+});
+
+test("index assignment", $ index_assign() {
+    type User { name, age };
+    let u = User("Bob", 25);
+    u[1] = 26;
+    assert_eq(u[1], 26)
+});
+
+test("dot and index agree after assignment", $ dot_index_agree() {
+    type Vec2 { x, y };
+    let v = Vec2(0, 0);
+    v.x = 7;
+    assert_eq(v[0], 7)
+});
+
+suite("Custom Types — Introspection");
+
+test("typeof returns type tag", $ typeof_test() {
+    type Animal { name, species };
+    let a = Animal("Rex", "dog");
+    assert_eq(typeof(a), "type<Animal>")
+});
+
+test("len returns field count", $ len_test() {
+    type Vec3 { x, y, z };
+    let v = Vec3(1, 2, 3);
+    assert_eq(len(v), 3)
+});
+
+suite("Custom Types — Equality and Copy");
+
+test("structural equality — equal", $ equality_equal() {
+    type Point { x, y };
+    let a = Point(1, 2);
+    let b = Point(1, 2);
+    assert_true(a == b)
+});
+
+test("structural equality — different values", $ equality_different() {
+    type Point { x, y };
+    let a = Point(1, 2);
+    let b = Point(1, 9);
+    assert_true(a != b)
+});
+
+test("copy is independent", $ copy_independent() {
+    type Point { x, y };
+    let a = Point(10, 20);
+    let b = copy(a);
+    b.x = 99;
+    assert_eq(a.x, 10);
+    assert_eq(b.x, 99)
+});
+
+suite("Custom Types — Nesting");
+
+test("nested type access via dot", $ nested_dot_access() {
+    type Address { city, zip };
+    type Person { name, address };
+    let addr = Address("NYC", "10001");
+    let p = Person("Alice", addr);
+    assert_eq(p.name, "Alice");
+    assert_eq(p.address.city, "NYC");
+    assert_eq(p.address.zip, "10001")
+});
+
+test("nested field assignment", $ nested_assign() {
+    type Address { city, zip };
+    type Person { name, address };
+    let addr = Address("NYC", "10001");
+    let p = Person("Alice", addr);
+    p.address.zip = "10002";
+    assert_eq(p.address.zip, "10002")
+});
+
+test("nested index access", $ nested_index_access() {
+    type Address { city, zip };
+    type Person { name, address };
+    let addr = Address("NYC", "10001");
+    let p = Person("Alice", addr);
+    assert_eq(p.address[0], "NYC")
+});
+
+suite("Custom Types — Iteration");
+
+test("iterate all fields via index", $ iterate_fields() {
+    type Vec3 { x, y, z };
+    let v = Vec3(10, 20, 30);
+    let sum = 0;
+    @(let i = 0; i < len(v); i = i + 1) {
+        sum = sum + v[i]
+    };
+    assert_eq(sum, 60)
+});
+
+test("collect fields into list", $ collect_into_list() {
+    type Color { r, g, b };
+    let c = Color(1, 2, 3);
+    let out = {};
+    @(let i = 0; i < len(c); i = i + 1) {
+        out << c[i]
+    };
+    assert_eq(out[0], 1);
+    assert_eq(out[1], 2);
+    assert_eq(out[2], 3)
+});
+
+suite("Custom Types — Functions");
+
+test("type passed to function", $ func_with_type() {
+    type Rectangle { width, height };
+    $ area(r) { r.width * r.height }
+    let rect = Rectangle(10, 5);
+    assert_eq(area(rect), 50)
+});
+
+test("type returned from function", $ func_returns_type() {
+    type Point { x, y };
+    $ midpoint(a, b) {
+        Point((a.x + b.x) / 2, (a.y + b.y) / 2)
+    }
+    let a = Point(0, 0);
+    let b = Point(4, 6);
+    let mid = midpoint(a, b);
+    assert_eq(mid.x, 2);
+    assert_eq(mid.y, 3)
+});
+
+test("multiple types as args", $ multi_type_args() {
+    type Vec2 { x, y };
+    $ dot_product(a, b) { a.x * b.x + a.y * b.y }
+    let u = Vec2(3, 4);
+    let v = Vec2(1, 2);
+    assert_eq(dot_product(u, v), 11)
+});
+
+suite("Custom Types — Integration with Results");
+
+test("type inside result ok", $ type_in_result_ok() {
+    type Parsed { value, line };
+    $ parse(s, line) {
+        ?(len(s) > 0) {
+            _>>@ Parsed(len(s), line)
+        } : {
+            _>>! "empty input"
+        }
+    }
+    let r = parse("hello", 1);
+    assert_true(is_ok(r));
+    assert_eq(get_ok(r).value, 5);
+    assert_eq(get_ok(r).line, 1)
+});
+
+test("type inside result err propagation", $ type_in_result_err() {
+    type Parsed { value, line };
+    $ parse(s, line) {
+        ?(len(s) > 0) {
+            _>>@ Parsed(len(s), line)
+        } : {
+            _>>! "empty input"
+        }
+    }
+    let r = parse("", 1);
+    assert_true(is_err(r));
+    assert_eq(get_err(r), "empty input")
+});
+
+test_summary()

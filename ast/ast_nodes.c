@@ -294,3 +294,29 @@ MatchCase *create_match_case(Expr *condition, Expr *branch) {
   c->branch = branch;
   return c;
 }
+
+TypeDeclaration *create_type_declaration(char *name, char **fields, size_t field_count) {
+  TypeDeclaration *td = malloc_safe(sizeof(TypeDeclaration), "TypeDeclaration");
+  td->base.kind = TypeDeclarationAst;
+  td->name = name;
+  td->fields = fields;
+  td->field_count = field_count;
+  return td;
+}
+
+MemberExpr *create_member_expr(Expr *object, char *member) {
+  MemberExpr *m = malloc_safe(sizeof(MemberExpr), "MemberExpr");
+  m->base.stmt.kind = MemberExprAst;
+  m->object = object;
+  m->member = member;
+  return m;
+}
+
+AssignMemberExpr *create_assign_member_expr(Expr *object, char *member, Expr *value) {
+  AssignMemberExpr *m = malloc_safe(sizeof(AssignMemberExpr), "AssignMemberExpr");
+  m->base.stmt.kind = AssignMemberExprAst;
+  m->object = object;
+  m->member = member;
+  m->value = value;
+  return m;
+}

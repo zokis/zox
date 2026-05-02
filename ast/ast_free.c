@@ -216,6 +216,26 @@ static void free_node(Stmt *node) {
     free_safe(m->cases);
     break;
   }
+  case TypeDeclarationAst: {
+    TypeDeclaration *td = (TypeDeclaration *)node;
+    free_safe(td->name);
+    for (size_t i = 0; i < td->field_count; i++) free_safe(td->fields[i]);
+    free_safe(td->fields);
+    break;
+  }
+  case MemberExprAst: {
+    MemberExpr *m = (MemberExpr *)node;
+    if (m->object) free_node((Stmt *)m->object);
+    free_safe(m->member);
+    break;
+  }
+  case AssignMemberExprAst: {
+    AssignMemberExpr *m = (AssignMemberExpr *)node;
+    if (m->object) free_node((Stmt *)m->object);
+    free_safe(m->member);
+    if (m->value) free_node((Stmt *)m->value);
+    break;
+  }
   default:
     break;
   }

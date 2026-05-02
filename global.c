@@ -44,6 +44,15 @@ unsigned short int compare_runtimeval(RuntimeVal *a, RuntimeVal *b) {
     case STRING_T:  return strcmp(((StringVal *)a)->value, ((StringVal *)b)->value) == 0;
     case LIST_T:    return compare_lists((ListVal *)a, (ListVal *)b);
     case DICT_T:    return compare_dicts((DictVal *)a, (DictVal *)b);
+    case STRUCT_T: {
+      StructVal *sa = (StructVal *)a;
+      StructVal *sb = (StructVal *)b;
+      if (sa->type_def != sb->type_def) return 0;
+      for (size_t i = 0; i < sa->type_def->field_count; i++) {
+        if (!compare_runtimeval(sa->values[i], sb->values[i])) return 0;
+      }
+      return 1;
+    }
   }
   return 0;
 }

@@ -119,6 +119,7 @@ RuntimeVal *builtin_len(Environment *env, RuntimeVal **args, size_t arg_count) {
   switch (args[0]->type) {
   case LIST_T:   return (RuntimeVal *)MK_NUMBER((double)((ListVal *)args[0])->size);
   case DICT_T:   return (RuntimeVal *)MK_NUMBER((double)((DictVal *)args[0])->size);
+  case STRUCT_T: return (RuntimeVal *)MK_NUMBER((double)((StructVal *)args[0])->type_def->field_count);
   case STRING_T: return (RuntimeVal *)MK_NUMBER((double)strlen(((StringVal *)args[0])->value));
   default:       error("len() is only supported for lists, dictionaries, and strings.");
   }
@@ -146,6 +147,12 @@ RuntimeVal *builtin_println_value(Environment *env, RuntimeVal **args, size_t ar
 
 RuntimeVal *builtin_typeof(Environment *env, RuntimeVal **args, size_t arg_count) {
   if (arg_count != 1) error("typeof() expects one argument");
+  if (args[0]->type == STRUCT_T) {
+    StructVal *sv = (StructVal *)args[0];
+    char buf[256];
+    snprintf(buf, sizeof(buf), "type<%s>", sv->type_def->name);
+    return (RuntimeVal *)MK_STRING(buf);
+  }
   return (RuntimeVal *)MK_STRING(type_to_string(args[0]->type));
 }
 
@@ -171,6 +178,15 @@ RuntimeVal *builtin_copy(Environment *env, RuntimeVal **args, size_t arg_count) 
       }
     }
     return (RuntimeVal *)new;
+  }
+  if (val->type == STRUCT_T) {
+    StructVal *old = (StructVal *)val;
+    RuntimeVal **values = malloc_safe(sizeof(RuntimeVal *) * old->type_def->field_count, "struct copy values");
+    for (size_t i = 0; i < old->type_def->field_count; i++) {
+      values[i] = old->values[i];
+      retain(values[i]);
+    }
+    return (RuntimeVal *)MK_STRUCT(old->type_def, values);
   }
   retain(val);
   return val;

@@ -21,6 +21,8 @@ contexts:
 
     - match: '\blet\b'
       scope: keyword.declaration.zox
+    - match: '\btype\b'
+      scope: keyword.declaration.type.zox
 
     - match: '~>'
       scope: keyword.control.import.zox
@@ -28,11 +30,17 @@ contexts:
     - match: '\$'
       scope: keyword.declaration.function.zox
 
+    - match: '\?\?'
+      scope: keyword.control.match.zox
+
     - match: '[?:]'
       scope: keyword.control.conditional.zox
 
     - match: '[#@]'
       scope: keyword.control.loop.zox
+
+    - match: '=>'
+      scope: keyword.operator.match-arm.zox
 
     - match: '~!!'
       scope: keyword.control.flow.zox
@@ -40,8 +48,18 @@ contexts:
       scope: keyword.control.flow.zox
     - match: '_>>'
       scope: keyword.control.flow.zox
+    - match: '_>>@'
+      scope: keyword.control.flow.zox
+    - match: '_>>!'
+      scope: keyword.control.flow.zox
 
-    - match: '\b(println|print|len|find|keys|values|sum|typeof|copy|random|random_int)\b'
+    - match: '!\?'
+      scope: keyword.operator.unwrap.zox
+
+    - match: '\|\{|\}\|'
+      scope: keyword.operator.promotion.zox
+
+    - match: '\b(println|print|len|find|keys|values|sum|typeof|copy|random|random_int|has_key|get|setdefault|ok|err|is_ok|is_err|get_ok|get_err)\b'
       scope: support.function.builtin.zox
 
     - match: '&(\+|-|\*|/|%|\||\^|e|<<|>>)'

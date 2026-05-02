@@ -306,7 +306,7 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
       char ident[256] = {0};
       unsigned int i = 0;
       int start_col = column;
-      while (isalpha_custom(*src) || *src == '_' || isdigit(*src) || *src == '.') {
+      while (isalpha_custom(*src) || *src == '_' || isdigit(*src)) {
         ident[i++] = *src++;
         column++;
       }
@@ -316,7 +316,9 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
       else if (!strcmp(ident, "true") || !strcmp(ident, "false")) type = BooleanLiteralTk;
       else if (!strcmp(ident, "nil")) type = NilTk;
       else if (!strcmp(ident, "as"))  type = AsTk;
+      else if (!strcmp(ident, "type")) type = TypeTk;
       else if (strchr(ident, '.'))    type = IdentifierImportTk;
+
 
       add_token(&tokens, &capacity, tokenCount, create_token(ident, type, line, start_col));
       continue;

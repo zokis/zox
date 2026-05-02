@@ -1,0 +1,27 @@
+~> test { suite, test, assert_eq, test_summary };
+~> runner { run_task, run_stateful_task };
+
+suite("Runner Framework (lib/runner.zo)");
+
+test("run_task isolation", $ task_test() {
+    let count = 0;
+    $ worker() {
+        let temp = {1, 2, 3}; -# allocates in arena
+        count = count + 1
+    };
+    
+    run_task(worker, 5, 0);
+    assert_eq(count, 5)
+});
+
+test("run_stateful_task promotion", $ stateful_test() {
+    $ bot(state) {
+        let n = state{"n"} + 1;
+        _>> ["n" -> n]
+    };
+    
+    let final_state = run_stateful_task(bot, ["n" -> 0], 10, 0);
+    assert_eq(final_state{"n"}, 10)
+});
+
+test_summary()

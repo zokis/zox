@@ -1,0 +1,71 @@
+~> test { suite, test, assert_eq, test_summary };
+
+suite("Scoped Arenas |{ }|");
+
+$ arena_sum(lst) {
+    let s = 0;
+    @(let i = 0; i < len(lst); i = i + 1) {
+        s = s + lst[i]
+    };
+    _>> s
+}
+
+test("Basic arena block", $ basic_arena() {
+    let x = |{
+        let temp = {1, 2, 3};
+        _>> arena_sum(temp)
+    }|;
+    assert_eq(x, 6)
+});
+
+test("Promotion of list", $ promo_list() {
+    let x = |{
+        let a = {10, 20};
+        _>> a
+    }|;
+    assert_eq(x[0], 10);
+    assert_eq(x[1], 20);
+    assert_eq(len(x), 2)
+});
+
+test("Nested arenas", $ nested_arena() {
+    let result = |{
+        let inner = |{
+            _>> "from inner"
+        }|;
+        _>> inner + " and outer"
+    }|;
+    assert_eq(result, "from inner and outer")
+});
+
+test("Memory stability in loop", $ mem_stability() {
+    @(let i = 0; i < 1000; i = i + 1) {
+        |{
+            let big = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        }|
+    };
+    assert_eq(1, 1)
+});
+
+test("Promotion deep clone", $ deep_promo() {
+    let x = |{
+        let nested = { {1}, {2} };
+        _>> nested
+    }|;
+    assert_eq(x[0][0], 1);
+    assert_eq(x[1][0], 2);
+    
+    x[0][0] = 99;
+    assert_eq(x[0][0], 99)
+});
+
+test("Promotion of dict", $ promo_dict() {
+    let x = |{
+        let d = ["a" -> 1; "b" -> 2];
+        _>> d
+    }|;
+    assert_eq(x{"a"}, 1);
+    assert_eq(x{"b"}, 2)
+});
+
+test_summary()

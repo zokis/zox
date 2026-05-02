@@ -1,0 +1,52 @@
+~> os { sleep };
+
+-# run_infinite: Executa uma tarefa para sempre com isolamento de arena.
+$ run_infinite(worker, delay_ms) {
+    @(true) {
+        |{
+            worker()
+        }|;
+        ?(delay_ms > 0) {
+            sleep(delay_ms)
+        }
+    }
+}
+
+-# run_stateful: Executa tarefa infinita mantendo um estado entre iterações.
+$ run_stateful(worker, initial_state, delay_ms) {
+    let state = initial_state;
+    @(true) {
+        state = |{
+            _>> worker(state)
+        }|;
+        ?(delay_ms > 0) {
+            sleep(delay_ms)
+        }
+    }
+}
+
+-# run_task: Executa uma tarefa N vezes com isolamento de arena.
+$ run_task(worker, n, delay_ms) {
+    @(let i = 0; i < n; i = i + 1) {
+        |{
+            worker()
+        }|;
+        ?(delay_ms > 0) {
+            sleep(delay_ms)
+        }
+    }
+}
+
+-# run_stateful_task: Executa tarefa com estado N vezes.
+$ run_stateful_task(worker, initial_state, n, delay_ms) {
+    let state = initial_state;
+    @(let i = 0; i < n; i = i + 1) {
+        state = |{
+            _>> worker(state)
+        }|;
+        ?(delay_ms > 0) {
+            sleep(delay_ms)
+        }
+    };
+    _>> state
+}

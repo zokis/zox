@@ -1,5 +1,24 @@
 #include "nm_internal.h"
 
+#include <time.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
+static RuntimeVal *os_sleep(Environment *env, RuntimeVal **args, size_t argc) {
+  if (argc != 1 || args[0]->type != NUMBER_T) error("sleep() expects one number (ms)");
+  long ms = (long)((NumberVal *)args[0])->value;
+#ifdef _WIN32
+  Sleep(ms);
+#else
+  usleep(ms * 1000);
+#endif
+  return (RuntimeVal *)MK_NIL();
+}
+
 static RuntimeVal *os_exit(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 1 || args[0]->type != NUMBER_T) error("exit() expects one number");
   exit((int)((NumberVal *)args[0])->value);
@@ -53,6 +72,7 @@ void init_os_module(Environment *env) {
   char *no_params[] = {};
   char *single_param[] = {"a"};
 
+  declare_owned(env, "sleep", (RuntimeVal *)MK_NATIVE_FN(single_param, 1, os_sleep));
   declare_owned(env, "exit", (RuntimeVal *)MK_NATIVE_FN(single_param, 1, os_exit));
   declare_owned(env, "env",  (RuntimeVal *)MK_NATIVE_FN(single_param, 1, os_env));
   declare_owned(env, "args", (RuntimeVal *)MK_NATIVE_FN(no_params,    0, os_args));

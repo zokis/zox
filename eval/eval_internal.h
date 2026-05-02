@@ -49,6 +49,7 @@ Expr       *runtime_value_to_expr(RuntimeVal *val);
 /* eval_control.c */
 short int   is_while_finished(WhileExpr *while_expr, Environment *env);
 RuntimeVal *eval_while_expr(WhileExpr *while_expr, Environment *env);
+RuntimeVal *eval_arena_block(ArenaBlockExpr *arena_expr, Environment *env);
 RuntimeVal *eval_if_expr(IfExpr *if_expr, Environment *env);
 RuntimeVal *eval_for_expr(ForExpr *for_expr, Environment *env);
 

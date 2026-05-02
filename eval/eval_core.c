@@ -54,6 +54,7 @@ RuntimeVal *evaluate(Stmt *astNode, Environment *env) {
   case IfAst:              return eval_if_expr((IfExpr *)astNode, env);
   case WhileAst:           return eval_while_expr((WhileExpr *)astNode, env);
   case ForAst:             return eval_for_expr((ForExpr *)astNode, env);
+  case ArenaBlockAst:      return eval_arena_block((ArenaBlockExpr *)astNode, env);
   case StringLiteralAst:   return eval_string_literal((StringLiteral *)astNode);
   case FuncDefAst:         return eval_func_def((FuncDef *)astNode, env);
   case CallExprAst:        return eval_call_expr((CallExpr *)astNode, env);
@@ -82,4 +83,48 @@ RuntimeVal *evaluate(Stmt *astNode, Environment *env) {
   default: error("This AST Node has not yet been setup for interpretation.\n");
   }
   return NULL;
+}
+
+#include "../zox_alloc.h"
+
+RuntimeVal *promote_val(RuntimeVal *val) {
+  if (!val || val->ref_count == STATIC_REF) return val;
+  if (!zox_arena_owns(val)) return val;
+
+  switch (val->type) {
+    case STRING_T:
+      return (RuntimeVal *)MK_STRING(((StringVal *)val)->value);
+
+    case LIST_T: {
+      ListVal *old_list = (ListVal *)val;
+      ListVal *new_list = MK_LIST(old_list->size);
+      for (size_t i = 0; i < old_list->size; i++) {
+        RuntimeVal *promoted_item = promote_val(old_list->items[i]);
+        new_list->items[i] = promoted_item;
+        retain(promoted_item);
+      }
+      new_list->size = old_list->size;
+      return (RuntimeVal *)new_list;
+    }
+
+    case DICT_T: {
+      DictVal *old_dict = (DictVal *)val;
+      DictVal *new_dict = MK_DICT(old_dict->capacity);
+      for (size_t i = 0; i < old_dict->capacity; i++) {
+        if (old_dict->entries[i].key) {
+          RuntimeVal *promoted_val = promote_val(old_dict->entries[i].value);
+          dict_set_val(new_dict, old_dict->entries[i].key, promoted_val);
+        }
+      }
+      return (RuntimeVal *)new_dict;
+    }
+
+    case FUNCTION_T: {
+      FunctionVal *fv = (FunctionVal *)val;
+      return (RuntimeVal *)MK_FUNCTION(fv->params, fv->param_count, fv->body, fv->body_count, fv->env, fv->builtin_func);
+    }
+
+    default:
+      return val;
+  }
 }

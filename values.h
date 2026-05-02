@@ -7,6 +7,9 @@
 
 typedef struct Environment Environment;
 
+/* ref_count = -1 -> static singleton, retain/release no-op. */
+#define STATIC_REF (-1)
+
 typedef enum {
   NIL_T,
   NUMBER_T,
@@ -92,6 +95,7 @@ FunctionVal *MK_FUNCTION(char **params, size_t param_count, Stmt **body,
                                                      size_t arg_count));
 ListVal *MK_LIST(size_t capacity);
 DictVal *MK_DICT(size_t capacity);
+RuntimeVal *promote_val(RuntimeVal *val);
 char *dict_key_to_string(RuntimeVal *val);
 Entry *dict_find_entry(DictVal *dict, const char *key);
 RuntimeVal *dict_get_val(DictVal *dict, const char *key);

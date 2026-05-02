@@ -116,3 +116,35 @@ RuntimeVal *eval_for_expr(ForExpr *for_expr, Environment *env) {
   free_environment(for_env);
   return lastEvaluated;
 }
+
+#include "../zox_alloc.h"
+
+RuntimeVal *eval_arena_block(ArenaBlockExpr *arena_expr, Environment *env) {
+  size_t snapshot = zox_arena_get_offset();
+  Environment *arena_env = create_environment(env, "arena_env");
+  RuntimeVal *lastEvaluated = (RuntimeVal *)MK_NIL();
+
+  for (size_t i = 0; i < arena_expr->body_count; i++) {
+    RuntimeVal *tmp = evaluate(arena_expr->body[i], arena_env);
+    if (i < arena_expr->body_count - 1) {
+      release(tmp);
+    } else {
+      RuntimeVal *old = lastEvaluated;
+      lastEvaluated = tmp;
+      release(old);
+    }
+    if (cf_signal == CF_BREAK || cf_signal == CF_CONTINUE || cf_signal == CF_RETURN) break;
+  }
+
+  /* Promotion phase: deep clone into heap (force_heap) then reset arena. */
+  zox_alloc_force_heap(1);
+  RuntimeVal *promoted = promote_val(lastEvaluated);
+  if (promoted == lastEvaluated) retain(promoted);
+  zox_alloc_force_heap(0);
+
+  release(lastEvaluated);
+  free_environment(arena_env);
+  zox_arena_set_offset(snapshot);
+
+  return promoted;
+}

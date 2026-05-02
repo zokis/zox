@@ -192,6 +192,12 @@ static void free_node(Stmt *node) {
     if (r->value) free_node((Stmt *)r->value);
     break;
   }
+  case ArenaBlockAst: {
+    ArenaBlockExpr *a = (ArenaBlockExpr *)node;
+    for (size_t i = 0; i < a->body_count; i++) free_node(a->body[i]);
+    free_safe(a->body);
+    break;
+  }
   default:
     break;
   }

@@ -272,6 +272,8 @@ Expr *parse_primary_expr(Parser *parser) {
   TokenType tk = at(parser).type;
 
   switch (tk) {
+  case OpenArenaTk:
+    return parse_arena_block(parser);
   case ImportTk:
     return (Expr *)parse_import_stmt(parser);
   case FunctionTk:
@@ -339,4 +341,18 @@ Expr *parse_primary_expr(Parser *parser) {
     return NULL;
   }
   }
+}
+
+Expr *parse_arena_block(Parser *parser) {
+  expect(parser, OpenArenaTk, "Expected '|{' to start arena block.");
+  size_t body_count = 0;
+  Stmt **body = NULL;
+
+  while (at(parser).type != CloseArenaTk && at(parser).type != EOFTk) {
+    body = realloc_safe(body, sizeof(Stmt *) * (body_count + 1), "parse_arena_block body");
+    body[body_count++] = parse_stmt(parser);
+  }
+
+  expect(parser, CloseArenaTk, "Expected '}|' to end arena block.");
+  return (Expr *)create_arena_block(body, body_count);
 }

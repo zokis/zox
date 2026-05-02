@@ -15,6 +15,7 @@ static ZoxAllocStats  stats[ZOX_ALLOC_KIND_COUNT];
 static unsigned char *arena_base   = NULL;
 static size_t         arena_size   = 0;
 static size_t         arena_offset = 0;
+static int            force_heap   = 0;
 
 void zox_arena_init(size_t bytes) {
   free_safe(arena_base);
@@ -30,9 +31,37 @@ void zox_arena_destroy(void) {
   arena_offset = 0;
 }
 
-static int arena_owns(void *ptr) {
+size_t zox_arena_get_offset(void) { return arena_offset; }
+
+void zox_arena_set_offset(size_t offset) {
+  if (offset > arena_offset) return;
+  /* Purge free list nodes that point into the arena region we're about to "free" */
+  for (int i = 0; i < ZOX_ALLOC_KIND_COUNT; i++) {
+    PoolNode **curr = &free_lists[i];
+    while (*curr) {
+      unsigned char *p = (unsigned char *)*curr;
+      if (arena_base && p >= arena_base + offset && p < arena_base + arena_size) {
+        *curr = (*curr)->next;
+        stats[i].depth--;
+      } else {
+        curr = &((*curr)->next);
+      }
+    }
+  }
+  arena_offset = offset;
+}
+
+int zox_arena_owns(void *ptr) {
   unsigned char *p = (unsigned char *)ptr;
   return arena_base && p >= arena_base && p < arena_base + arena_size;
+}
+
+void zox_alloc_force_heap(int force) {
+  force_heap = force;
+}
+
+static int arena_owns(void *ptr) {
+  return zox_arena_owns(ptr);
 }
 
 static void *arena_bump(size_t size) {
@@ -45,7 +74,10 @@ static void *arena_bump(size_t size) {
 }
 
 void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label) {
-  if (kind >= ZOX_ALLOC_KIND_COUNT) return malloc_safe(size, label);
+  if (kind >= ZOX_ALLOC_KIND_COUNT || force_heap) {
+    if (kind < ZOX_ALLOC_KIND_COUNT) stats[kind].heap++;
+    return malloc_safe(size, label);
+  }
   stats[kind].alloc++;
   PoolNode *node = free_lists[kind];
   if (node) {

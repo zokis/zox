@@ -204,6 +204,11 @@ static void serialize_node(FILE *f, Stmt *node) {
   case ReturnAst:
     serialize_expr(f, ((ReturnStmt *)node)->value);
     break;
+  case ArenaBlockAst: {
+    ArenaBlockExpr *a = (ArenaBlockExpr *)node;
+    serialize_body(f, a->body, a->body_count);
+    break;
+  }
   default:
     break;
   }
@@ -396,6 +401,11 @@ static Stmt *deserialize_node(FILE *f) {
   case BreakAst:    return (Stmt *)create_break();
   case ContinueAst: return (Stmt *)create_continue();
   case ReturnAst:   return (Stmt *)create_return(deserialize_expr(f));
+  case ArenaBlockAst: {
+    size_t count;
+    Stmt **body = deserialize_body(f, &count);
+    return (Stmt *)create_arena_block(body, count);
+  }
   default:          return NULL;
   }
 }

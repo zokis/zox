@@ -36,7 +36,8 @@ typedef enum {
   AssignDictExprAst,  // 27 expr{k} = v
   BreakAst,           // 23
   ContinueAst,        // 24
-  ReturnAst           // 25
+  ReturnAst,          // 25
+  ArenaBlockAst       // 28
 } NodeType;
 
 typedef struct Stmt {
@@ -220,6 +221,12 @@ typedef struct {
   Expr *value;
 } AssignDictExpr;
 
+typedef struct {
+  Expr base;
+  Stmt **body;
+  size_t body_count;
+} ArenaBlockExpr;
+
 Program *create_program(Stmt **body, size_t body_count);
 BinaryExpr *create_binary_expr(Expr *left, Expr *right, const char *operator);
 UnaryExpr *create_unary_expr(const char *operator, Expr *expr);
@@ -248,6 +255,7 @@ DictLiteral *create_dict_literal(Expr **keys, Expr **values,
 DictKey *create_dict_key(Expr *dict, Expr *key);
 AssignListExpr *assign_list_expr_node(Expr *target, Expr *index, Expr *value);
 AssignDictExpr *assign_dict_expr_node(Expr *target, Expr *key, Expr *value);
+ArenaBlockExpr *create_arena_block(Stmt **body, size_t body_count);
 
 BreakStmt *create_break();
 ContinueStmt *create_continue();

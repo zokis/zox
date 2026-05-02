@@ -26,6 +26,10 @@ typedef struct {
 
 void  zox_arena_init(size_t bytes);
 void  zox_arena_destroy(void);
+size_t zox_arena_get_offset(void);
+void   zox_arena_set_offset(size_t offset);
+int    zox_arena_owns(void *ptr);
+void   zox_alloc_force_heap(int force);
 void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label);
 void  zox_free_obj(ZoxAllocKind kind, void *ptr);
 void  zox_alloc_cleanup(void);

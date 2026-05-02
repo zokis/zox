@@ -39,6 +39,7 @@ char *parse_string(const char *raw_value);
 Expr *parse_identifier_expr(Parser *parser);
 Stmt *parse_import_stmt(Parser *parser);
 Expr *parse_primary_expr(Parser *parser);
+Expr *parse_arena_block(Parser *parser);
 Expr *parse_if_expr(Parser *parser);
 Expr *parse_while_expr(Parser *parser);
 Expr *parse_for_expr(Parser *parser);

@@ -231,6 +231,14 @@ AssignDictExpr *assign_dict_expr_node(Expr *target, Expr *key, Expr *value) {
   return n;
 }
 
+ArenaBlockExpr *create_arena_block(Stmt **body, size_t body_count) {
+  ArenaBlockExpr *arena = (ArenaBlockExpr *)malloc_safe(sizeof(ArenaBlockExpr), "ArenaBlockExpr");
+  arena->base.stmt.kind = ArenaBlockAst;
+  arena->body = body;
+  arena->body_count = body_count;
+  return arena;
+}
+
 BreakStmt *create_break(void) {
   BreakStmt *s = malloc_safe(sizeof(BreakStmt), "BreakStmt");
   s->base.kind = BreakAst;

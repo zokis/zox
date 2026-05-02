@@ -7,9 +7,6 @@
 #include "malloc_safe.h"
 #include "zox_alloc.h"
 
-/* ref_count = -1 -> static singleton, retain/release no-op. */
-#define STATIC_REF (-1)
-
 static NilVal     _nil_singleton   = { .base = { NIL_T,     STATIC_REF } };
 static BooleanVal _true_singleton  = { .base = { BOOLEAN_T, STATIC_REF }, .value = 1 };
 static BooleanVal _false_singleton = { .base = { BOOLEAN_T, STATIC_REF }, .value = 0 };

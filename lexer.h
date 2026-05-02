@@ -36,7 +36,9 @@ typedef enum {
   EOFTk,               // 29
   BreakTk,             // 30  ~!!
   ContinueTk,          // 31  __>
-  ReturnTk             // 32  _>>
+  ReturnTk,            // 32  _>>
+  OpenArenaTk,         // 33  |{
+  CloseArenaTk         // 34  }|
 } TokenType;
 
 typedef struct {

@@ -1,5 +1,6 @@
 zox
 zox_test
+zox_asan
 
 # Prerequisites
 *.d

@@ -139,16 +139,16 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
     }
 
     /* 2-character tokens */
+    if (*src == '!' && *(src + 1) == '?') {
+      add_token(&tokens, &capacity, tokenCount, create_token("!?", UnwrapTk, line, column));
+      src += 2; column += 2; continue;
+    }
     if (*src == '?' && *(src + 1) == '?') {
       add_token(&tokens, &capacity, tokenCount, create_token("??", MatchTk, line, column));
       src += 2; column += 2; continue;
     }
     if (*src == '=' && *(src + 1) == '>') {
       add_token(&tokens, &capacity, tokenCount, create_token("=>", FatArrowTk, line, column));
-      src += 2; column += 2; continue;
-    }
-    if (*src == '!' && *(src + 1) == '?') {
-      add_token(&tokens, &capacity, tokenCount, create_token("!?", UnwrapTk, line, column));
       src += 2; column += 2; continue;
     }
     if (*src == '~' && *(src + 1) == '>') {
@@ -270,7 +270,7 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
       add_token(&tokens, &capacity, tokenCount, handle_ampersand_token(&src, (int *)&line, &column));
       continue;
     }
-    if (*src == '+' || *src == '-' || *src == '*' || *src == '/' || *src == '%' || *src == '^' || *src == '<' || *src == '>') {
+    if (*src == '+' || *src == '-' || *src == '*' || *src == '/' || *src == '%' || *src == '^' || *src == '<' || *src == '>' || *src == '!') {
       char op[2] = {*src, '\0'};
       TokenType type = BinaryOperatorTk;
       if (*tokenCount == 0 ||

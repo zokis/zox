@@ -24,8 +24,10 @@ println("");
     let test_name = replace(replace(zo_file, unit_dir + "/", ""), ".zo", "");
 
     let output = exec(zox_bin + " " + zo_file + " 2>&1");
-
-    ?(find(output, "Result: ") >= 0 && find(output, " 0 failed") >= 0) {
+    let f1 = find(output, "Result: ");
+    let f2 = find(output, " 0 failed");
+    let cond = (f1 >= 0 && f2 >= 0);
+    ?(cond) {
         println("  PASS  " + test_name);
         pass = pass + 1
     } : {

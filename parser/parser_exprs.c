@@ -52,14 +52,16 @@ Expr *parse_comparison(Parser *parser) {
   if (!left) return NULL;
   while (1) {
     Token token = at(parser);
-    if (token.value[0] != '<' && token.value[0] != '>' &&
-        strcmp(token.value, "<=") != 0 && strcmp(token.value, ">=") != 0) {
+    if (token.type != BinaryOperatorTk) break;
+    const char *op = token.value;
+    if (strcmp(op, "<") != 0 && strcmp(op, ">") != 0 &&
+        strcmp(op, "<=") != 0 && strcmp(op, ">=") != 0) {
       break;
     }
-    char *operator = eat(parser).value;
+    eat(parser);
     Expr *right = parse_additive_expr(parser);
     if (!right) { free_expr(left); return NULL; }
-    left = (Expr *)create_binary_expr(left, right, operator);
+    left = (Expr *)create_binary_expr(left, right, op);
   }
   return left;
 }
@@ -81,15 +83,17 @@ Expr *parse_additive_expr(Parser *parser) {
   if (!left) return NULL;
   while (1) {
     Token token = at(parser);
-    if (token.type == ArrowTk ||
-        (token.value[0] != '+' && token.value[0] != '-' &&
-         strcmp(token.value, "&+") != 0 && strcmp(token.value, "&-") != 0)) {
+    if (token.type == ArrowTk) break;
+    if (token.type != BinaryOperatorTk) break;
+    const char *op = token.value;
+    if (strcmp(op, "+") != 0 && strcmp(op, "-") != 0 &&
+        strcmp(op, "&+") != 0 && strcmp(op, "&-") != 0) {
       break;
     }
-    char *operator = eat(parser).value;
-    Expr *right = parse_unary_expr(parser);
+    eat(parser);
+    Expr *right = parse_bitwise_expr(parser);
     if (!right) { free_expr(left); return NULL; }
-    left = (Expr *)create_binary_expr(left, right, operator);
+    left = (Expr *)create_binary_expr(left, right, op);
   }
   return left;
 }
@@ -98,16 +102,22 @@ Expr *parse_bitwise_expr(Parser *parser) {
   Expr *left = parse_multiplicative_expr(parser);
   while (1) {
     Token token = at(parser);
-    if (token.value[0] != '^' && token.value[0] != '&' &&
-        token.value[0] != '|' && strcmp(token.value, "<<") != 0 &&
-        strcmp(token.value, ">>") != 0 && strcmp(token.value, "&>>") != 0 &&
-        strcmp(token.value, "&<<") != 0 && strcmp(token.value, "&|") != 0 &&
-        strcmp(token.value, "&e") != 0 && strcmp(token.value, "&^") != 0) {
+    if (token.type != BinaryOperatorTk) break;
+    
+    const char *op = token.value;
+    /* Only these are bitwise */
+    if (strcmp(op, "&") == 0 || strcmp(op, "|") == 0 || strcmp(op, "^") == 0 ||
+        strcmp(op, "<<") == 0 || strcmp(op, ">>") == 0 ||
+        strcmp(op, "&>>") == 0 || strcmp(op, "&<<") == 0 ||
+        strcmp(op, "&|") == 0 || strcmp(op, "&e") == 0 ||
+        strcmp(op, "&^") == 0) {
+      eat(parser);
+      Expr *right = parse_multiplicative_expr(parser);
+      if (!right) { free_expr(left); return NULL; }
+      left = (Expr *)create_binary_expr(left, right, op);
+    } else {
       break;
     }
-    char *operator = eat(parser).value;
-    Expr *right = parse_multiplicative_expr(parser);
-    left = (Expr *)create_binary_expr(left, right, operator);
   }
   return left;
 }
@@ -117,16 +127,19 @@ Expr *parse_multiplicative_expr(Parser *parser) {
   if (!left) return NULL;
   while (1) {
     Token token = at(parser);
-    if (token.type == ArrowTk ||
-        (token.value[0] != '/' && token.value[0] != '*' &&
-         token.value[0] != '%' && strcmp(token.value, "&*") != 0 &&
-         strcmp(token.value, "&/") != 0 && strcmp(token.value, "&%") != 0)) {
+    if (token.type == ArrowTk) break;
+    if (token.type != BinaryOperatorTk) break;
+    const char *op = token.value;
+    if (strcmp(op, "/") != 0 && strcmp(op, "*") != 0 &&
+        strcmp(op, "%") != 0 && strcmp(op, "**") != 0 &&
+        strcmp(op, "&*") != 0 && strcmp(op, "&/") != 0 && 
+        strcmp(op, "&%") != 0) {
       break;
     }
-    char *operator = eat(parser).value;
+    eat(parser);
     Expr *right = (Expr *)parse_unary_expr(parser);
     if (!right) { free_expr(left); return NULL; }
-    left = (Expr *)create_binary_expr(left, right, operator);
+    left = (Expr *)create_binary_expr(left, right, op);
   }
   return left;
 }

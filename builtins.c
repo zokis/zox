@@ -208,6 +208,28 @@ RuntimeVal *builtin_err(Environment *env, RuntimeVal **args, size_t arg_count) {
   return (RuntimeVal *)res;
 }
 
+RuntimeVal *builtin_is_ok(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 1 || args[0]->type != DICT_T) return (RuntimeVal *)MK_BOOL(0);
+  return (RuntimeVal *)MK_BOOL(dict_find_entry((DictVal *)args[0], "ok") != NULL);
+}
+
+RuntimeVal *builtin_is_err(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 1 || args[0]->type != DICT_T) return (RuntimeVal *)MK_BOOL(0);
+  return (RuntimeVal *)MK_BOOL(dict_find_entry((DictVal *)args[0], "err") != NULL);
+}
+
+RuntimeVal *builtin_get_ok(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 1 || args[0]->type != DICT_T) return (RuntimeVal *)MK_NIL();
+  RuntimeVal *val = dict_get_val((DictVal *)args[0], "ok");
+  return val ? val : (RuntimeVal *)MK_NIL();
+}
+
+RuntimeVal *builtin_get_err(Environment *env, RuntimeVal **args, size_t arg_count) {
+  if (arg_count != 1 || args[0]->type != DICT_T) return (RuntimeVal *)MK_NIL();
+  RuntimeVal *val = dict_get_val((DictVal *)args[0], "err");
+  return val ? val : (RuntimeVal *)MK_NIL();
+}
+
 void register_builtins(Environment *env) {
   static char *no_params[]     = {NULL};
   static char *single_param[]  = {"value"};
@@ -246,4 +268,12 @@ void register_builtins(Environment *env) {
     (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_ok));
   declare_owned(env, "err",
     (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_err));
+  declare_owned(env, "is_ok",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_is_ok));
+  declare_owned(env, "is_err",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_is_err));
+  declare_owned(env, "get_ok",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_get_ok));
+  declare_owned(env, "get_err",
+    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_get_err));
 }

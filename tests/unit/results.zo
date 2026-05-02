@@ -36,4 +36,19 @@ test("Builtin ok() and err()", $ builtins_test() {
     assert_eq(e{"err"}, "fail")
 });
 
+test("Result helpers (is_ok, is_err, get_ok, get_err)", $ helpers_test() {
+    let o = ok(42);
+    let e = err("oops");
+    
+    assert_eq(is_ok(o), true);
+    assert_eq(is_ok(e), false);
+    assert_eq(is_err(e), true);
+    assert_eq(is_err(o), false);
+    
+    assert_eq(get_ok(o), 42);
+    assert_eq(get_err(e), "oops");
+    assert_eq(get_ok(e), nil);
+    assert_eq(get_err(o), nil)
+});
+
 test_summary()

@@ -1,0 +1,24 @@
+~> test { suite, test, assert_eq, test_summary };
+
+suite("Regression: Loop Keyword Consumption");
+
+-# This test ensures that '#' and '@' keywords are correctly consumed 
+-# when used as top-level statements.
+
+test("Top-level while loop", $ top_while() {
+    let i = 0;
+    #(i < 3) {
+        i = i + 1
+    };
+    assert_eq(i, 3)
+});
+
+test("Top-level for loop", $ top_for() {
+    let sum = 0;
+    @(let j = 0; j < 3; j = j + 1) {
+        sum = sum + j
+    };
+    assert_eq(sum, 3)
+});
+
+test_summary()

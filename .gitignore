@@ -62,4 +62,4 @@ cmake-build-debug/
 
 # Local performance baseline (machine-specific, not shared)
 tests/perf_baseline.txt
-.claude/
+.claude/.gemini/

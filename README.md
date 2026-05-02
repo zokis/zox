@@ -13,10 +13,12 @@ make          # release build
 make dev      # AddressSanitizer build
 make libs     # build lib/*.so dynamic modules
 make full     # core + dynamic modules
-make test     # core test suite
-make testlibs # dynamic module tests
+make test     # legacy regression tests
+make testlibs # legacy library tests
 make clean
 ```
+
+See [`docs/testing.md`](docs/testing.md) for the full testing guide.
 
 Manual build:
 
@@ -37,6 +39,9 @@ gcc -O2 -o zox \
 ./zox file.zo      # run file
 ./zox --arena=8MB file.zo # allocate Environment arena
 ```
+
+**Arena Sizing:**
+The `--arena` flag is a tuning knob. A too-small arena can be slower than no arena due to malloc fallbacks. The ideal size is the first power-of-two above the `arena used=` value reported by `./zox --alloc-stats file.zo`.
 
 REPL:
 
@@ -65,6 +70,14 @@ Zox is dynamically typed. Blocks return their last evaluated value.
 | `list` | `{1, "two", true}` |
 | `dict` | `["x" -> 1; "y" -> 2]` |
 | `function` | `$ f(x) { x * 2 }` |
+
+## Performance
+
+Zox includes several optimizations for speed and memory:
+- **Open Addressing:** Dictionaries use linear probing for cache-friendly lookups.
+- **In-place Mutation:** Concatenation (`+`) is in-place when objects have a single reference.
+- **Environment Registry:** Reliable memory cleanup of closure cycles at shutdown.
+- **ASan Clean:** Zero memory leaks in core operations.
 
 ## Syntax
 
@@ -164,14 +177,15 @@ Collection operators:
 
 | Operator | Meaning |
 |---|---|
-| `list + list` | concat |
+| `list + list` | concat (in-place if ref=1) |
 | `list - list` | difference |
 | `list * list` | Cartesian product |
 | `list * n` | repeat |
 | `list & list` | intersection |
 | `list \| list` | union |
 | `list ^ list` | symmetric difference |
-| `dict + dict` | merge, right wins |
+| `list << x`   | append (in-place) |
+| `dict + dict` | merge (in-place if ref=1) |
 | `list &+ n` | element-wise add |
 | `list &- n` | element-wise subtract |
 | `list &* n` | element-wise multiply |
@@ -210,6 +224,9 @@ println(data{"ok"});
 | `println(value)` | print with newline |
 | `len(value)` | string/list/dict length |
 | `keys(dict)` | dict keys |
+| `has_key(dict, k)`| true if key exists |
+| `get(dict, k)`   | value or nil if missing |
+| `setdefault(d,k,v)`| get value, or set and return v |
 | `values(dict)` | dict values |
 | `sum(list)` | numeric list sum |
 | `find(target, value)` | index/key lookup, `-1` if missing |
@@ -278,9 +295,9 @@ Runtime ownership:
 
 ## Docs
 
-- [`specs/language-spec.md`](specs/language-spec.md)
-- [`specs/architecture.md`](specs/architecture.md)
-- [`TODO.md`](TODO.md)
+- [`docs/testing.md`](docs/testing.md) — Unit testing guide and framework
+- [`specs/language-spec.md`](specs/language-spec.md) — Language specification
+- [`specs/architecture.md`](specs/architecture.md) — Interpreter architecture
 
 ## Examples
 
@@ -292,10 +309,20 @@ make full
 
 ## Tests
 
+**Unit tests** (modern assertion-based):
 ```bash
-make test
-make testlibs
+./zox tests/run_unit_tests.zo        # all unit tests (25 tests)
+./zox tests/run_libs_unit_tests.zo   # library tests (3 libs)
+./zox tests/unit/recursion.zo        # single test file
 ```
+
+**Legacy regression tests** (output comparison):
+```bash
+make test    # core regression tests
+make testlibs # library regression tests
+```
+
+See [`docs/testing.md`](docs/testing.md) for details.
 
 ## Performance
 

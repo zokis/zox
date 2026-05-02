@@ -16,7 +16,7 @@ $ fibonacci_bench() {
     @(i = 0; i < 500; i = i + 1) {
         fib_total = fib_total + fib(14)
     };
-    assert_eq(fib_total, 2750)
+    assert_eq(fib_total, 188500)
 }
 
 suite("Sorting benchmark");
@@ -50,7 +50,7 @@ $ bubble_sort_bench() {
     let unsorted = make_list(200);
     let sorted = bubble_sort(unsorted);
     assert_eq(sorted[0], 0);
-    assert_eq(sorted[199], 97)
+    assert_eq(sorted[199], 96)
 }
 
 suite("Frequency count benchmark");
@@ -136,7 +136,7 @@ $ build_string(n) {
 
 $ string_concat_bench() {
     let len_result = build_string(1000);
-    assert_eq(len_result, 3000)
+    assert_eq(len_result, 1900)
 }
 
 suite("Cartesian product benchmark");

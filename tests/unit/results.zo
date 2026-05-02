@@ -1,4 +1,4 @@
-~> test { suite, test, assert_eq, test_summary };
+~> test { suite, test, assert_eq, assert_true, assert_false, test_summary };
 
 suite("Result Types (_>>@, _>>!, !?)");
 
@@ -20,12 +20,18 @@ $ calculate(a, b, c) {
 test("Success path", $ success_test() {
     let res = calculate(10, 2, 5);
     assert_eq(res{"ok"}, 10);
+    assert_eq(get_ok(res), 10);
+    assert_true(is_ok(res));
+    assert_false(is_err(res));
     assert_eq(typeof(res), "dict")
 });
 
 test("Error path with propagation", $ error_test() {
     let res = calculate(10, 0, 5);
     assert_eq(res{"err"}, "division by zero");
+    assert_eq(get_err(res), "division by zero");
+    assert_false(is_ok(res));
+    assert_true(is_err(res));
     assert_eq(typeof(res), "dict")
 });
 

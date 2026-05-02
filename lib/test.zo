@@ -140,6 +140,6 @@ $ assert_nil(val) {
 $ test_summary() {
     println("");
     println("------------------------------------------");
-    print("  "); print(_t_pass); print(" passed / "); print(_t_fail); println(" failed");
+    print("  Result: "); print(_t_pass); print(" passed / "); print(_t_fail); println(" failed");
     println("------------------------------------------")
 }

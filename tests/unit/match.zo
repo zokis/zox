@@ -54,4 +54,25 @@ test("Integration with Results", $ result_match_test() {
     assert_eq(msg2, "failed: zero")
 });
 
+test("Integration with Results Alias", $ result_match_alias_test() {
+    $ divide(a, b) {
+        ?(b == 0) { _>>! "zero" } : { _>>@ a / b }
+    }
+    
+    let r1 = divide(10, 2);
+    let msg1 = ?? (r1) {
+        is_ok(r1) => "got " + toString(get_ok(r1)),
+        _ => "error"
+    };
+    assert_eq(msg1, "got 5");
+    
+    let r2 = divide(10, 0);
+    let msg2 = ?? (r2) {
+        is_ok(r2) => "got " + toString(get_ok(r2)),
+        is_err(r2) => "failed: " + get_err(r2),
+        _ => "none"
+    };
+    assert_eq(msg2, "failed: zero")
+});
+
 test_summary()

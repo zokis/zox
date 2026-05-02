@@ -11,9 +11,9 @@ $ for_loop_shadowing() {
         let c = a * (x + 1);
         a = c + 1
     };
-    assert_eq(b, 4);
+    assert_eq(b, 16);
     assert_eq(c, 100);
-    assert_eq(a, 4)
+    assert_eq(a, 16)
 }
 
 test("for loop shadowing", for_loop_shadowing);

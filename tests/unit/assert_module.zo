@@ -1,7 +1,7 @@
 ~> test { test, suite,
            assert_eq, assert_neq, assert_true, assert_false,
            assert_lt, assert_gt, assert_lte, assert_gte,
-           assert_in, assert_not_in, assert_len, assert_contains,
+           assert_in, assert_not_in, assert_len,
            test_summary };
 
 suite("Arithmetic");
@@ -51,8 +51,8 @@ $ string_equality() {
 }
 
 $ string_contains() {
-    assert_contains("hello world", "world");
-    assert_contains("hello world", "hello");
+    assert_in("world", "hello world");
+    assert_in("hello", "hello world");
     assert_not_in("xyz", "hello world")
 }
 

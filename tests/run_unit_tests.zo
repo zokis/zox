@@ -25,14 +25,14 @@ println("");
 
     let output = exec(zox_bin + " " + zo_file + " 2>&1");
 
-    ?(find(output, "passed") != nil) {
+    ?(find(output, "Result: ") >= 0 && find(output, " 0 failed") >= 0) {
         println("  PASS  " + test_name);
         pass = pass + 1
     } : {
         println("  FAIL  " + test_name);
+        println(output);
         fail = fail + 1;
         failures << test_name;
-        println(output)
     }
 };
 

@@ -1,0 +1,160 @@
+~> test { test, suite,
+           assert_eq, assert_true, assert_nil,
+           test_summary };
+
+suite("Conditionals");
+
+$ if_else() {
+    let age = 18;
+    let result = ?(age >= 18) { "adult" } : { "minor" };
+    assert_eq(result, "adult")
+}
+
+$ if_elseif() {
+    let x = 5;
+    let label = ?(x > 10) { "big" } :? (x > 0) { "positive" } : { "zero or negative" };
+    assert_eq(label, "positive")
+}
+
+$ if_as_expression() {
+    let sign = ?(3 > 0) { 1 } : { -1 };
+    assert_eq(sign, 1)
+}
+
+suite("While loop");
+
+$ while_counts() {
+    let i = 0;
+    let count = 0;
+    #(i < 10) {
+        i = i + 1;
+        count = count + 1
+    };
+    assert_eq(i, 10);
+    assert_eq(count, 10)
+}
+
+$ while_returns_last() {
+    let i = 0;
+    let result = #(i < 3) {
+        i = i + 1;
+        i * 2
+    };
+    assert_eq(result, 6)
+}
+
+$ while_break() {
+    let soma = 0;
+    let j = 0;
+    #(j < 10) {
+        ?(j == 5) { ~!! }
+        soma = soma + 1;
+        j = j + 1
+    };
+    assert_eq(soma, 5)
+}
+
+$ while_continue() {
+    let pares = 0;
+    let k = 0;
+    #(k < 10) {
+        k = k + 1;
+        ?(k % 2 != 0) { __> }
+        pares = pares + 1
+    };
+    assert_eq(pares, 5)
+}
+
+suite("For loop");
+
+$ for_counts() {
+    let sum = 0;
+    @(let i = 0; i < 5; i = i + 1) {
+        sum = sum + i
+    };
+    assert_eq(sum, 10)
+}
+
+$ for_returns_last() {
+    let result = @(let i = 0; i < 3; i = i + 1) {
+        i * 2
+    };
+    assert_eq(result, 4)
+}
+
+$ for_break() {
+    let total = 0;
+    @(let n = 0; n < 100; n = n + 1) {
+        ?(n == 7) { ~!! }
+        total = total + 1
+    };
+    assert_eq(total, 7)
+}
+
+$ for_continue() {
+    let impares = 0;
+    @(let m = 0; m < 10; m = m + 1) {
+        ?(m % 2 == 0) { __> }
+        impares = impares + 1
+    };
+    assert_eq(impares, 5)
+}
+
+suite("Return");
+
+$ dobro(x) { _>> x * 2 }
+
+$ early_return_fn() {
+    assert_eq(dobro(7), 14)
+}
+
+$ primeiro_negativo(lista) {
+    let idx = 0;
+    #(idx < len(lista)) {
+        ?(lista[idx] < 0) { _>> lista[idx] }
+        idx = idx + 1
+    }
+    _>> nil
+}
+
+$ early_return_found() {
+    assert_eq(primeiro_negativo({1, 2, -3, 4}), -3)
+}
+
+$ early_return_not_found() {
+    assert_nil(primeiro_negativo({1, 2, 3}))
+}
+
+suite("Scoping in loops");
+
+$ while_scope_per_iter() {
+    let i = 0;
+    let funcs = {};
+    #(i < 3) {
+        let n = i;
+        $ cap() { n }
+        funcs << cap;
+        i = i + 1
+    };
+    assert_eq(funcs[0](), 0);
+    assert_eq(funcs[1](), 1);
+    assert_eq(funcs[2](), 2)
+}
+
+test("if / else",         if_else);
+test("if / else-if",      if_elseif);
+test("if as expression",  if_as_expression);
+test("while counts",      while_counts);
+test("while returns last",while_returns_last);
+test("while break",       while_break);
+test("while continue",    while_continue);
+test("for counts",        for_counts);
+test("for returns last",  for_returns_last);
+test("for break",         for_break);
+test("for continue",      for_continue);
+test("explicit return",   early_return_fn);
+test("early return found",early_return_found);
+test("early return nil",  early_return_not_found);
+test("closure per-iteration scope", while_scope_per_iter);
+
+test_summary()

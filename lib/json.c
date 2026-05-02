@@ -182,11 +182,11 @@ static void stringify_val(RuntimeVal *val, Buf *b) {
       buf_push_char(b, '{');
       int first = 1;
       for (size_t i = 0; i < dict->capacity; i++) {
-        for (Entry *e = dict->entries[i]; e != NULL; e = e->next) {
+        if (dict->entries[i].key != NULL) {
           if (!first) buf_push_char(b, ',');
-          stringify_string(e->key, b);
+          stringify_string(dict->entries[i].key, b);
           buf_push_char(b, ':');
-          stringify_val(e->value, b);
+          stringify_val(dict->entries[i].value, b);
           first = 0;
         }
       }

@@ -129,16 +129,17 @@ RuntimeVal *eval_call_expr(CallExpr *call_expr, Environment *env) {
     if (i < func->body_count - 1) {
       release(tmp);
     } else {
-      release(lastEvaluated);
+      RuntimeVal *old = lastEvaluated;
       lastEvaluated = tmp;
+      release(old);
     }
     if (cf_signal == CF_RETURN) {
-      release(lastEvaluated);
+      RuntimeVal *old = lastEvaluated;
       lastEvaluated = cf_take_return_val();
+      release(old);
       cf_signal = CF_NONE;
       break;
     }
-    if (cf_signal != CF_NONE) break;
   }
   free_environment(func_env);
   return lastEvaluated;

@@ -1,0 +1,28 @@
+~> test { test, suite,
+           assert_eq,
+           test_summary };
+
+~> os {exec, env};
+
+suite("OS module");
+
+$ os_exec() {
+    let out = exec("echo hello_zox");
+    assert_eq(out, "hello_zox")
+}
+
+$ os_env_exists() {
+    let home = env("HOME");
+    assert_eq(typeof(home), "string")
+}
+
+$ os_env_missing() {
+    let missing = env("ZOX_VAR_THAT_DOES_NOT_EXIST");
+    assert_eq(missing, nil)
+}
+
+test("os exec", os_exec);
+test("os env exists", os_env_exists);
+test("os env missing", os_env_missing);
+
+test_summary()

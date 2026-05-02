@@ -1,0 +1,67 @@
+~> test { test, suite,
+           assert_eq, assert_true, assert_false,
+           test_summary };
+
+suite("Arithmetic");
+
+$ basic_arith() {
+    assert_eq(10 + 5,  15);
+    assert_eq(20 - 3,  17);
+    assert_eq(6  * 7,  42);
+    assert_eq(10 / 2,  5);
+    assert_eq(2 ** 10, 1024);
+    assert_eq(17 % 5,  2)
+}
+
+$ float_arith() {
+    assert_eq(20 - 0.1, 19.9);
+    assert_eq(3 * 1.5,  4.5);
+    assert_eq(7 / 2,    3.5)
+}
+
+$ negation() {
+    let x = 5;
+    assert_eq(-x, -5);
+    assert_eq(0 - x, -5)
+}
+
+suite("Comparison");
+
+$ comparisons() {
+    assert_true(1 < 2);
+    assert_true(2 > 1);
+    assert_true(2 <= 2);
+    assert_true(2 >= 2);
+    assert_true(1 == 1);
+    assert_true(1 != 2);
+    assert_false(1 > 2);
+    assert_false(1 == 2)
+}
+
+suite("String operators");
+
+$ str_concat() {
+    assert_eq("hello" + " " + "world", "hello world");
+    assert_eq("" + "x", "x");
+    assert_eq("a" + "b" + "c", "abc")
+}
+
+$ str_diff() {
+    assert_eq("abacate" - "ac", "abate");
+    assert_eq("hello world" - "world", "hello ")
+}
+
+$ str_escape() {
+    assert_eq(len("line1\nline2"), 11);
+    assert_eq(len("col1\tcol2"),  9)
+}
+
+test("basic arithmetic",   basic_arith);
+test("float arithmetic",   float_arith);
+test("negation",           negation);
+test("comparisons",        comparisons);
+test("string concat",      str_concat);
+test("string difference",  str_diff);
+test("string escapes",     str_escape);
+
+test_summary()

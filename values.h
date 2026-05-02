@@ -60,15 +60,14 @@ typedef struct {
   size_t capacity;
 } ListVal;
 
-typedef struct Entry {
+typedef struct {
   char *key;
   RuntimeVal *value;
-  struct Entry *next;
 } Entry;
 
 typedef struct {
   RuntimeVal base;
-  Entry **entries;
+  Entry *entries;
   size_t size;
   size_t capacity;
 } DictVal;
@@ -93,7 +92,6 @@ FunctionVal *MK_FUNCTION(char **params, size_t param_count, Stmt **body,
                                                      size_t arg_count));
 ListVal *MK_LIST(size_t capacity);
 DictVal *MK_DICT(size_t capacity);
-Entry *MK_ENTRY(const char *key, RuntimeVal *value);
 char *dict_key_to_string(RuntimeVal *val);
 Entry *dict_find_entry(DictVal *dict, const char *key);
 RuntimeVal *dict_get_val(DictVal *dict, const char *key);

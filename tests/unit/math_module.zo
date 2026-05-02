@@ -1,0 +1,69 @@
+~> test { test, suite,
+           assert_eq, assert_true,
+           test_summary };
+~> math { abs, sqrt, floor, ceil, round, sin, cos, tan, log, pow, min, max,
+           lmin, lmax, average, median };
+
+suite("Math module");
+
+$ math_abs() {
+    assert_eq(abs(-16), 16);
+    assert_eq(abs(7),   7);
+    assert_eq(abs(0),   0)
+}
+
+$ math_sqrt() {
+    assert_eq(sqrt(16),  4);
+    assert_eq(sqrt(9),   3);
+    assert_eq(sqrt(100), 10)
+}
+
+$ math_rounding() {
+    assert_eq(floor(3.9), 3);
+    assert_eq(floor(3.1), 3);
+    assert_eq(ceil(3.1),  4);
+    assert_eq(ceil(3.9),  4);
+    assert_eq(round(3.5), 4);
+    assert_eq(round(3.4), 3)
+}
+
+$ math_pow() {
+    assert_eq(pow(2, 10), 1024);
+    assert_eq(pow(3, 3),  27);
+    assert_eq(pow(5, 0),  1)
+}
+
+$ math_minmax() {
+    assert_eq(min(10, 20), 10);
+    assert_eq(max(10, 20), 20);
+    assert_eq(min(-1, 1),  -1);
+    assert_eq(max(-1, 1),  1)
+}
+
+$ math_list_minmax() {
+    let ns = {3, 1, 4, 1, 5, 9, 2, 6};
+    assert_eq(lmin(ns), 1);
+    assert_eq(lmax(ns), 9)
+}
+
+$ math_stats() {
+    let ns = {1, 2, 3, 4, 5};
+    assert_eq(average(ns), 3);
+    assert_eq(median(ns),  3)
+}
+
+$ math_trig() {
+    assert_eq(sin(0), 0);
+    assert_eq(cos(0), 1)
+}
+
+test("abs",          math_abs);
+test("sqrt",         math_sqrt);
+test("rounding",     math_rounding);
+test("pow",          math_pow);
+test("min / max",    math_minmax);
+test("lmin / lmax",  math_list_minmax);
+test("average / median", math_stats);
+test("trig at 0",    math_trig);
+
+test_summary()

@@ -29,9 +29,10 @@ char *dict_key_to_string(RuntimeVal *val) {
 
 Entry *dict_find_entry(DictVal *dict, const char *key) {
   if (!dict || !key) return NULL;
-  size_t slot = hash(key, dict->capacity);
-  for (Entry *entry = dict->entries[slot]; entry != NULL; entry = entry->next) {
-    if (strcmp(entry->key, key) == 0) return entry;
+  size_t index = hash(key, dict->capacity);
+  while (dict->entries[index].key != NULL) {
+    if (strcmp(dict->entries[index].key, key) == 0) return &dict->entries[index];
+    index = (index + 1) % dict->capacity;
   }
   return NULL;
 }
@@ -54,46 +55,43 @@ RuntimeVal *eval_list_literal(ListLiteral *list_lit, Environment *env) {
 }
 
 void resize_dict(DictVal *dict) {
-  size_t new_capacity = dict->capacity * 2;
-  Entry **new_entries = (Entry **)malloc_safe(new_capacity * sizeof(Entry *), "resize_dict");
-  for (size_t i = 0; i < new_capacity; i++) new_entries[i] = NULL;
+  size_t old_capacity = dict->capacity;
+  Entry *old_entries = dict->entries;
+  dict->capacity *= 2;
+  dict->entries = (Entry *)malloc_safe(sizeof(Entry) * dict->capacity, "resize_dict");
   for (size_t i = 0; i < dict->capacity; i++) {
-    Entry *entry = dict->entries[i];
-    while (entry != NULL) {
-      size_t new_slot = hash(entry->key, new_capacity);
-      Entry *next_entry = entry->next;
-      entry->next = new_entries[new_slot];
-      new_entries[new_slot] = entry;
-      entry = next_entry;
+    dict->entries[i].key = NULL;
+    dict->entries[i].value = NULL;
+  }
+  for (size_t i = 0; i < old_capacity; i++) {
+    if (old_entries[i].key != NULL) {
+      size_t index = hash(old_entries[i].key, dict->capacity);
+      while (dict->entries[index].key != NULL) {
+        index = (index + 1) % dict->capacity;
+      }
+      dict->entries[index].key = old_entries[i].key;
+      dict->entries[index].value = old_entries[i].value;
     }
   }
-  free(dict->entries);
-  dict->entries = new_entries;
-  dict->capacity = new_capacity;
+  free(old_entries);
 }
 
 void dict_set_val(DictVal *dict, const char *key, RuntimeVal *value) {
   if ((float)dict->size / dict->capacity > 0.75f) resize_dict(dict);
-  size_t slot = hash(key, dict->capacity);
-  retain(value);
-  Entry *entry = dict->entries[slot];
-  if (entry == NULL) {
-    dict->entries[slot] = MK_ENTRY(key, value);
-    dict->size++;
-  } else {
-    Entry *prev = NULL;
-    while (entry != NULL) {
-      if (strcmp(entry->key, key) == 0) {
-        release(entry->value);
-        entry->value = value;
-        return;
-      }
-      prev = entry;
-      entry = entry->next;
+  size_t index = hash(key, dict->capacity);
+  while (dict->entries[index].key != NULL) {
+    if (strcmp(dict->entries[index].key, key) == 0) {
+      release(dict->entries[index].value);
+      dict->entries[index].value = value;
+      retain(value);
+      return;
     }
-    prev->next = MK_ENTRY(key, value);
-    dict->size++;
+    index = (index + 1) % dict->capacity;
   }
+  dict->entries[index].key = strdup(key);
+  dict->entries[index].value = value;
+  retain(value);
+  dict->size++;
 }
 
 char *runtime_value_to_string(RuntimeVal *val) {

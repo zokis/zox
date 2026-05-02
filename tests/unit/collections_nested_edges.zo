@@ -1,0 +1,86 @@
+~> test { test, suite,
+           assert_eq, assert_true, assert_len,
+           test_summary };
+
+suite("Lists of lists of dicts");
+
+$ lists_of_lists_of_dicts() {
+    let teams = {
+        {
+            ["name" -> "Ana"; "scores" -> {10, 20}],
+            ["name" -> "Bia"; "scores" -> {30, 40}]
+        },
+        {
+            ["name" -> "Caio"; "scores" -> {50, 60}],
+            ["name" -> "Duda"; "scores" -> {70, 80}]
+        }
+    };
+    assert_eq(teams[0][0]{"name"}, "Ana");
+    assert_eq(teams[0][1]{"scores"}[1], 40);
+    assert_eq(teams[1][0]{"scores"}[0], 50);
+    assert_eq(teams[1][1]{"name"}, "Duda")
+}
+
+suite("Dicts with lists as values");
+
+$ dicts_with_lists_values() {
+    let grouped = [
+        "active" -> {"Ana", "Caio"};
+        "paused" -> {"Bia"};
+        "empty" -> {}
+    ];
+    assert_len(grouped{"active"}, 2);
+    assert_eq(grouped{"paused"}[0], "Bia");
+    assert_len(grouped{"empty"}, 0)
+}
+
+$ dicts_list_mutation() {
+    let grouped = [
+        "active" -> {"Ana", "Caio"};
+        "paused" -> {"Bia"};
+        "empty" -> {}
+    ];
+    grouped{"active"} << "Duda";
+    assert_eq(grouped{"active"}, {"Ana", "Caio", "Duda"})
+}
+
+$ missing_dict_keys() {
+    let grouped = [
+        "active" -> {"Ana", "Caio"};
+        "paused" -> {"Bia"};
+        "empty" -> {}
+    ];
+    assert_eq(grouped{"missing"}, nil);
+    assert_true(grouped{"missing"} == nil)
+}
+
+suite("List slice clamping");
+
+$ slice_clamping() {
+    let xs = {10, 20, 30, 40};
+    assert_eq(xs[-99:2], {10, 20});
+    assert_eq(xs[2:99], {30, 40});
+    assert_eq(xs[-99:99], {10, 20, 30, 40});
+    assert_len(xs[99:100], 0);
+    assert_len(xs[-99:-100], 0)
+}
+
+suite("Element-wise ops");
+
+$ element_wise_ops() {
+    let nums = {8, 12, 16};
+    assert_eq(nums &+ 4, {12, 16, 20});
+    assert_eq(nums &- 2, {6, 10, 14});
+    assert_eq(nums &* 3, {24, 36, 48});
+    assert_eq(nums &/ 4, {2, 3, 4});
+    assert_eq(nums &% 5, {3, 2, 1})
+}
+
+test("lists of lists of dicts", lists_of_lists_of_dicts);
+test("dicts with lists values", dicts_with_lists_values);
+test("dicts list mutation", dicts_list_mutation);
+test("missing dict keys", missing_dict_keys);
+test("slice clamping", slice_clamping);
+test("element-wise ops", element_wise_ops);
+
+test_summary()

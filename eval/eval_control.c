@@ -19,8 +19,9 @@ RuntimeVal *eval_while_expr(WhileExpr *while_expr, Environment *env) {
       if (i < while_expr->body_count - 1) {
         release(tmp);
       } else {
-        release(lastEvaluated);
+        RuntimeVal *old = lastEvaluated;
         lastEvaluated = tmp;
+        release(old);
       }
       if (cf_signal == CF_BREAK || cf_signal == CF_CONTINUE || cf_signal == CF_RETURN) break;
     }
@@ -97,8 +98,9 @@ RuntimeVal *eval_for_expr(ForExpr *for_expr, Environment *env) {
       if (i < for_expr->body_count - 1) {
         release(tmp);
       } else {
-        release(lastEvaluated);
+        RuntimeVal *old = lastEvaluated;
         lastEvaluated = tmp;
+        release(old);
       }
       if (cf_signal == CF_BREAK || cf_signal == CF_CONTINUE || cf_signal == CF_RETURN) break;
     }

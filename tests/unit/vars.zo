@@ -1,0 +1,56 @@
+~> test { test, suite,
+           assert_eq, assert_true, assert_false, assert_type, assert_nil,
+           test_summary };
+
+suite("Variables");
+
+$ basic_declaration() {
+    let name = "Zox";
+    let age  = 42;
+    let flag = true;
+    assert_eq(name, "Zox");
+    assert_eq(age, 42);
+    assert_true(flag)
+}
+
+$ reassignment() {
+    let x = 1;
+    x = x + 1;
+    assert_eq(x, 2);
+    x = 100;
+    assert_eq(x, 100)
+}
+
+$ multiple_types() {
+    let n = 3.14;
+    let s = "hello";
+    let l = {1, 2};
+    let d = ["k" -> "v"];
+    assert_type(n, "number");
+    assert_type(s, "string");
+    assert_type(l, "list");
+    assert_type(d, "dict")
+}
+
+$ nil_literal() {
+    let x = nil;
+    assert_nil(x);
+    assert_true(x == nil)
+}
+
+$ boolean_ops() {
+    assert_true(true && true);
+    assert_false(true && false);
+    assert_true(false || true);
+    assert_false(false || false);
+    assert_eq(true == false, false);
+    assert_eq(false == false, true)
+}
+
+test("basic declaration", basic_declaration);
+test("reassignment",      reassignment);
+test("multiple types",    multiple_types);
+test("nil literal",       nil_literal);
+test("boolean operators", boolean_ops);
+
+test_summary()

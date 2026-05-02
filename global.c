@@ -25,9 +25,13 @@ unsigned short int compare_lists(ListVal *a, ListVal *b) {
 
 unsigned short int compare_dicts(DictVal *a, DictVal *b) {
   if (a->size != b->size) return 0;
-  for (size_t i = 0; i < a->size; i++) {
-    if (strcmp(a->entries[i]->key, b->entries[i]->key) != 0) return 0;
-    if (!compare_runtimeval(a->entries[i]->value, b->entries[i]->value)) return 0;
+  for (size_t i = 0; i < a->capacity; i++) {
+    if (a->entries[i].key != NULL) {
+      Entry *found = dict_find_entry(b, a->entries[i].key);
+      if (found == NULL || !compare_runtimeval(a->entries[i].value, found->value)) {
+        return 0;
+      }
+    }
   }
   return 1;
 }
@@ -47,8 +51,9 @@ unsigned short int compare_runtimeval(RuntimeVal *a, RuntimeVal *b) {
 ListVal *dict_to_keys(DictVal *dict) {
   ListVal *keys_list = MK_LIST(dict->size);
   for (size_t i = 0; i < dict->capacity; i++) {
-    for (Entry *e = dict->entries[i]; e != NULL; e = e->next)
-      keys_list->items[keys_list->size++] = (RuntimeVal *)MK_STRING(e->key);
+    if (dict->entries[i].key != NULL) {
+      keys_list->items[keys_list->size++] = (RuntimeVal *)MK_STRING(dict->entries[i].key);
+    }
   }
   return keys_list;
 }

@@ -1,0 +1,95 @@
+~> test { test, suite,
+           assert_eq, assert_len, assert_type, assert_nil, assert_true,
+           test_summary };
+
+suite("len");
+
+$ len_string() {
+    assert_eq(len("hello"), 5);
+    assert_eq(len(""),      0)
+}
+
+$ len_list() {
+    assert_eq(len({1, 2, 3, 4, 5}), 5);
+    assert_eq(len({}),              0)
+}
+
+$ len_dict() {
+    assert_eq(len(["a" -> 1; "b" -> 2; "c" -> 3]), 3);
+    assert_eq(len([]), 0)
+}
+
+suite("sum and find");
+
+$ builtin_sum() {
+    assert_eq(sum({1, 2, 3, 4, 5}), 15);
+    assert_eq(sum({}),              0)
+}
+
+$ builtin_find() {
+    let l = {1, 2, 3, 4, 5};
+    assert_eq(find(l, 3),    2);
+    assert_eq(find(l, 99),  -1);
+    assert_eq(find("hello", "ll"), 2);
+    assert_eq(find("hello", "x"), -1)
+}
+
+suite("typeof");
+
+$ builtin_typeof() {
+    assert_eq(typeof("hi"),      "string");
+    assert_eq(typeof(42),        "number");
+    assert_eq(typeof({1}),       "list");
+    assert_eq(typeof(["a"->1]),  "dict");
+    assert_eq(typeof(true),      "boolean");
+    assert_eq(typeof(nil),       "nil");
+    assert_eq(typeof(typeof),    "function")
+}
+
+$ typeof_expression() {
+    let l = {1, 2};
+    let d = ["a" -> 1];
+    assert_eq(typeof(l[0] == d{"a"}), "boolean")
+}
+
+suite("copy");
+
+$ deep_copy() {
+    let orig = {1, 2, 3};
+    let dup  = copy(orig);
+    dup[0] = 99;
+    assert_eq(orig[0], 1);
+    assert_eq(dup[0],  99)
+}
+
+$ copy_dict() {
+    let orig = ["x" -> 10];
+    let dup  = copy(orig);
+    dup{"x"} = 99;
+    assert_eq(orig{"x"}, 10);
+    assert_eq(dup{"x"},  99)
+}
+
+suite("keys and values");
+
+$ keys_values() {
+    let d = ["a" -> 1; "b" -> 2; "c" -> 3];
+    let ks = keys(d);
+    let vs = values(d);
+    assert_len(ks, 3);
+    assert_len(vs, 3);
+    assert_eq(sum(vs), 6)
+}
+
+test("len string",        len_string);
+test("len list",          len_list);
+test("len dict",          len_dict);
+test("sum",               builtin_sum);
+test("find",              builtin_find);
+test("typeof",            builtin_typeof);
+test("typeof expression", typeof_expression);
+test("deep copy list",    deep_copy);
+test("deep copy dict",    copy_dict);
+test("keys and values",   keys_values);
+
+test_summary()

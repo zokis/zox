@@ -1,0 +1,49 @@
+~> test { test, suite,
+           assert_eq,
+           test_summary };
+
+suite("String operations");
+
+$ string_concat() {
+    let a = "abaca";
+    let b = "te";
+    let c = a + b;
+    assert_eq(c, "abacate")
+}
+
+$ string_subtract() {
+    let a = "abaca";
+    let b = "te";
+    let c = a + b;
+    let d = c - "ac";
+    assert_eq(d, "abate")
+}
+
+$ string_newline() {
+    let s = "line1\nline2";
+    assert_eq(s, "line1\nline2")
+}
+
+$ string_tab() {
+    let s = "col1\tcol2";
+    assert_eq(s, "col1\tcol2")
+}
+
+$ string_escape_quote() {
+    let s = "quote: \"zox\"";
+    assert_eq(s, "quote: \"zox\"")
+}
+
+$ string_escape_backslash() {
+    let s = "slash: \\";
+    assert_eq(s, "slash: \\")
+}
+
+test("string concat", string_concat);
+test("string subtract", string_subtract);
+test("string newline", string_newline);
+test("string tab", string_tab);
+test("string escape quote", string_escape_quote);
+test("string escape backslash", string_escape_backslash);
+
+test_summary()

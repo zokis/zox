@@ -189,7 +189,6 @@ int main(int argc, char **argv) {
   }
 
   break_env_cycles(env);
-  free_environment(env);
 
   if (alloc_stats) zox_alloc_report(stderr);
 

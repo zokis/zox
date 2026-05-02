@@ -1,0 +1,91 @@
+~> test { test, suite,
+           assert_eq, assert_len, assert_nil, assert_in,
+           test_summary };
+
+suite("Dict basics");
+
+$ dict_literal() {
+    let d = ["name" -> "Ana"; "age" -> 28];
+    assert_eq(d{"name"}, "Ana");
+    assert_eq(d{"age"},  28);
+    assert_len(d, 2)
+}
+
+$ dict_mutation() {
+    let d = ["name" -> "Ana"; "age" -> 28];
+    d{"age"} = 29;
+    assert_eq(d{"age"}, 29)
+}
+
+$ dict_insert() {
+    let d = [];
+    d{"key"} = "value";
+    assert_eq(d{"key"}, "value");
+    assert_len(d, 1)
+}
+
+$ dict_missing_key() {
+    let d = ["x" -> 1];
+    assert_nil(d{"missing"});
+    assert_nil(d{"y"})
+}
+
+suite("Dict + list combos");
+
+$ list_of_dicts() {
+    let pessoas = {
+        ["nome" -> "Alice"; "idade" -> 30],
+        ["nome" -> "Bob";   "idade" -> 25]
+    };
+    assert_eq(pessoas[0]{"nome"},  "Alice");
+    assert_eq(pessoas[1]{"idade"}, 25)
+}
+
+$ dict_with_list_values() {
+    let d = ["evens" -> {2, 4, 6}; "odds" -> {1, 3, 5}];
+    assert_eq(d{"evens"}[0], 2);
+    assert_eq(d{"odds"}[2],  5);
+    assert_len(d{"evens"},   3)
+}
+
+$ dict_list_mutation_by_ref() {
+    let d = ["evens" -> {2, 4, 6}];
+    let evens = d{"evens"};
+    evens[0] = 100;
+    assert_eq(d{"evens"}[0], 100)
+}
+
+suite("Dict merge");
+
+$ dict_merge() {
+    let d1 = ["a" -> 1; "b" -> 2];
+    let d2 = ["b" -> 99; "c" -> 3];
+    let merged = d1 + d2;
+    assert_eq(merged{"a"}, 1);
+    assert_eq(merged{"b"}, 99);
+    assert_eq(merged{"c"}, 3)
+}
+
+suite("Keys and values");
+
+$ dict_keys_values() {
+    let d = ["x" -> 10; "y" -> 20];
+    let ks = keys(d);
+    let vs = values(d);
+    assert_len(ks, 2);
+    assert_len(vs, 2);
+    assert_in("x", ks);
+    assert_in(10, vs)
+}
+
+test("literal and access",    dict_literal);
+test("mutation",              dict_mutation);
+test("insert new key",        dict_insert);
+test("missing key is nil",    dict_missing_key);
+test("list of dicts",         list_of_dicts);
+test("dict with list values", dict_with_list_values);
+test("list mutation by ref",  dict_list_mutation_by_ref);
+test("merge right wins",      dict_merge);
+test("keys and values",       dict_keys_values);
+
+test_summary()

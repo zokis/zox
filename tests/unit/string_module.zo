@@ -1,0 +1,81 @@
+~> test { test, suite,
+           assert_eq, assert_true, assert_false, assert_len, assert_nil,
+           test_summary };
+~> string { upper, lower, trim, startsWith, endsWith, replace, split, join,
+            toNumber, toString };
+
+suite("Case and trim");
+
+$ str_case() {
+    assert_eq(upper("hello"), "HELLO");
+    assert_eq(lower("WORLD"), "world");
+    assert_eq(upper(lower("MiXeD")), "MIXED")
+}
+
+$ str_trim() {
+    assert_eq(trim("  hi  "),    "hi");
+    assert_eq(trim("no spaces"), "no spaces");
+    assert_eq(trim("   "),       "")
+}
+
+suite("Prefix and suffix");
+
+$ str_starts() {
+    assert_true(startsWith("zox lang", "zox"));
+    assert_false(startsWith("zox lang", "lua"))
+}
+
+$ str_ends() {
+    assert_true(endsWith("file.zo",  ".zo"));
+    assert_false(endsWith("file.zo", ".py"))
+}
+
+suite("Replace");
+
+$ str_replace() {
+    assert_eq(replace("foo bar foo", "foo", "baz"), "baz bar baz");
+    assert_eq(replace("aaa",         "a",   "bc"),  "bcbcbc");
+    assert_eq(replace("hello",       "x",   "y"),   "hello")
+}
+
+suite("Split and join");
+
+$ str_split() {
+    let parts = split("a,b,c", ",");
+    assert_len(parts, 3);
+    assert_eq(parts[0], "a");
+    assert_eq(parts[2], "c")
+}
+
+$ str_join() {
+    let parts = split("a,b,c", ",");
+    assert_eq(join(parts, "-"), "a-b-c");
+    assert_eq(join(split("one two three", " "), "|"), "one|two|three")
+}
+
+suite("toNumber / toString");
+
+$ str_to_number() {
+    assert_eq(toNumber("42"),   42);
+    assert_eq(toNumber("3.14"), 3.14);
+    assert_nil(toNumber("abc"))
+}
+
+$ num_to_string() {
+    assert_eq(toString(100),   "100");
+    assert_eq(toString(true),  "true");
+    assert_eq(toString(false), "false");
+    assert_eq(toString(nil),   "nil")
+}
+
+test("upper / lower",     str_case);
+test("trim",              str_trim);
+test("startsWith",        str_starts);
+test("endsWith",          str_ends);
+test("replace",           str_replace);
+test("split",             str_split);
+test("join",              str_join);
+test("toNumber",          str_to_number);
+test("toString",          num_to_string);
+
+test_summary()

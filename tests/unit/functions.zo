@@ -1,0 +1,117 @@
+~> test { test, suite,
+           assert_eq, assert_true, assert_false,
+           test_summary };
+
+suite("Basic functions");
+
+$ add(a, b) { a + b }
+$ double(x) { x * 2 }
+$ square(x) { x * x }
+
+$ basic_call() {
+    assert_eq(add(3, 4), 7);
+    assert_eq(double(6), 12);
+    assert_eq(square(5), 25)
+}
+
+$ higher_order() {
+    $ apply(f, x) { f(x) }
+    assert_eq(apply(double, 5), 10);
+    assert_eq(apply(square, 4), 16)
+}
+
+suite("Recursion");
+
+$ factorial(n) {
+    ?(n <= 1) { 1 } : { n * factorial(n - 1) }
+}
+
+$ fib(n) {
+    ?(n <= 1) { n } : { fib(n-1) + fib(n-2) }
+}
+
+$ fib_iter(n) {
+    let a = 0;
+    let b = 1;
+    @(let i = 0; i < n; i = i + 1) {
+        let c = a + b;
+        a = b;
+        b = c
+    }
+    a
+}
+
+$ test_factorial() {
+    assert_eq(factorial(1),  1);
+    assert_eq(factorial(5),  120);
+    assert_eq(factorial(10), 3628800)
+}
+
+$ test_fib_recursive() {
+    assert_eq(fib(0), 0);
+    assert_eq(fib(1), 1);
+    assert_eq(fib(10), 55)
+}
+
+$ test_fib_iter() {
+    assert_eq(fib_iter(0),  0);
+    assert_eq(fib_iter(1),  1);
+    assert_eq(fib_iter(10), 55)
+}
+
+suite("Closures");
+
+$ make_adder(n) {
+    $ adder(x) { x + n }
+    adder
+}
+
+$ make_multiplier(factor) {
+    $ mul(x) { x * factor }
+    mul
+}
+
+$ test_closures() {
+    let add5   = make_adder(5);
+    let triple = make_multiplier(3);
+    assert_eq(add5(10),  15);
+    assert_eq(triple(7), 21)
+}
+
+$ make_threshold(limit) {
+    $ above(n) { n > limit }
+    above
+}
+
+$ test_closure_capture() {
+    let above10 = make_threshold(10);
+    assert_true(above10(11));
+    assert_false(above10(10))
+}
+
+suite("Mutual recursion");
+
+$ is_even(n) {
+    ?(n == 0) { true } : { is_odd(n - 1) }
+}
+$ is_odd(n) {
+    ?(n == 0) { false } : { is_even(n - 1) }
+}
+
+$ test_mutual() {
+    assert_true(is_even(0));
+    assert_true(is_odd(1));
+    assert_true(is_even(24));
+    assert_true(is_odd(25))
+}
+
+test("basic call",         basic_call);
+test("higher order",       higher_order);
+test("factorial",          test_factorial);
+test("fib recursive",      test_fib_recursive);
+test("fib iterative",      test_fib_iter);
+test("closures",           test_closures);
+test("closure capture",    test_closure_capture);
+test("mutual recursion",   test_mutual);
+
+test_summary()

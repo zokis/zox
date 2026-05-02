@@ -1,0 +1,134 @@
+~> test { test, suite,
+           assert_eq, assert_neq, assert_true, assert_false,
+           assert_lt, assert_gt, assert_lte, assert_gte,
+           assert_in, assert_not_in, assert_len, assert_contains,
+           test_summary };
+
+suite("Arithmetic");
+
+$ arithmetic() {
+    assert_eq(1 + 1, 2);
+    assert_eq(10 - 3, 7);
+    assert_eq(3 * 4, 12);
+    assert_eq(10 / 2, 5);
+    assert_eq(10 % 3, 1);
+    assert_eq(2 ** 3, 8)
+}
+
+suite("Comparisons");
+
+$ comparisons() {
+    assert_true(5 > 3);
+    assert_true(3 < 5);
+    assert_true(5 >= 5);
+    assert_true(3 <= 3);
+    assert_false(2 > 10)
+}
+
+$ comparison_functions() {
+    assert_lt(1, 2);
+    assert_gt(10, 5);
+    assert_lte(3, 3);
+    assert_lte(2, 3);
+    assert_gte(5, 5);
+    assert_gte(6, 5)
+}
+
+suite("Equality");
+
+$ equality() {
+    assert_eq(42, 42);
+    assert_neq(1, 2)
+}
+
+suite("Strings");
+
+$ string_equality() {
+    assert_eq("hello", "hello");
+    assert_neq("a", "b");
+    assert_true("abc" == "abc");
+    assert_false("abc" == "xyz")
+}
+
+$ string_contains() {
+    assert_contains("hello world", "world");
+    assert_contains("hello world", "hello");
+    assert_not_in("xyz", "hello world")
+}
+
+suite("Booleans");
+
+$ booleans() {
+    assert_true(true);
+    assert_false(false);
+    assert_eq(true, true);
+    assert_eq(false, false);
+    assert_neq(true, false)
+}
+
+suite("Lists");
+
+$ list_membership() {
+    let nums = {10, 20, 30, 40, 50};
+    assert_len(nums, 5);
+    assert_in(20, nums);
+    assert_in(50, nums);
+    assert_not_in(99, nums);
+    assert_eq(nums[0], 10);
+    assert_eq(nums[4], 50)
+}
+
+suite("Recursion");
+
+$ fat(n) {
+    ?(n <= 1) { 1 } : { n * fat(n - 1) }
+}
+
+$ factorial() {
+    assert_eq(fat(0), 1);
+    assert_eq(fat(1), 1);
+    assert_eq(fat(5), 120);
+    assert_eq(fat(10), 3628800)
+}
+
+suite("Closures");
+
+$ make_adder(x) {
+    $ adder(y) { x + y };
+    adder
+}
+
+$ closures() {
+    let add5 = make_adder(5);
+    assert_eq(add5(3), 8);
+    assert_eq(add5(10), 15);
+    assert_neq(add5(0), 6)
+}
+
+suite("Higher-order functions");
+
+$ apply(f, x) { f(x) }
+
+$ double(x) { x * 2 }
+
+$ square(x) { x * x }
+
+$ higher_order() {
+    assert_eq(apply(double, 7), 14);
+    assert_eq(apply(square, 4), 16);
+    assert_eq(apply(double, apply(square, 3)), 18)
+}
+
+test("arithmetic", arithmetic);
+test("comparisons", comparisons);
+test("comparison functions", comparison_functions);
+test("equality", equality);
+test("string equality", string_equality);
+test("string contains", string_contains);
+test("booleans", booleans);
+test("list membership", list_membership);
+test("factorial", factorial);
+test("closures", closures);
+test("higher-order", higher_order);
+
+test_summary()

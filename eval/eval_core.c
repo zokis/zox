@@ -24,10 +24,11 @@ RuntimeVal *eval_program(Program *program, Environment *env) {
   RuntimeVal *lastEvaluated = NULL;
   for (size_t i = 0; i < program->body_count; i++) {
     RuntimeVal *result = evaluate(program->body[i], env);
-    if (lastEvaluated != NULL) {
-      release(lastEvaluated);
-    }
+    RuntimeVal *old = lastEvaluated;
     lastEvaluated = result;
+    if (old != NULL) {
+      release(old);
+    }
   }
   return lastEvaluated;
 }

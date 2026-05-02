@@ -1,0 +1,91 @@
+~> test { test, suite,
+           assert_eq, assert_neq, assert_true, assert_false,
+           assert_lt, assert_gt, assert_in, assert_not_in,
+           assert_len, assert_type, assert_nil, test_summary };
+
+suite("Numbers");
+
+$ arithmetic() {
+    assert_eq(1 + 1, 2);
+    assert_eq(10 - 3, 7);
+    assert_eq(3 * 4, 12);
+    assert_eq(10 / 2, 5)
+}
+
+$ comparisons() {
+    assert_lt(1, 2);
+    assert_gt(5, 3);
+    assert_true(1 != 2);
+    assert_false(1 > 2)
+}
+
+test("arithmetic", arithmetic);
+test("comparisons", comparisons);
+
+suite("Strings");
+
+$ str_concat() {
+    assert_eq("hello" + " " + "world", "hello world")
+}
+
+$ str_length() {
+    assert_len("abc", 3)
+}
+
+test("concat", str_concat);
+test("length", str_length);
+
+suite("Lists");
+
+$ list_indexing() {
+    let xs = {10, 20, 30};
+    assert_eq(xs[0], 10);
+    assert_eq(xs[-1], 30)
+}
+
+$ list_append() {
+    let xs = {1, 2};
+    xs << 3;
+    assert_len(xs, 3);
+    assert_eq(xs[2], 3)
+}
+
+$ list_membership() {
+    assert_in(2, {1, 2, 3});
+    assert_not_in(9, {1, 2, 3})
+}
+
+test("indexing", list_indexing);
+test("append",   list_append);
+test("membership", list_membership);
+
+suite("Types");
+
+$ types_typeof() {
+    assert_type(42, "number");
+    assert_type("hi", "string");
+    assert_type({}, "list");
+    assert_type(true, "boolean")
+}
+
+$ types_nil() {
+    assert_nil(nil)
+}
+
+test("typeof", types_typeof);
+test("nil",    types_nil);
+
+suite("Failure demo");
+
+$ passes() {
+    assert_eq(1, 1)
+}
+
+$ fails_intentionally() {
+    assert_eq(1, 2)
+}
+
+test("this passes", passes);
+test("this fails intentionally", fails_intentionally);
+
+test_summary()

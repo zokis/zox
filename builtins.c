@@ -48,8 +48,8 @@ RuntimeVal *builtin_find(Environment *env, RuntimeVal **args, size_t arg_count) 
     DictVal *dict = (DictVal *)args[0];
     size_t index = 0;
     for (size_t i = 0; i < dict->capacity; i++) {
-      for (Entry *e = dict->entries[i]; e != NULL; e = e->next) {
-        if (strcmp(e->key, needle) == 0) {
+      if (dict->entries[i].key != NULL) {
+        if (strcmp(dict->entries[i].key, needle) == 0) {
           free_safe(needle);
           return (RuntimeVal *)MK_NUMBER((double)index);
         }
@@ -103,19 +103,19 @@ RuntimeVal *builtin_setdefault(Environment *env, RuntimeVal **args, size_t arg_c
   retain(args[2]);
   return args[2];
 }
-
 RuntimeVal *builtin_values(Environment *env, RuntimeVal **args, size_t arg_count) {
   if (arg_count != 1) error("The 'values' function expects exactly one argument.");
   if (args[0]->type != DICT_T) error("The argument for 'values' must be a dictionary.");
   DictVal *dict = (DictVal *)args[0];
-  ListVal *values_list = MK_LIST(dict->size);
+  ListVal *vals = MK_LIST(dict->size);
   for (size_t i = 0; i < dict->capacity; i++) {
-    for (Entry *e = dict->entries[i]; e != NULL; e = e->next)
-      values_list->items[values_list->size++] = e->value;
+    if (dict->entries[i].key != NULL) {
+      vals->items[vals->size++] = dict->entries[i].value;
+      retain(dict->entries[i].value);
+    }
   }
-  return (RuntimeVal *)values_list;
+  return (RuntimeVal *)vals;
 }
-
 RuntimeVal *builtin_len(Environment *env, RuntimeVal **args, size_t arg_count) {
   if (arg_count != 1) error("Function 'len' expects exactly one argument.");
   if (args[0]->type == LIST_T)
@@ -155,11 +155,11 @@ static RuntimeVal *deep_copy(RuntimeVal *val) {
   }
   case DICT_T: {
     DictVal *src = (DictVal *)val;
-    DictVal *dst = MK_DICT(src->capacity > 0 ? src->capacity : 1);
+    DictVal *dst = MK_DICT(src->capacity);
     for (size_t i = 0; i < src->capacity; i++) {
-      for (Entry *e = src->entries[i]; e != NULL; e = e->next) {
-        RuntimeVal *v = deep_copy(e->value);
-        dict_set_val(dst, e->key, v);
+      if (src->entries[i].key != NULL) {
+        RuntimeVal *v = deep_copy(src->entries[i].value);
+        dict_set_val(dst, src->entries[i].key, v);
         release(v);
       }
     }
@@ -207,14 +207,14 @@ void _builtin_print_value(Environment *env, RuntimeVal **args, size_t arg_count,
   case DICT_T: {
     DictVal *dict_val = (DictVal *)val;
     printf("[");
-    short int first = 1;
+    bool first = true;
     for (size_t i = 0; i < dict_val->capacity; i++) {
-      for (Entry *e = dict_val->entries[i]; e != NULL; e = e->next) {
+      if (dict_val->entries[i].key != NULL) {
         if (!first) printf("; ");
-        printf("\"%s\" -> ", e->key);
-        RuntimeVal *entry_args[] = {e->value};
+        printf("\"%s\" -> ", dict_val->entries[i].key);
+        RuntimeVal *entry_args[] = {dict_val->entries[i].value};
         _builtin_print_value(env, entry_args, 1, 1);
-        first = 0;
+        first = false;
       }
     }
     printf("]");

@@ -2,7 +2,7 @@
 
 ## Performance: lists and dicts
 
-- Replace repeated `list = list + {x}` patterns in hot paths with `list << x`.
+- [x] Replace repeated `list = list + {x}` patterns in hot paths with `list << x`.
 - [x] Add dict helpers like `has_key(dict, key)` and `get(dict, key)`.
 - [x] Add `setdefault(dict, key, default)`-style support only if the arity
   model and ownership rules stay simple.
@@ -16,12 +16,11 @@
   reallocations before reaching 400 elements (the bench make_list size).
 - [x] Raise dict minimum initial capacity from 1 to 8 for empty `[]` literals; capacity-1 triggers
   an immediate resize on the very first insert.
-- Consider append-in-place for `list + rhs` when the left operand has `refcount == 1`: avoids
-  allocating a new items[] array on every iteration of accumulator loops. The ListVal pool hides
-  this cost in alloc stats but the backing realloc still happens every time.
-- Consider open addressing (linear probing) for DictVal instead of chained entries: eliminates
-  the 150k+ separate Entry allocs seen in the bench and improves lookup cache locality. The
-  current chaining keeps each Entry as an isolated heap pointer.
+- [x] Implement append-in-place for `list + rhs` when the left operand has `refcount == 1`: avoids
+  allocating a new items[] array on every iteration of accumulator loops.
+- [x] Implement open addressing (linear probing) for DictVal instead of chained entries: eliminates
+  the 150k+ separate Entry allocs seen in the bench and improves lookup cache locality.
+- [x] Fix ref-counting self-assignment bug in loop body evaluation that corrupted results in nested loops.
 
 ## Benchmarking and validation
 

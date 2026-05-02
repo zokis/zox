@@ -1,0 +1,49 @@
+~> test { test, suite,
+           assert_eq,
+           test_summary };
+
+suite("While scoping");
+
+$ while_scoped_let() {
+    let i = 0;
+    let results = {};
+    #(i < 4) {
+        let x = i * 2;
+        results << x;
+        i = i + 1
+    };
+    assert_eq(results, {0, 2, 4, 6})
+}
+
+suite("For scoping");
+
+$ for_scoped_let() {
+    let results = {};
+    @(let j = 0; j < 3; j = j + 1) {
+        let y = j * 3;
+        results << y
+    };
+    assert_eq(results, {0, 3, 6})
+}
+
+suite("Closures");
+
+$ closure_per_iteration_while() {
+    let funcs = {};
+    let k = 0;
+    #(k < 3) {
+        let n = k;
+        $ f() { n }
+        funcs << f;
+        k = k + 1
+    };
+    assert_eq(funcs[0](), 0);
+    assert_eq(funcs[1](), 1);
+    assert_eq(funcs[2](), 2)
+}
+
+test("while scoped let", while_scoped_let);
+test("for scoped let", for_scoped_let);
+test("closure per-iteration scope", closure_per_iteration_while);
+
+test_summary()

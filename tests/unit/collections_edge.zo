@@ -1,0 +1,181 @@
+~> test { test, suite,
+           assert_eq, assert_len, assert_in, assert_not_in,
+           test_summary };
+
+suite("Nested lists");
+
+$ nested_lists() {
+    let matrix = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+    assert_eq(matrix[0][1], 2);
+    assert_eq(matrix[1][2], 6);
+    assert_eq(matrix[2][0], 7);
+    assert_len(matrix, 3);
+    assert_len(matrix[0], 3)
+}
+
+$ nested_mutation() {
+    let matrix = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+    let row = matrix[1];
+    row[1] = 99;
+    assert_eq(matrix[1][1], 99)
+}
+
+suite("Lists of dicts");
+
+$ list_of_dicts() {
+    let pessoas = {
+        ["nome" -> "Alice"; "idade" -> 30],
+        ["nome" -> "Bob";   "idade" -> 25],
+        ["nome" -> "Carol"; "idade" -> 35]
+    };
+    assert_eq(pessoas[0]{"nome"}, "Alice");
+    assert_eq(pessoas[1]{"idade"}, 25);
+    assert_eq(pessoas[2]{"nome"}, "Carol");
+    assert_len(pessoas, 3)
+}
+
+suite("Dicts with list values");
+
+$ dicts_with_lists() {
+    let d = ["pares" -> {2, 4, 6}; "impares" -> {1, 3, 5}];
+    assert_eq(d{"pares"}[0], 2);
+    assert_eq(d{"impares"}[2], 5);
+    assert_len(d{"pares"}, 3)
+}
+
+$ dict_list_mutation() {
+    let d = ["pares" -> {2, 4, 6}; "impares" -> {1, 3, 5}];
+    let pares = d{"pares"};
+    pares[0] = 100;
+    assert_eq(d{"pares"}[0], 100)
+}
+
+suite("Empty and append");
+
+$ empty_list_append() {
+    let vazia = {};
+    assert_len(vazia, 0);
+    vazia << 42;
+    assert_len(vazia, 1);
+    assert_eq(vazia[0], 42)
+}
+
+suite("Slicing");
+
+$ list_slices() {
+    let a = {10, 20, 30, 40, 50};
+    assert_eq(a[1:3], {20, 30});
+    assert_eq(a[:2],  {10, 20});
+    assert_eq(a[3:],  {40, 50})
+}
+
+$ negative_index() {
+    let a = {10, 20, 30, 40, 50};
+    assert_eq(a[-1], 50);
+    assert_eq(a[-2], 40)
+}
+
+$ slice_start_gte_end() {
+    let a = {10, 20, 30, 40, 50};
+    let s = a[3:1];
+    assert_len(s, 0)
+}
+
+suite("String lists");
+
+$ string_lists() {
+    let palavras = {"zox", "e", "legal"};
+    assert_eq(palavras[0], "zox");
+    assert_in("legal", palavras);
+    assert_not_in("python", palavras)
+}
+
+suite("Set operations");
+
+$ set_intersection() {
+    let x = {1, 2, 2, 3};
+    let y = {2, 3, 3, 4};
+    assert_eq(x & y, {2, 3})
+}
+
+$ set_difference() {
+    let x = {1, 2, 2, 3};
+    let y = {2, 3, 3, 4};
+    assert_eq(x - y, {1})
+}
+
+suite("Cartesian product");
+
+$ cartesian_product() {
+    let ab = {"a", "b"};
+    let nums = {1, 2};
+    let prod = ab * nums;
+    assert_len(prod, 4);
+    assert_eq(prod[0], {"a", 1});
+    assert_eq(prod[3], {"b", 2})
+}
+
+suite("Dict operations");
+
+$ empty_dict_insertion() {
+    let ed = [];
+    ed{"chave"} = "valor";
+    assert_eq(ed{"chave"}, "valor");
+    assert_len(ed, 1)
+}
+
+$ dict_merge() {
+    let d1 = ["a" -> 1; "b" -> 2];
+    let d2 = ["b" -> 99; "c" -> 3];
+    let merged = d1 + d2;
+    assert_eq(merged{"a"}, 1);
+    assert_eq(merged{"b"}, 99);
+    assert_eq(merged{"c"}, 3)
+}
+
+suite("Deeply nested");
+
+$ deep_nesting() {
+    let deep = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
+    assert_eq(deep[0][0][0], 1);
+    assert_eq(deep[1][1][1], 8)
+}
+
+suite("Element-wise ops");
+
+$ element_wise_add() {
+    let nums = {1, 2, 3, 4};
+    assert_eq(nums &+ 10, {11, 12, 13, 14})
+}
+
+$ element_wise_mult() {
+    let nums = {1, 2, 3, 4};
+    assert_eq(nums &* 2,  {2, 4, 6, 8})
+}
+
+$ element_wise_sub() {
+    let nums = {1, 2, 3, 4};
+    assert_eq(nums &- 1,  {0, 1, 2, 3})
+}
+
+test("nested lists", nested_lists);
+test("nested mutation", nested_mutation);
+test("list of dicts", list_of_dicts);
+test("dicts with lists", dicts_with_lists);
+test("dict list mutation", dict_list_mutation);
+test("empty list append", empty_list_append);
+test("list slices", list_slices);
+test("negative index", negative_index);
+test("slice start >= end", slice_start_gte_end);
+test("string lists", string_lists);
+test("set intersection", set_intersection);
+test("set difference", set_difference);
+test("cartesian product", cartesian_product);
+test("empty dict insertion", empty_dict_insertion);
+test("dict merge", dict_merge);
+test("deep nesting", deep_nesting);
+test("element-wise add", element_wise_add);
+test("element-wise mult", element_wise_mult);
+test("element-wise sub", element_wise_sub);
+
+test_summary()

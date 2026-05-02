@@ -121,16 +121,16 @@ static void break_val_env(RuntimeVal *val) {
   } else if (val->type == DICT_T) {
     DictVal *dv = (DictVal *)val;
     for (size_t i = 0; i < dv->capacity; i++)
-      for (Entry *e = dv->entries[i]; e != NULL; e = e->next)
-        break_val_env(e->value);
+      if (dv->entries[i].key != NULL)
+        break_val_env(dv->entries[i].value);
   }
 }
 
 void break_env_cycles(Environment *env) {
-  /* Shutdown: Break all function-to-env links to resolve reference cycles.
-     We do this in two passes to avoid use-after-free during recursive destruction. */
-  
-  /* Pass 1: Break all links. */
+  if (all_envs_count == 0) return;
+
+  /* Shutdown Pass 1: Break all closure links. 
+     We don't release_env here to avoid recursive destruction. */
   for (size_t i = 0; i < all_envs_count; i++) {
     Environment *e = all_envs[i];
     for (size_t j = 0; j < e->capacity; j++) {
@@ -140,16 +140,40 @@ void break_env_cycles(Environment *env) {
     }
   }
 
-  /* Pass 2: Safely destroy any remaining environments. 
-     Since all cycles are broken, destroy_environment will correctly free everything. */
+  /* Shutdown Pass 2: Manually free all environments in the registry.
+     We iterate backwards and free everything. unregister_env will handle 
+     the removal from the array. */
   while (all_envs_count > 0) {
-    destroy_environment(all_envs[all_envs_count - 1]);
+    Environment *e = all_envs[all_envs_count - 1];
+    
+    for (size_t i = 0; i < e->capacity; i++) {
+      if (e->entries[i].key != NULL) {
+        free_safe(e->entries[i].key);
+        release(e->entries[i].value);
+      }
+    }
+    free_safe(e->entries);
+    if (e->owned_program) {
+      free_program((Program *)e->owned_program);
+    }
+    if (e->scope_name) {
+      free_safe(e->scope_name);
+    }
+#ifndef _WIN32
+    for (size_t _i = 0; _i < e->so_handle_count; _i++)
+      dlclose(e->so_handles[_i]);
+    if (e->so_handles) free(e->so_handles);
+#endif
+    
+    /* Important: We don't release_env(parent) here as the parent 
+       is already in all_envs and will be freed by this loop. */
+    all_envs_count--; 
+    zox_free_obj(ZOX_ALLOC_ENV, e);
   }
 
   if (all_envs) {
     free(all_envs);
     all_envs = NULL;
-    all_envs_count = 0;
     all_envs_cap = 0;
   }
 }

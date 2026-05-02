@@ -153,26 +153,15 @@ static RuntimeVal *col_group_by(Environment *env, RuntimeVal **args, size_t argc
       snprintf(key_buf, sizeof(key_buf), "nil");
     release(key_val);
 
-    RuntimeVal *bucket = NULL;
-    for (size_t bi = 0; bi < dict->capacity; bi++) {
-      for (Entry *e = dict->entries[bi]; e; e = e->next) {
-        if (strcmp(e->key, key_buf) == 0) { bucket = e->value; break; }
-      }
-      if (bucket) break;
-    }
+    RuntimeVal *bucket = dict_get_val(dict, key_buf);
     if (!bucket) {
       bucket = (RuntimeVal *)MK_LIST(4);
       dict_set_val(dict, key_buf, bucket);
       release(bucket);
-      /* re-read bucket pointer owned by dict */
-      for (size_t bi = 0; bi < dict->capacity; bi++) {
-        for (Entry *e = dict->entries[bi]; e; e = e->next) {
-          if (strcmp(e->key, key_buf) == 0) { bucket = e->value; break; }
-        }
-        if (bucket && ((ListVal *)bucket)->size == 0) break;
-      }
+      bucket = dict_get_val(dict, key_buf);
     }
     list_append_val((ListVal *)bucket, item);
+    release(bucket);
   }
   return (RuntimeVal *)dict;
 }

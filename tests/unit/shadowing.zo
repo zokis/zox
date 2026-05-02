@@ -1,0 +1,21 @@
+~> test { test, suite,
+           assert_eq,
+           test_summary };
+
+suite("Variable shadowing in loops");
+
+$ for_loop_shadowing() {
+    let a = 1;
+    let c = 100;
+    let b = @(let x = 0; x <= 2; x = x + 1) {
+        let c = a * (x + 1);
+        a = c + 1
+    };
+    assert_eq(b, 4);
+    assert_eq(c, 100);
+    assert_eq(a, 4)
+}
+
+test("for loop shadowing", for_loop_shadowing);
+
+test_summary()

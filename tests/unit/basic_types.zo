@@ -1,0 +1,86 @@
+~> test { test, suite,
+           assert_eq, assert_len,
+           test_summary };
+
+suite("List operations");
+
+$ list_creation() {
+    let listA = {1, 2, 3, 4, 5};
+    assert_len(listA, 5);
+    assert_eq(listA[0], 1);
+    assert_eq(listA[4], 5)
+}
+
+$ list_concat() {
+    let listA = {1, 2, 3, 4, 5};
+    let listB = {6, 7, 8, 9, 10};
+    let listC = {11, 12, 13, 14, 15};
+    let listD = listA + listB + listC;
+    assert_len(listD, 15);
+    assert_eq(listD[0], 1);
+    assert_eq(listD[14], 15)
+}
+
+$ list_mutation() {
+    let listA = {1, 2, 3, 4, 5};
+    let listB = {6, 7, 8, 9, 10};
+    let listC = {11, 12, 13, 14, 15};
+    let listD = listA + listB + listC;
+    let c = len(listD);
+    #(c > 0) {
+        c = c - 1;
+        listD[c] = listD[c] * listC[c % len(listC)]
+    };
+    assert_eq(listD[0], 11);
+    assert_eq(listD[4], 75);
+    assert_eq(listD[14], 225)
+}
+
+suite("Dict operations");
+
+$ dict_creation() {
+    let person = [
+        "name" -> "John";
+        "age" -> 30;
+        "city" -> "New York"
+    ];
+    assert_eq(person{"name"}, "John");
+    assert_eq(person{"age"}, 30);
+    assert_eq(person{"city"}, "New York")
+}
+
+$ dict_mutation() {
+    let person = [
+        "name" -> "John";
+        "age" -> 30;
+        "city" -> "New York"
+    ];
+    person{"age"} = 31;
+    assert_eq(person{"age"}, 31)
+}
+
+suite("Arithmetic operations");
+
+$ arithmetic() {
+    let total = 10 + 5;
+    let sub = 20 - 0.1;
+    let mult = 33 * 2;
+    let div = 100 / 2;
+    let pot = 2 ** 3;
+    let mod = 100 % 3;
+    assert_eq(total, 15);
+    assert_eq(sub, 19.9);
+    assert_eq(mult, 66);
+    assert_eq(div, 50);
+    assert_eq(pot, 8);
+    assert_eq(mod, 1)
+}
+
+test("list creation", list_creation);
+test("list concat", list_concat);
+test("list mutation", list_mutation);
+test("dict creation", dict_creation);
+test("dict mutation", dict_mutation);
+test("arithmetic", arithmetic);
+
+test_summary()

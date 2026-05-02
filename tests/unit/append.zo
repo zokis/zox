@@ -1,0 +1,43 @@
+~> test { test, suite,
+           assert_eq, assert_len,
+           test_summary };
+
+suite("List append");
+
+$ simple_append() {
+    let a = {1, 2};
+    a << 3;
+    assert_len(a, 3);
+    assert_eq(a[2], 3)
+}
+
+$ append_loop() {
+    let res = {};
+    let i = 0;
+    @(i = 0; i < 10; i = i + 1) {
+        res << i
+    };
+    assert_len(res, 10);
+    assert_eq(res[0], 0);
+    assert_eq(res[9], 9)
+}
+
+$ append_nested_loop() {
+    let res = {};
+    let i = 0;
+    @(i = 0; i < 3; i = i + 1) {
+        let j = 0;
+        @(j = 0; j < 3; j = j + 1) {
+            res << {i, j}
+        }
+    };
+    assert_len(res, 9);
+    assert_eq(res[0], {0, 0});
+    assert_eq(res[8], {2, 2})
+}
+
+test("simple append", simple_append);
+test("append loop", append_loop);
+test("append nested loop", append_nested_loop);
+
+test_summary()

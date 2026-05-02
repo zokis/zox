@@ -1,0 +1,120 @@
+~> test { test, suite,
+           assert_eq, assert_len, assert_gt,
+           test_summary };
+
+~> string { toString };
+
+suite("Memory stress - nested structures");
+
+$ method_for(i) {
+    ?(i % 5 == 0) { "POST" } :? (i % 7 == 0) { "PUT" } : { "GET" }
+}
+
+$ status_for(i) {
+    ?(i % 17 == 0) { 500 } :? (i % 13 == 0) { 404 } :? (i % 11 == 0) { 401 } : { 200 }
+}
+
+$ make_log(i) {
+    let path = "/api/resource/" + toString(i % 1000);
+    let tag = "request-" + toString(i);
+    [
+        "method" -> method_for(i);
+        "path" -> path;
+        "status" -> status_for(i);
+        "ms" -> (i * 37) % 1000;
+        "tag" -> tag;
+        "bucket" -> "bucket-" + toString(i % 64)
+    ]
+}
+
+$ build_logs(n) {
+    let logs = {};
+    let i = 0;
+    @(i = 0; i < n; i = i + 1) {
+        logs << make_log(i)
+    };
+    logs
+}
+
+$ build_logs_bench() {
+    let logs = build_logs(2500);
+    assert_len(logs, 2500);
+    assert_eq(logs[0]{"path"}, "/api/resource/0");
+    assert_eq(logs[2499]{"tag"}, "request-2499")
+}
+
+suite("Count errors in log stream");
+
+$ count_errors(logs) {
+    let errors = 0;
+    let i = 0;
+    @(i = 0; i < len(logs); i = i + 1) {
+        ?(logs[i]{"status"} >= 400) {
+            errors = errors + 1
+        }
+    };
+    errors
+}
+
+$ count_errors_bench() {
+    let logs = build_logs(1000);
+    let errors = count_errors(logs);
+    assert_gt(errors, 0)
+}
+
+suite("Sum latency in logs");
+
+$ sum_latency(logs) {
+    let total = 0;
+    let i = 0;
+    @(i = 0; i < len(logs); i = i + 1) {
+        total = total + logs[i]{"ms"}
+    };
+    total
+}
+
+$ sum_latency_bench() {
+    let logs = build_logs(1000);
+    let total_ms = sum_latency(logs);
+    assert_gt(total_ms, 0)
+}
+
+suite("Collect error paths");
+
+$ collect_error_paths(logs) {
+    let paths = {};
+    let i = 0;
+    @(i = 0; i < len(logs); i = i + 1) {
+        ?(logs[i]{"status"} >= 400) {
+            paths << logs[i]{"path"}
+        }
+    };
+    paths
+}
+
+$ collect_error_paths_bench() {
+    let logs = build_logs(500);
+    let error_paths = collect_error_paths(logs);
+    assert_gt(len(error_paths), 0)
+}
+
+suite("Memory stress - large dataset");
+
+$ large_dataset_bench() {
+    let logs = build_logs(5000);
+    let errors = count_errors(logs);
+    let total_ms = sum_latency(logs);
+    let error_paths = collect_error_paths(logs);
+    assert_eq(len(logs), 5000);
+    assert_gt(errors, 0);
+    assert_gt(total_ms, 0);
+    assert_gt(len(error_paths), 0)
+}
+
+test("build logs", build_logs_bench);
+test("count errors", count_errors_bench);
+test("sum latency", sum_latency_bench);
+test("collect error paths", collect_error_paths_bench);
+test("large dataset", large_dataset_bench);
+
+test_summary()

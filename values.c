@@ -52,13 +52,9 @@ static void free_runtime_val(RuntimeVal *val) {
     case DICT_T: {
       DictVal *dv = (DictVal *)val;
       for (size_t i = 0; i < dv->capacity; i++) {
-        Entry *e = dv->entries[i];
-        while (e) {
-          Entry *next = e->next;
-          free_safe(e->key);
-          release(e->value);
-          zox_free_obj(ZOX_ALLOC_ENTRY, e);
-          e = next;
+        if (dv->entries[i].key != NULL) {
+          free_safe(dv->entries[i].key);
+          release(dv->entries[i].value);
         }
       }
       free_safe(dv->entries);
@@ -127,21 +123,16 @@ ListVal *MK_LIST(size_t capacity) {
   return list;
 }
 
-Entry *MK_ENTRY(const char *key, RuntimeVal *value) {
-  Entry *entry  = zox_alloc_obj(ZOX_ALLOC_ENTRY, sizeof(Entry), "Entry");
-  entry->key    = strdup(key);
-  entry->value  = value;
-  entry->next   = NULL;
-  return entry;
-}
-
 DictVal *MK_DICT(size_t capacity) {
   if (capacity < 8) capacity = 8;
   DictVal *dict = zox_alloc_obj(ZOX_ALLOC_DICT, sizeof(DictVal), "DictVal");
   dict->base.type      = DICT_T;
   dict->base.ref_count = 1;
-  dict->entries = (Entry **)malloc_safe(sizeof(Entry *) * capacity, "DictVal items");
-  for (size_t i = 0; i < capacity; ++i) dict->entries[i] = NULL;
+  dict->entries = (Entry *)malloc_safe(sizeof(Entry) * capacity, "DictVal items");
+  for (size_t i = 0; i < capacity; ++i) {
+    dict->entries[i].key = NULL;
+    dict->entries[i].value = NULL;
+  }
   dict->size     = 0;
   dict->capacity = capacity;
   return dict;

@@ -1,0 +1,47 @@
+~> test { test, suite,
+           assert_eq,
+           test_summary };
+
+suite("Fibonacci recursive");
+
+$ fib(n) {
+    ?(n <= 1) { n } : { fib(n - 1) + fib(n - 2) }
+}
+
+$ fib_recursive() {
+    assert_eq(fib(10), 55)
+}
+
+suite("Fibonacci iterative");
+
+$ fibIter(n) {
+    let a = 0;
+    let b = 1;
+    let c = 0;
+    @(let i = 0; i < n; i = i + 1) {
+        c = a + b;
+        a = b;
+        b = c
+    };
+    a
+}
+
+$ fib_iterative() {
+    assert_eq(fibIter(10), 55)
+}
+
+suite("Factorial");
+
+$ fatorial(n) {
+    ?(n <= 1) { 1 } : { n * fatorial(n - 1) }
+}
+
+$ factorial() {
+    assert_eq(fatorial(5), 120)
+}
+
+test("fibonacci recursive", fib_recursive);
+test("fibonacci iterative", fib_iterative);
+test("factorial", factorial);
+
+test_summary()

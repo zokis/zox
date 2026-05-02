@@ -57,7 +57,22 @@ ListVal *eval_list_binary_expr(ListVal *lhs, ListVal *rhs, const char *operator)
     }
     new_list->size = result_size;
   } else if (!strcmp(operator, "+")) {
-    new_list = MK_LIST(lhs->capacity + rhs->capacity);
+    if (lhs->base.ref_count == 1) {
+      size_t needed = lhs->size + rhs->size;
+      if (needed > lhs->capacity) {
+        lhs->capacity = needed > lhs->capacity * 2 ? needed : lhs->capacity * 2;
+        lhs->items = realloc_safe(lhs->items, sizeof(RuntimeVal *) * lhs->capacity,
+                                  "eval_list_binary_expr in-place realloc");
+      }
+      for (size_t i = 0; i < rhs->size; i++) {
+        lhs->items[lhs->size + i] = rhs->items[i];
+        retain(lhs->items[lhs->size + i]);
+      }
+      lhs->size = needed;
+      retain((RuntimeVal *)lhs);
+      return lhs;
+    }
+    new_list = MK_LIST(lhs->size + rhs->size);
     new_list->size = lhs->size + rhs->size;
     for (size_t i = 0; i < lhs->size; i++) {
       new_list->items[i] = lhs->items[i]; retain(new_list->items[i]);
@@ -148,19 +163,24 @@ RuntimeVal *eval_list_any_binary_expr(const char *operator, ListVal *lhs, Runtim
 DictVal *eval_dict_binary_expr(DictVal *lhs, DictVal *rhs, const char *operator) {
   DictVal *new_dict = NULL;
   if (!strcmp(operator, "+")) {
-    new_dict = MK_DICT(lhs->capacity + rhs->capacity);
+    if (lhs->base.ref_count == 1) {
+      for (size_t i = 0; i < rhs->capacity; i++) {
+        if (rhs->entries[i].key != NULL) {
+          dict_set_val(lhs, rhs->entries[i].key, rhs->entries[i].value);
+        }
+      }
+      retain((RuntimeVal *)lhs);
+      return lhs;
+    }
+    new_dict = MK_DICT(lhs->size + rhs->size);
     for (size_t i = 0; i < lhs->capacity; i++) {
-      Entry *entry = lhs->entries[i];
-      while (entry != NULL) {
-        dict_set_val(new_dict, entry->key, entry->value);
-        entry = entry->next;
+      if (lhs->entries[i].key != NULL) {
+        dict_set_val(new_dict, lhs->entries[i].key, lhs->entries[i].value);
       }
     }
     for (size_t i = 0; i < rhs->capacity; i++) {
-      Entry *entry = rhs->entries[i];
-      while (entry != NULL) {
-        dict_set_val(new_dict, entry->key, entry->value);
-        entry = entry->next;
+      if (rhs->entries[i].key != NULL) {
+        dict_set_val(new_dict, rhs->entries[i].key, rhs->entries[i].value);
       }
     }
   }
@@ -234,35 +254,35 @@ RuntimeVal *eval_binary_expr_evaluated(RuntimeVal *lhs, RuntimeVal *rhs,
     return eval_string_binary_expr((StringVal *)lhs, (StringVal *)rhs, operator);
   if (lhs->type == STRING_T && rhs->type == NUMBER_T && !strcmp(operator, "*"))
     return eval_string_repeat((StringVal *)lhs, (NumberVal *)rhs);
-  if (lhs->type == LIST_T && rhs->type == LIST_T) {
-    if (!strcmp(operator, "==") || !strcmp(operator, "!=")) {
-      int eq = (((ListVal *)lhs)->size == ((ListVal *)rhs)->size);
-      ListVal *ll = (ListVal *)lhs, *rl = (ListVal *)rhs;
-      for (size_t i = 0; i < ll->size && eq; i++) {
-        RuntimeVal *res = eval_binary_expr_evaluated(ll->items[i], rl->items[i], "==");
-        eq = (res->type == BOOLEAN_T && ((BooleanVal *)res)->value);
-        release(res);
+  if (lhs->type == LIST_T) {
+    if (!strcmp(operator, "<<"))
+      return eval_list_any_binary_expr(operator, (ListVal *)lhs, rhs);
+    if (rhs->type == LIST_T) {
+      if (!strcmp(operator, "==") || !strcmp(operator, "!=")) {
+        int eq = (((ListVal *)lhs)->size == ((ListVal *)rhs)->size);
+        ListVal *ll = (ListVal *)lhs, *rl = (ListVal *)rhs;
+        for (size_t i = 0; i < ll->size && eq; i++) {
+          RuntimeVal *res = eval_binary_expr_evaluated(ll->items[i], rl->items[i], "==");
+          eq = (res->type == BOOLEAN_T && ((BooleanVal *)res)->value);
+          release(res);
+        }
+        return (RuntimeVal *)MK_BOOL(!strcmp(operator, "==") ? eq : !eq);
       }
-      return (RuntimeVal *)MK_BOOL(!strcmp(operator, "==") ? eq : !eq);
+      return (RuntimeVal *)eval_list_binary_expr((ListVal *)lhs, (ListVal *)rhs, operator);
     }
-    return (RuntimeVal *)eval_list_binary_expr((ListVal *)lhs, (ListVal *)rhs, operator);
-  }
-  if (lhs->type == LIST_T && rhs->type != LIST_T)
     return eval_list_any_binary_expr(operator, (ListVal *)lhs, rhs);
+  }
   if (rhs->type == LIST_T && lhs->type != LIST_T && !strcmp(operator, "*"))
     return eval_list_any_binary_expr(operator, (ListVal *)rhs, lhs);
   if (lhs->type == DICT_T && rhs->type == DICT_T) {
     if (!strcmp(operator, "==") || !strcmp(operator, "!=")) {
       DictVal *ld = (DictVal *)lhs, *rd = (DictVal *)rhs;
-      int eq = (ld->size == rd->size);
+      unsigned short int eq = 1;
       for (size_t i = 0; i < ld->capacity && eq; i++) {
-        for (Entry *e = ld->entries[i]; e != NULL && eq; e = e->next) {
-          size_t slot = hash(e->key, rd->capacity);
-          Entry *found = NULL;
-          for (Entry *f = rd->entries[slot]; f != NULL; f = f->next)
-            if (!strcmp(f->key, e->key)) { found = f; break; }
+        if (ld->entries[i].key != NULL) {
+          Entry *found = dict_find_entry(rd, ld->entries[i].key);
           if (!found) { eq = 0; break; }
-          RuntimeVal *cmp = eval_binary_expr_evaluated(e->value, found->value, "==");
+          RuntimeVal *cmp = eval_binary_expr_evaluated(ld->entries[i].value, found->value, "==");
           eq = (cmp->type == BOOLEAN_T && ((BooleanVal *)cmp)->value);
           release(cmp);
         }

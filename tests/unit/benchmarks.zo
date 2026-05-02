@@ -1,0 +1,186 @@
+~> test { test, suite,
+           assert_eq, assert_len, assert_gt,
+           test_summary };
+
+~> string { toString };
+
+suite("Fibonacci benchmark");
+
+$ fib(n) {
+    ?(n <= 1) { n } : { fib(n - 1) + fib(n - 2) }
+}
+
+$ fibonacci_bench() {
+    let fib_total = 0;
+    let i = 0;
+    @(i = 0; i < 500; i = i + 1) {
+        fib_total = fib_total + fib(14)
+    };
+    assert_eq(fib_total, 2750)
+}
+
+suite("Sorting benchmark");
+
+$ make_list(n) {
+    let acc = {};
+    let k = 0;
+    @(k = 0; k < n; k = k + 1) {
+        acc << (n - k) * 3 % 97
+    };
+    acc
+}
+
+$ bubble_sort(lst) {
+    let n = len(lst);
+    let i = 0;
+    @(i = 0; i < n - 1; i = i + 1) {
+        let j = 0;
+        @(j = 0; j < n - i - 1; j = j + 1) {
+            ?(lst[j] > lst[j + 1]) {
+                let tmp = lst[j];
+                lst[j] = lst[j + 1];
+                lst[j + 1] = tmp
+            }
+        }
+    };
+    lst
+}
+
+$ bubble_sort_bench() {
+    let unsorted = make_list(200);
+    let sorted = bubble_sort(unsorted);
+    assert_eq(sorted[0], 0);
+    assert_eq(sorted[199], 97)
+}
+
+suite("Frequency count benchmark");
+
+$ freq_count(lst) {
+    let counts = [];
+    let i = 0;
+    @(i = 0; i < len(lst); i = i + 1) {
+        let k = toString(lst[i]);
+        ?(has_key(counts, k)) {
+            counts{k} = counts{k} + 1
+        } : {
+            counts{k} = 1
+        }
+    };
+    counts
+}
+
+$ freq_count_bench() {
+    let data = make_list(300);
+    let freq = freq_count(data);
+    assert_eq(len(freq), 97)
+}
+
+suite("Map/Filter/Reduce benchmark");
+
+$ map(lst, f) {
+    let result = {};
+    let i = 0;
+    @(i = 0; i < len(lst); i = i + 1) {
+        result << f(lst[i])
+    };
+    result
+}
+
+$ filter(lst, pred) {
+    let result = {};
+    let i = 0;
+    @(i = 0; i < len(lst); i = i + 1) {
+        ?(pred(lst[i])) {
+            result << lst[i]
+        }
+    };
+    result
+}
+
+$ reduce(lst, f, init) {
+    let acc = init;
+    let i = 0;
+    @(i = 0; i < len(lst); i = i + 1) {
+        acc = f(acc, lst[i])
+    };
+    acc
+}
+
+$ make_adder(x) {
+    $ adder(n) { n + x };
+    adder
+}
+
+$ is_even_pred(x) { x % 2 == 0 }
+
+$ add_two(a, b) { a + b }
+
+$ map_filter_reduce_bench() {
+    let base = make_list(400);
+    let shifted = map(base, make_adder(0));
+    let evens = filter(shifted, is_even_pred);
+    let total = reduce(evens, add_two, 0);
+    assert_gt(total, 0)
+}
+
+suite("String concatenation benchmark");
+
+$ build_string(n) {
+    let s = "";
+    let i = 0;
+    @(i = 0; i < n; i = i + 1) {
+        s = s + toString(i % 100)
+    };
+    len(s)
+}
+
+$ string_concat_bench() {
+    let len_result = build_string(1000);
+    assert_eq(len_result, 3000)
+}
+
+suite("Cartesian product benchmark");
+
+$ cartesian(a, b) {
+    let result = {};
+    let i = 0;
+    @(i = 0; i < len(a); i = i + 1) {
+        let j = 0;
+        @(j = 0; j < len(b); j = j + 1) {
+            result << {a[i], b[j]}
+        }
+    };
+    result
+}
+
+$ cartesian_bench() {
+    let xs = make_list(30);
+    let ys = make_list(30);
+    let pairs = cartesian(xs, ys);
+    assert_eq(len(pairs), 900)
+}
+
+suite("Mutual recursion benchmark");
+
+$ is_even(n) { ?(n == 0) { true } : { is_odd(n - 1) } }
+
+$ is_odd(n) { ?(n == 0) { false } : { is_even(n - 1) } }
+
+$ mutual_recursion_bench() {
+    let even_count = 0;
+    let m = 0;
+    @(m = 0; m < 200; m = m + 1) {
+        ?(is_even(m)) { even_count = even_count + 1 }
+    };
+    assert_eq(even_count, 100)
+}
+
+test("fibonacci", fibonacci_bench);
+test("bubble sort", bubble_sort_bench);
+test("frequency count", freq_count_bench);
+test("map/filter/reduce", map_filter_reduce_bench);
+test("string concatenation", string_concat_bench);
+test("cartesian product", cartesian_bench);
+test("mutual recursion", mutual_recursion_bench);
+
+test_summary()

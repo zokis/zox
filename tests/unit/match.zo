@@ -1,0 +1,57 @@
+~> test { suite, test, assert_eq, test_summary };
+~> string { toString };
+
+suite("Pattern Matching (??)");
+
+test("Value matching", $ value_test() {
+    let x = 2;
+    let res = ?? (x) {
+        1 => "one",
+        2 => "two",
+        3 => "three",
+        _ => "unknown"
+    };
+    assert_eq(res, "two")
+});
+
+test("Guard matching (boolean)", $ guard_test() {
+    let age = 20;
+    let group = ?? (age) {
+        age >= 65 => "senior",
+        age >= 18 => "adult",
+        _ => "minor"
+    };
+    assert_eq(group, "adult")
+});
+
+test("Wildcard fallback", $ wildcard_test() {
+    let x = 99;
+    let res = ?? (x) {
+        1 => "one",
+        _ => "many"
+    };
+    assert_eq(res, "many")
+});
+
+test("Integration with Results", $ result_match_test() {
+    $ divide(a, b) {
+        ?(b == 0) { _>>! "zero" } : { _>>@ a / b }
+    }
+    
+    let r1 = divide(10, 2);
+    let msg1 = ?? (r1) {
+        has_key(r1, "ok") => "got " + toString(r1{"ok"}),
+        _ => "error"
+    };
+    assert_eq(msg1, "got 5");
+    
+    let r2 = divide(10, 0);
+    let msg2 = ?? (r2) {
+        has_key(r2, "ok") => "got " + toString(r2{"ok"}),
+        has_key(r2, "err") => "failed: " + r2{"err"},
+        _ => "none"
+    };
+    assert_eq(msg2, "failed: zero")
+});
+
+test_summary()

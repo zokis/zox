@@ -1,0 +1,39 @@
+~> test { suite, test, assert_eq, test_summary };
+
+suite("Result Types (_>>@, _>>!, !?)");
+
+-# A function that returns success or error
+$ divide(a, b) {
+    ?(b == 0) {
+        _>>! "division by zero"
+    } : {
+        _>>@ a / b
+    }
+}
+
+-# A function that uses !? to propagate
+$ calculate(a, b, c) {
+    let d = divide(a, b)!?; -# unwrap or early return
+    _>>@ d + c
+}
+
+test("Success path", $ success_test() {
+    let res = calculate(10, 2, 5);
+    assert_eq(res{"ok"}, 10);
+    assert_eq(typeof(res), "dict")
+});
+
+test("Error path with propagation", $ error_test() {
+    let res = calculate(10, 0, 5);
+    assert_eq(res{"err"}, "division by zero");
+    assert_eq(typeof(res), "dict")
+});
+
+test("Builtin ok() and err()", $ builtins_test() {
+    let o = ok(100);
+    let e = err("fail");
+    assert_eq(o{"ok"}, 100);
+    assert_eq(e{"err"}, "fail")
+});
+
+test_summary()

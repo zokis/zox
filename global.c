@@ -131,12 +131,58 @@ void error(const char *message) {
 
 void parser_error(const char *message, Token *token, TokenType type) {
   const char *file = error_cursor.file ? error_cursor.file : "<stdin>";
-  fprintf(stderr, "Parser Error at %s:%d:%d\n%s\n(got '%s', expected token type %d)\n",
-          file, token->line, token->column, message, token->value, type);
+  fprintf(stderr, "Parser Error at %s:%d:%d\n%s\n(got '%s', expected %s)\n",
+          file, token->line, token->column, message, token->value, token_type_to_string(type));
   if (global_context.is_repl) {
     longjmp(global_context.error_jmp, 1);
   } else {
     exit(1);
+  }
+}
+
+const char *token_type_to_string(TokenType type) {
+  switch (type) {
+    case NumberTk:           return "Number";
+    case IdentifierTk:       return "Identifier";
+    case LetTk:              return "'let'";
+    case BinaryOperatorTk:   return "Binary Operator";
+    case BooleanLiteralTk:   return "Boolean";
+    case NilTk:              return "'nil'";
+    case EqualsTk:           return "'='";
+    case OpenParenTk:        return "'('";
+    case CloseParenTk:       return "')'";
+    case SemiColonTk:        return "';'";
+    case IfTk:               return "'?'";
+    case ElseTk:             return "':'";
+    case OpenBraceTk:        return "'{'";
+    case CloseBraceTk:       return "'}'";
+    case WhileTk:            return "'#'";
+    case ForTk:              return "'@'";
+    case StringTk:           return "String";
+    case CommaTk:            return "','";
+    case FunctionTk:         return "'$'";
+    case OpenBracketTk:      return "'['";
+    case CloseBracketTk:     return "']'";
+    case ArrowTk:            return "'->'";
+    case OpenTableTk:        return "'|>'";
+    case CloseTableTk:       return "'<|'";
+    case ImportTk:           return "'~>'";
+    case IdentifierImportTk: return "Module Identifier";
+    case AsTk:               return "'as'";
+    case DotTk:              return "'.'";
+    case UnaryOperatorTk:    return "Unary Operator";
+    case EOFTk:              return "EOF";
+    case BreakTk:            return "'~!!'";
+    case ContinueTk:         return "'__>'";
+    case ReturnTk:           return "'_>>'";
+    case OpenArenaTk:        return "'|{'";
+    case CloseArenaTk:       return "'}|'";
+    case ReturnSuccessTk:    return "'_>>@'";
+    case ReturnErrorTk:      return "'_>>!'";
+    case UnwrapTk:           return "'!?'";
+    case MatchTk:            return "'?\\?'";
+    case FatArrowTk:         return "'=>'";
+    default:                 return "Unknown Token";
   }
 }
 

@@ -296,8 +296,8 @@ Runtime ownership:
 ## Docs
 
 - [`docs/testing.md`](docs/testing.md) — Unit testing guide and framework
-- [`specs/language-spec.md`](specs/language-spec.md) — Language specification
-- [`specs/architecture.md`](specs/architecture.md) — Interpreter architecture
+- [`docs/language-spec.md`](docs/language-spec.md) — Language specification
+- [`docs/architecture.md`](docs/architecture.md) — Interpreter architecture
 
 ## Examples
 

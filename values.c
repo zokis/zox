@@ -64,7 +64,7 @@ static void free_runtime_val(RuntimeVal *val) {
       free_safe(tv->name);
       for (size_t i = 0; i < tv->field_count; i++) free_safe(tv->fields[i]);
       free_safe(tv->fields);
-      zox_free_obj(ZOX_ALLOC_DICT, tv);
+      zox_free_obj(ZOX_ALLOC_TYPE, tv);
       break;
     }
     case STRUCT_T: {
@@ -75,7 +75,7 @@ static void free_runtime_val(RuntimeVal *val) {
       }
       free_safe(sv->values);
       release((RuntimeVal *)sv->type_def);
-      zox_free_obj(ZOX_ALLOC_LIST, sv);
+      zox_free_obj(ZOX_ALLOC_STRUCT, sv);
       break;
     }
     case FUNCTION_T: {
@@ -209,7 +209,7 @@ char *type_to_string(ValueType type) {
 }
 
 TypeVal *MK_TYPE(const char *name, char **fields, size_t field_count) {
-  TypeVal *tv = (TypeVal *)zox_alloc_obj(ZOX_ALLOC_DICT, sizeof(TypeVal), "TypeVal");
+  TypeVal *tv = (TypeVal *)zox_alloc_obj(ZOX_ALLOC_TYPE, sizeof(TypeVal), "TypeVal");
   tv->base.type = TYPE_T;
   tv->base.ref_count = 1;
   tv->name = strdup(name);
@@ -219,7 +219,7 @@ TypeVal *MK_TYPE(const char *name, char **fields, size_t field_count) {
 }
 
 StructVal *MK_STRUCT(TypeVal *type_def, RuntimeVal **values) {
-  StructVal *sv = (StructVal *)zox_alloc_obj(ZOX_ALLOC_LIST, sizeof(StructVal), "StructVal");
+  StructVal *sv = (StructVal *)zox_alloc_obj(ZOX_ALLOC_STRUCT, sizeof(StructVal), "StructVal");
   sv->base.type = STRUCT_T;
   sv->base.ref_count = 1;
   sv->type_def = type_def;

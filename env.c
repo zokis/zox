@@ -26,6 +26,11 @@ static Environment **all_envs = NULL;
 static size_t all_envs_count = 0;
 static size_t all_envs_cap = 0;
 
+static void break_val_env(RuntimeVal *val);
+static void detach_val_env(RuntimeVal *val);
+static void cleanup_env_entries(Environment *env);
+static void cleanup_env_storage(Environment *env);
+
 static void register_env(Environment *env) {
   if (all_envs_count >= all_envs_cap) {
     all_envs_cap = all_envs_cap ? all_envs_cap * 2 : 64;
@@ -65,24 +70,7 @@ void retain_env(Environment *env) {
 }
 
 static void destroy_environment(Environment *env) {
-  for (size_t i = 0; i < env->capacity; i++) {
-    if (env->entries[i].key != NULL) {
-      free_safe(env->entries[i].key);
-      release(env->entries[i].value);
-    }
-  }
-  free_safe(env->entries);
-  if (env->owned_program) {
-    free_program((Program *)env->owned_program);
-  }
-  if (env->scope_name) {
-    free_safe(env->scope_name);
-  }
-#ifndef _WIN32
-  for (size_t _i = 0; _i < env->so_handle_count; _i++)
-    dlclose(env->so_handles[_i]);
-  if (env->so_handles) free(env->so_handles);
-#endif
+  cleanup_env_storage(env);
   Environment *parent = env->parent;
   unregister_env(env);
   zox_free_obj(ZOX_ALLOC_ENV, env);
@@ -95,14 +83,37 @@ void release_env(Environment *env) {
   if (env->ref_count <= 0) destroy_environment(env);
 }
 
-static void break_val_env(RuntimeVal *val);
-
 static void break_env_internal(Environment *env) {
   if (!env) return;
   for (size_t i = 0; i < env->capacity; i++) {
     if (env->entries[i].key == NULL) continue;
-    break_val_env(env->entries[i].value);
+    detach_val_env(env->entries[i].value);
   }
+}
+
+static void cleanup_env_entries(Environment *env) {
+  for (size_t i = 0; i < env->capacity; i++) {
+    if (env->entries[i].key == NULL) continue;
+    free_safe(env->entries[i].key);
+    release(env->entries[i].value);
+  }
+  free_safe(env->entries);
+}
+
+static void cleanup_env_storage(Environment *env) {
+  cleanup_env_entries(env);
+  if (env->owned_program) {
+    free_program((Program *)env->owned_program);
+  }
+  if (env->scope_name) {
+    free_safe(env->scope_name);
+  }
+#ifndef _WIN32
+  for (size_t i = 0; i < env->so_handle_count; i++) {
+    dlclose(env->so_handles[i]);
+  }
+  free_safe(env->so_handles);
+#endif
 }
 
 static void break_val_env(RuntimeVal *val) {
@@ -126,18 +137,32 @@ static void break_val_env(RuntimeVal *val) {
   }
 }
 
+static void detach_val_env(RuntimeVal *val) {
+  if (!val) return;
+  if (val->type == FUNCTION_T) {
+    ((FunctionVal *)val)->env = NULL;
+  } else if (val->type == LIST_T) {
+    ListVal *lv = (ListVal *)val;
+    for (size_t i = 0; i < lv->size; i++) {
+      detach_val_env(lv->items[i]);
+    }
+  } else if (val->type == DICT_T) {
+    DictVal *dv = (DictVal *)val;
+    for (size_t i = 0; i < dv->capacity; i++) {
+      if (dv->entries[i].key != NULL) {
+        detach_val_env(dv->entries[i].value);
+      }
+    }
+  }
+}
+
 void break_env_cycles(Environment *env) {
   if (all_envs_count == 0) return;
 
   /* Shutdown Pass 1: Break all closure links. 
      We don't release_env here to avoid recursive destruction. */
   for (size_t i = 0; i < all_envs_count; i++) {
-    Environment *e = all_envs[i];
-    for (size_t j = 0; j < e->capacity; j++) {
-      if (e->entries[j].key && e->entries[j].value->type == FUNCTION_T) {
-        ((FunctionVal *)e->entries[j].value)->env = NULL;
-      }
-    }
+    break_env_internal(all_envs[i]);
   }
 
   /* Shutdown Pass 2: Manually free all environments in the registry.
@@ -145,26 +170,9 @@ void break_env_cycles(Environment *env) {
      the removal from the array. */
   while (all_envs_count > 0) {
     Environment *e = all_envs[all_envs_count - 1];
-    
-    for (size_t i = 0; i < e->capacity; i++) {
-      if (e->entries[i].key != NULL) {
-        free_safe(e->entries[i].key);
-        release(e->entries[i].value);
-      }
-    }
-    free_safe(e->entries);
-    if (e->owned_program) {
-      free_program((Program *)e->owned_program);
-    }
-    if (e->scope_name) {
-      free_safe(e->scope_name);
-    }
-#ifndef _WIN32
-    for (size_t _i = 0; _i < e->so_handle_count; _i++)
-      dlclose(e->so_handles[_i]);
-    if (e->so_handles) free(e->so_handles);
-#endif
-    
+
+    cleanup_env_storage(e);
+
     /* Important: We don't release_env(parent) here as the parent 
        is already in all_envs and will be freed by this loop. */
     all_envs_count--; 

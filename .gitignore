@@ -56,6 +56,7 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+.qlty/
 .idea/
 cmake-build-release/
 cmake-build-debug/

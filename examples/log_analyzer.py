@@ -89,7 +89,7 @@ t1 = time.perf_counter()
 current, peak = tracemalloc.get_traced_memory()
 tracemalloc.stop()
 
-print(f"\n=== Performance ===")
+print("\n=== Performance ===")
 print(f"Tempo de execucao: {(t1 - t0) * 1000:.3f} ms")
 print(f"Memoria atual:     {current / 1024:.2f} KB")
 print(f"Memoria pico:      {peak / 1024:.2f} KB")

@@ -52,56 +52,53 @@ int compare_runtime_vals(const void *a, const void *b) {
     return 0;
   }
 
-  double num1 = ((NumberVal *)val1)->value;
-  double num2 = ((NumberVal *)val2)->value;
-
-  if (num1 < num2)
-    return -1;
-  if (num1 > num2)
-    return 1;
-  return 0;
+  double diff = ((NumberVal *)val1)->value - ((NumberVal *)val2)->value;
+  return (diff > 0) - (diff < 0);
 }
 
-static RuntimeVal *math_list_min_max(char *op, Environment *env, RuntimeVal **args,
-                                size_t arg_count) {
+static RuntimeVal *math_list_min_max(int is_min, const char *op, Environment *env,
+                                     RuntimeVal **args, size_t arg_count) {
   if (arg_count != 1 || args[0]->type != LIST_T) {
     char error_message[100];
     snprintf(error_message, sizeof(error_message),
              "%s() expects one list argument.\n", op);
     error(error_message);
+    return (RuntimeVal *)MK_NIL();
   }
 
   ListVal *list = (ListVal *)args[0];
+  double extreme = 0.0;
+  int found = 0;
 
   if (list == NULL || list->size == 0) {
     return (RuntimeVal *)MK_NIL();
   }
-  double min_max = ((NumberVal *)list->items[0])->value;
-  for (size_t i = 1; i < list->size; i++) {
-    if (list->items[i]->type == NUMBER_T) {
-      double numVal = ((NumberVal *)list->items[i])->value;
-      if (strcmp(op, "min") == 0) {
-        if (i == 0 || numVal < min_max) {
-          min_max = numVal;
-        }
-      } else if (strcmp(op, "max") == 0) {
-        if (i == 0 || numVal > min_max) {
-          min_max = numVal;
-        }
-      }
+
+  for (size_t i = 0; i < list->size; i++) {
+    RuntimeVal *item = list->items[i];
+
+    if (item->type != NUMBER_T) {
+      continue;
+    }
+
+    double value = ((NumberVal *)item)->value;
+    if (!found || (is_min ? value < extreme : value > extreme)) {
+      extreme = value;
+      found = 1;
     }
   }
-  return (RuntimeVal *)MK_NUMBER(min_max);
+
+  return found ? (RuntimeVal *)MK_NUMBER(extreme) : (RuntimeVal *)MK_NIL();
 }
 
 static RuntimeVal *math_list_min(Environment *env, RuntimeVal **args,
                                  size_t arg_count) {
-  return math_list_min_max("min", env, args, arg_count);
+  return math_list_min_max(1, "min", env, args, arg_count);
 }
 
 static RuntimeVal *math_list_max(Environment *env, RuntimeVal **args,
                                  size_t arg_count) {
-  return math_list_min_max("max", env, args, arg_count);
+  return math_list_min_max(0, "max", env, args, arg_count);
 }
 
 
@@ -161,31 +158,25 @@ static RuntimeVal *math_variance(Environment *env, RuntimeVal **args,
     return (RuntimeVal *)MK_NUMBER(0);
   }
 
-  double sum = 0.0;
+  double mean = 0.0;
+  double squared_diff_sum = 0.0;
   size_t count = 0;
 
   for (size_t i = 0; i < list->size; i++) {
     RuntimeVal *item = list->items[i];
     if (item->type == NUMBER_T) {
-      sum += ((NumberVal *)item)->value;
+      double value = ((NumberVal *)item)->value;
+      double delta;
+
       count++;
+      delta = value - mean;
+      mean += delta / count;
+      squared_diff_sum += delta * (value - mean);
     }
   }
 
   if (count == 0) {
     return (RuntimeVal *)MK_NUMBER(0);
-  }
-
-  double mean = sum / count;
-  double squared_diff_sum = 0.0;
-
-  for (size_t i = 0; i < list->size; i++) {
-    RuntimeVal *item = list->items[i];
-    if (item->type == NUMBER_T) {
-      double value = ((NumberVal *)item)->value;
-      double diff = value - mean;
-      squared_diff_sum += diff * diff;
-    }
   }
 
   return (RuntimeVal *)MK_NUMBER(squared_diff_sum / count);
@@ -216,40 +207,33 @@ static RuntimeVal *math_correlation(Environment *env, RuntimeVal **args,
     return (RuntimeVal *)MK_NUMBER(0);
   }
 
-  double sum_x = 0.0, sum_y = 0.0;
+  double mean_x = 0.0, mean_y = 0.0;
+  double sum_sq_x = 0.0, sum_sq_y = 0.0, sum_xy = 0.0;
   size_t count = 0;
 
   for (size_t i = 0; i < n; i++) {
     if (x->items[i]->type == NUMBER_T && y->items[i]->type == NUMBER_T) {
-      sum_x += ((NumberVal *)x->items[i])->value;
-      sum_y += ((NumberVal *)y->items[i])->value;
+      double value_x = ((NumberVal *)x->items[i])->value;
+      double value_y = ((NumberVal *)y->items[i])->value;
+      double delta_x;
+      double delta_y;
+
       count++;
+      delta_x = value_x - mean_x;
+      delta_y = value_y - mean_y;
+      mean_x += delta_x / count;
+      mean_y += delta_y / count;
+      sum_sq_x += delta_x * (value_x - mean_x);
+      sum_sq_y += delta_y * (value_y - mean_y);
+      sum_xy += delta_x * (value_y - mean_y);
     }
   }
 
-  if (count == 0) {
+  if (count == 0 || sum_sq_x == 0.0 || sum_sq_y == 0.0) {
     return (RuntimeVal *)MK_NUMBER(0);
   }
 
-  double mean_x = sum_x / count;
-  double mean_y = sum_y / count;
-  double num = 0.0, den_x = 0.0, den_y = 0.0;
-
-  for (size_t i = 0; i < n; i++) {
-    if (x->items[i]->type == NUMBER_T && y->items[i]->type == NUMBER_T) {
-      double dx = ((NumberVal *)x->items[i])->value - mean_x;
-      double dy = ((NumberVal *)y->items[i])->value - mean_y;
-      num += dx * dy;
-      den_x += dx * dx;
-      den_y += dy * dy;
-    }
-  }
-
-  if (den_x == 0.0 || den_y == 0.0) {
-    return (RuntimeVal *)MK_NUMBER(0);
-  }
-
-  return (RuntimeVal *)MK_NUMBER(num / sqrt(den_x * den_y));
+  return (RuntimeVal *)MK_NUMBER(sum_xy / sqrt(sum_sq_x * sum_sq_y));
 }
 
 static RuntimeVal *math_gcd(Environment *env, RuntimeVal **args,
@@ -320,6 +304,9 @@ void init_math_module(Environment *env) {
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_median));
   declare_owned(env, "variance",
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_variance));
+
+
+  
   declare_owned(env, "standardDeviation",
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_standard_deviation));
   declare_owned(env, "correlation",
@@ -336,4 +323,3 @@ typedef struct {
   FILE *fp;
   char *mode;
 } FileHandle;
-

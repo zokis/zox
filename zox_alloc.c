@@ -126,7 +126,7 @@ void zox_alloc_cleanup(void) {
 
 static const char *kind_names[ZOX_ALLOC_KIND_COUNT] = {
   "NumberVal", "StringVal", "ListVal", "DictVal",
-  "FunctionVal", "Environment",
+  "TypeVal", "StructVal", "FunctionVal", "Environment",
 };
 
 void zox_alloc_report(FILE *out) {

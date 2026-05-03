@@ -63,6 +63,6 @@ cmake-build-debug/
 *.zoxc
 
 # Local performance baseline (machine-specific, not shared)
-tests/perf_baseline.txt
+tests/benchmarks/perf_baseline.txt
 .claude/
 .gemini/

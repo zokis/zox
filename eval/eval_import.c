@@ -39,47 +39,51 @@ static char *dup_existing_path(const char *path) {
   return strdup(path);
 }
 
-char *find_module_path(const char *module_name) {
-  char *found_path = NULL;
-
-  if (is_native_module(module_name)) {
-    return strdup("native");
-  }
-
-  if (has_module_extension(module_name)) {
-    found_path = dup_existing_path(module_name);
-    if (found_path) {
-      return found_path;
-    }
-  }
-
+static char *find_in_search_paths(const char *module_path) {
 #ifdef _WIN32
   char *paths[] = {".", ".\\lib", ".\\packages", "C:\\Program Files\\Zox\\packages"};
 #else
   char *paths[] = {".", "./lib", "./packages", "/usr/local/lib/zox/packages"};
 #endif
   char full_path[512];
-  char module_path[256];
-  normalize_module_path(module_path, sizeof(module_path), module_name);
+  char *found_path = NULL;
 
   for (int i = 0; i < (int)(sizeof(paths) / sizeof(paths[0])); i++) {
     snprintf(full_path, sizeof(full_path), "%s%s%s.zo",
              paths[i], PATH_SEPARATOR, module_path);
     found_path = dup_existing_path(full_path);
-    if (found_path) return found_path;
+    if (found_path == NULL) {
 #ifndef _WIN32
-    snprintf(full_path, sizeof(full_path), "%s%s%s.so",
-             paths[i], PATH_SEPARATOR, module_path);
-    found_path = dup_existing_path(full_path);
-    if (found_path) return found_path;
+      snprintf(full_path, sizeof(full_path), "%s%s%s.so",
+               paths[i], PATH_SEPARATOR, module_path);
 #else
-    snprintf(full_path, sizeof(full_path), "%s%s%s.dll",
-             paths[i], PATH_SEPARATOR, module_path);
-    found_path = dup_existing_path(full_path);
-    if (found_path) return found_path;
+      snprintf(full_path, sizeof(full_path), "%s%s%s.dll",
+               paths[i], PATH_SEPARATOR, module_path);
 #endif
+      found_path = dup_existing_path(full_path);
+    }
+    if (found_path != NULL) {
+      break;
+    }
   }
-  return NULL;
+
+  return found_path;
+}
+
+char *find_module_path(const char *module_name) {
+  char *found_path = NULL;
+  char module_path[256];
+
+  if (is_native_module(module_name)) {
+    found_path = strdup("native");
+  } else if (has_module_extension(module_name)) {
+    found_path = dup_existing_path(module_name);
+  } else {
+    normalize_module_path(module_path, sizeof(module_path), module_name);
+    found_path = find_in_search_paths(module_path);
+  }
+
+  return found_path;
 }
 
 static void declare_import_item(Environment *target_env, Environment *module_env,

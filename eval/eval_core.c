@@ -193,44 +193,54 @@ RuntimeVal *evaluate(Stmt *astNode, Environment *env) {
 
 #include "../zox_alloc.h"
 
-RuntimeVal *promote_val(RuntimeVal *val) {
-  if (!val || val->ref_count == STATIC_REF) return val;
-  if (!zox_arena_owns(val)) return val;
-
-  switch (val->type) {
-    case STRING_T:
-      return (RuntimeVal *)MK_STRING(((StringVal *)val)->value);
-
-    case LIST_T: {
-      ListVal *old_list = (ListVal *)val;
-      ListVal *new_list = MK_LIST(old_list->size);
-      for (size_t i = 0; i < old_list->size; i++) {
-        RuntimeVal *promoted_item = promote_val(old_list->items[i]);
-        new_list->items[i] = promoted_item;
-        retain(promoted_item);
-      }
-      new_list->size = old_list->size;
-      return (RuntimeVal *)new_list;
-    }
-
-    case DICT_T: {
-      DictVal *old_dict = (DictVal *)val;
-      DictVal *new_dict = MK_DICT(old_dict->capacity);
-      for (size_t i = 0; i < old_dict->capacity; i++) {
-        if (old_dict->entries[i].key) {
-          RuntimeVal *promoted_val = promote_val(old_dict->entries[i].value);
-          dict_set_val(new_dict, old_dict->entries[i].key, promoted_val);
-        }
-      }
-      return (RuntimeVal *)new_dict;
-    }
-
-    case FUNCTION_T: {
-      FunctionVal *fv = (FunctionVal *)val;
-      return (RuntimeVal *)MK_FUNCTION(fv->params, fv->param_count, fv->body, fv->body_count, fv->env, fv->builtin_func);
-    }
-
-    default:
-      return val;
+static RuntimeVal *promote_list_val(ListVal *old_list) {
+  ListVal *new_list = MK_LIST(old_list->size);
+  for (size_t i = 0; i < old_list->size; i++) {
+    RuntimeVal *promoted_item = promote_val(old_list->items[i]);
+    new_list->items[i] = promoted_item;
+    retain(promoted_item);
   }
+  new_list->size = old_list->size;
+  return (RuntimeVal *)new_list;
+}
+
+static RuntimeVal *promote_dict_val(DictVal *old_dict) {
+  DictVal *new_dict = MK_DICT(old_dict->capacity);
+  for (size_t i = 0; i < old_dict->capacity; i++) {
+    if (old_dict->entries[i].key) {
+      RuntimeVal *promoted_val = promote_val(old_dict->entries[i].value);
+      dict_set_val(new_dict, old_dict->entries[i].key, promoted_val);
+    }
+  }
+  return (RuntimeVal *)new_dict;
+}
+
+static RuntimeVal *promote_function_val(FunctionVal *fv) {
+  return (RuntimeVal *)MK_FUNCTION(
+      fv->params, fv->param_count, fv->body, fv->body_count, fv->env, fv->builtin_func);
+}
+
+RuntimeVal *promote_val(RuntimeVal *val) {
+  RuntimeVal *promoted = val;
+
+  if (val && val->ref_count != STATIC_REF && zox_arena_owns(val)) {
+    switch (val->type) {
+      case STRING_T:
+        promoted = (RuntimeVal *)MK_STRING(((StringVal *)val)->value);
+        break;
+      case LIST_T:
+        promoted = promote_list_val((ListVal *)val);
+        break;
+      case DICT_T:
+        promoted = promote_dict_val((DictVal *)val);
+        break;
+      case FUNCTION_T:
+        promoted = promote_function_val((FunctionVal *)val);
+        break;
+      default:
+        break;
+    }
+  }
+
+  return promoted;
 }

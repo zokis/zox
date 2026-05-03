@@ -2,7 +2,7 @@
            assert_eq, assert_true,
            test_summary };
 ~> math { abs, sqrt, floor, ceil, round, sin, cos, tan, log, pow, min, max,
-           lmin, lmax, average, median };
+           lmin, lmax, average, median, variance };
 
 suite("Math module");
 
@@ -49,7 +49,8 @@ $ math_list_minmax() {
 $ math_stats() {
     let ns = {1, 2, 3, 4, 5};
     assert_eq(average(ns), 3);
-    assert_eq(median(ns),  3)
+    assert_eq(median(ns),  3);
+    assert_eq(variance({1, 2, 3, 4}), 1.25)
 }
 
 $ math_trig() {
@@ -63,7 +64,7 @@ test("rounding",     math_rounding);
 test("pow",          math_pow);
 test("min / max",    math_minmax);
 test("lmin / lmax",  math_list_minmax);
-test("average / median", math_stats);
+test("average / median / variance", math_stats);
 test("trig at 0",    math_trig);
 
 test_summary()

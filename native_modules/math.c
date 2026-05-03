@@ -148,6 +148,48 @@ static RuntimeVal *math_median(Environment *env, RuntimeVal **args,
   return (RuntimeVal *)MK_NUMBER(median);
 }
 
+
+static RuntimeVal *math_variance(Environment *env, RuntimeVal **args,
+                                 size_t arg_count) {
+  if (arg_count != 1 || args[0]->type != LIST_T) {
+    error("variance() expects one list argument");
+  }
+
+  ListVal *list = (ListVal *)args[0];
+
+  if (list == NULL || list->size == 0) {
+    return (RuntimeVal *)MK_NUMBER(0);
+  }
+
+  double sum = 0.0;
+  size_t count = 0;
+
+  for (size_t i = 0; i < list->size; i++) {
+    RuntimeVal *item = list->items[i];
+    if (item->type == NUMBER_T) {
+      sum += ((NumberVal *)item)->value;
+      count++;
+    }
+  }
+
+  if (count == 0) {
+    return (RuntimeVal *)MK_NUMBER(0);
+  }
+
+  double mean = sum / count;
+  double squared_diff_sum = 0.0;
+
+  for (size_t i = 0; i < list->size; i++) {
+    RuntimeVal *item = list->items[i];
+    if (item->type == NUMBER_T) {
+      double value = ((NumberVal *)item)->value;
+      double diff = value - mean;
+      squared_diff_sum += diff * diff;
+    }
+  }
+
+  return (RuntimeVal *)MK_NUMBER(squared_diff_sum / count);
+}
 static RuntimeVal *math_average(Environment *env, RuntimeVal **args,
                                 size_t arg_count) {
   if (arg_count != 1 || args[0]->type != LIST_T) {
@@ -195,6 +237,8 @@ void init_math_module(Environment *env) {
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_average));
   declare_owned(env, "median",
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_median));
+  declare_owned(env, "variance",
+              (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_variance));
   declare_owned(env, "lmin",
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_list_min));
   declare_owned(env, "lmax",

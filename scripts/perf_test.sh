@@ -4,9 +4,6 @@
 # Usage:
 #   ./scripts/perf_test.sh            # compare against saved baseline
 #   ./scripts/perf_test.sh --update   # overwrite baseline with current measurements
-#
-# The baseline file is local-only (.gitignore'd) so each machine compares
-# against itself, not against another developer's hardware.
 
 set -euo pipefail
 
@@ -14,6 +11,7 @@ BASELINE="tests/benchmarks/perf_baseline.txt"
 BENCH="tests/benchmarks/bench.zo"
 RUNS=10
 THRESHOLD_PCT=10   # fail if median is >10% slower than baseline
+ARENA_SIZE="4MB"
 
 cd "$(dirname "$0")/.."
 
@@ -21,59 +19,90 @@ if [[ ! -x ./zox ]]; then
   make all -s
 fi
 
-echo "bench:     $BENCH"
-echo "runs:      $RUNS"
-echo "threshold: ${THRESHOLD_PCT}%"
+echo "bench:      $BENCH"
+echo "runs:       $RUNS"
+echo "threshold:  ${THRESHOLD_PCT}%"
+echo "arena size: $ARENA_SIZE"
 echo
 
-# Collect wall-clock times in milliseconds
-times=()
-for i in $(seq 1 $RUNS); do
-  start=$(date +%s%N)
-  ./zox "$BENCH" > /dev/null
-  end=$(date +%s%N)
-  ms=$(( (end - start) / 1000000 ))
-  times+=($ms)
-  printf "  run %d: %dms\n" "$i" "$ms"
-done
+# Helper to run a benchmark and return the median time
+measure_median() {
+  local label="$1"
+  local flags="$2"
+  local times=()
 
-# Sort numerically and pick the middle value (median)
-IFS=$'\n' sorted=($(sort -n <<< "${times[*]}")); unset IFS
-median=${sorted[$((RUNS / 2))]}
-echo
-echo "  median: ${median}ms"
+  echo "Measuring $label..." >&2
+  for i in $(seq 1 $RUNS); do
+    start=$(date +%s%N)
+    ./zox $flags "$BENCH" > /dev/null
+    end=$(date +%s%N)
+    ms=$(( (end - start) / 1000000 ))
+    times+=($ms)
+    printf "  run %d: %3dms\n" "$i" "$ms" >&2
+  done
+
+  IFS=$'\n' sorted=($(sort -n <<< "${times[*]}")); unset IFS
+  local median=${sorted[$((RUNS / 2))]}
+  echo "  median: ${median}ms" >&2
+  echo >&2
+  echo "$median"
+}
+
+# Run both modes
+median_std=$(measure_median "Standard" "")
+median_arena=$(measure_median "Arena" "--arena=$ARENA_SIZE")
 
 # --update: save new baseline and exit
 if [[ "${1:-}" == "--update" ]]; then
-  echo "$median" > "$BASELINE"
-  echo "Baseline updated → ${median}ms"
+  echo "$median_std" > "$BASELINE"
+  echo "$median_arena" >> "$BASELINE"
+  echo "Baseline updated:"
+  echo "  Standard: ${median_std}ms"
+  echo "  Arena:    ${median_arena}ms"
   exit 0
 fi
 
 # Compare against saved baseline
 if [[ ! -f "$BASELINE" ]]; then
-  echo
   echo "No baseline found at $BASELINE."
   echo "Run 'make perf-update' to create one."
   exit 1
 fi
 
-baseline=$(cat "$BASELINE")
-limit=$(( baseline + baseline * THRESHOLD_PCT / 100 ))
+# Read baseline (handle legacy format with only 1 line)
+mapfile -t baselines < "$BASELINE"
+base_std=${baselines[0]:-0}
+base_arena=${baselines[1]:-0}
 
-echo "  baseline: ${baseline}ms"
-echo "  limit:    ${limit}ms  (baseline + ${THRESHOLD_PCT}%)"
-echo
+check_perf() {
+  local label="$1"
+  local current="$2"
+  local baseline="$3"
 
-if (( median > limit )); then
-  echo "FAIL: ${median}ms exceeds limit of ${limit}ms (regression of $(( (median - baseline) * 100 / baseline ))%)"
-  exit 1
-else
-  delta=$(( (median - baseline) * 100 / baseline ))
-  if (( delta >= 0 )); then
-    echo "PASS: ${median}ms  (+${delta}% vs baseline)"
-  else
-    echo "PASS: ${median}ms  (${delta}% vs baseline, improvement)"
+  if (( baseline == 0 )); then
+    echo "  $label: ${current}ms (no baseline)"
+    return 0
   fi
-  exit 0
-fi
+
+  local limit=$(( baseline + baseline * THRESHOLD_PCT / 100 ))
+  local delta=$(( (current - baseline) * 100 / baseline ))
+
+  if (( current > limit )); then
+    echo "  $label: FAIL: ${current}ms exceeds limit of ${limit}ms (regression of ${delta}%)"
+    return 1
+  else
+    if (( delta >= 0 )); then
+      echo "  $label: PASS: ${current}ms  (+${delta}% vs ${baseline}ms baseline)"
+    else
+      echo "  $label: PASS: ${current}ms  (${delta}% vs ${baseline}ms baseline, improvement)"
+    fi
+    return 0
+  fi
+}
+
+echo "Results:"
+exit_code=0
+check_perf "Standard" "$median_std" "$base_std" || exit_code=1
+check_perf "Arena   " "$median_arena" "$base_arena" || exit_code=1
+
+exit $exit_code

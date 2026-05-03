@@ -1,34 +1,59 @@
 /* Control flow: if, while, for. */
 #include "eval_internal.h"
 
-short int is_while_finished(WhileExpr *while_expr, Environment *env) {
-  RuntimeVal *condition_val = evaluate(&(while_expr->condition->stmt), env);
-  if (condition_val->type != BOOLEAN_T) error("Condition of '#' must be a boolean.\n");
+static short int eval_boolean_condition(Expr *condition, Environment *env,
+                                        const char *error_message) {
+  RuntimeVal *condition_val = evaluate(&(condition->stmt), env);
+  if (condition_val->type != BOOLEAN_T) error(error_message);
   short int result = ((BooleanVal *)condition_val)->value;
   release(condition_val);
   return result;
 }
 
+static RuntimeVal *eval_stmt_block(Stmt **body, size_t body_count, Environment *env) {
+  RuntimeVal *last_evaluated = (RuntimeVal *)MK_NIL();
+
+  for (size_t i = 0; i < body_count; i++) {
+    RuntimeVal *tmp = evaluate(body[i], env);
+    if (i < body_count - 1) {
+      release(tmp);
+    } else {
+      RuntimeVal *old = last_evaluated;
+      last_evaluated = tmp;
+      release(old);
+    }
+    if (cf_signal == CF_BREAK || cf_signal == CF_CONTINUE || cf_signal == CF_RETURN) {
+      break;
+    }
+  }
+
+  return last_evaluated;
+}
+
+static short int handle_loop_control_flow(void) {
+  if (cf_signal == CF_BREAK) {
+    cf_signal = CF_NONE;
+    return 1;
+  }
+  if (cf_signal == CF_CONTINUE) {
+    cf_signal = CF_NONE;
+    return 0;
+  }
+  return cf_signal == CF_RETURN;
+}
+
 RuntimeVal *eval_while_expr(WhileExpr *while_expr, Environment *env) {
   Environment *while_env = create_environment(env, "while_env");
   RuntimeVal *lastEvaluated = (RuntimeVal *)MK_NIL();
-  while (is_while_finished(while_expr, while_env)) {
+
+  while (eval_boolean_condition(while_expr->condition, while_env,
+                                "Condition of '#' must be a boolean.\n")) {
     Environment *while_env_loop = create_environment(while_env, "while_env_loop");
-    for (size_t i = 0; i < while_expr->body_count; i++) {
-      RuntimeVal *tmp = evaluate(while_expr->body[i], while_env_loop);
-      if (i < while_expr->body_count - 1) {
-        release(tmp);
-      } else {
-        RuntimeVal *old = lastEvaluated;
-        lastEvaluated = tmp;
-        release(old);
-      }
-      if (cf_signal == CF_BREAK || cf_signal == CF_CONTINUE || cf_signal == CF_RETURN) break;
-    }
+    RuntimeVal *old = lastEvaluated;
+    lastEvaluated = eval_stmt_block(while_expr->body, while_expr->body_count, while_env_loop);
+    release(old);
     free_environment(while_env_loop);
-    if (cf_signal == CF_BREAK)    { cf_signal = CF_NONE; break; }
-    if (cf_signal == CF_CONTINUE) { cf_signal = CF_NONE; continue; }
-    if (cf_signal == CF_RETURN)   break;
+    if (handle_loop_control_flow()) break;
   }
   free_environment(while_env);
   return lastEvaluated;
@@ -36,22 +61,11 @@ RuntimeVal *eval_while_expr(WhileExpr *while_expr, Environment *env) {
 
 RuntimeVal *eval_if_expr(IfExpr *if_expr, Environment *env) {
   Environment *if_env = create_environment(env, "if_env");
-  RuntimeVal *condition_val = evaluate(&(if_expr->condition->stmt), if_env);
-  if (condition_val->type != BOOLEAN_T) error("Condition of '?' must be a boolean.\n");
-  short int cond = ((BooleanVal *)condition_val)->value;
-  release(condition_val);
+  short int cond = eval_boolean_condition(if_expr->condition, if_env,
+                                          "Condition of '?' must be a boolean.\n");
 
   if (cond) {
-    RuntimeVal *lastEvaluated = (RuntimeVal *)MK_NIL();
-    for (size_t i = 0; i < if_expr->body_count; i++) {
-      if (i < if_expr->body_count - 1) {
-        RuntimeVal *tmp = evaluate(if_expr->body[i], if_env);
-        release(tmp);
-      } else {
-        release(lastEvaluated);
-        lastEvaluated = evaluate(if_expr->body[i], if_env);
-      }
-    }
+    RuntimeVal *lastEvaluated = eval_stmt_block(if_expr->body, if_expr->body_count, if_env);
     free_environment(if_env);
     return lastEvaluated;
   }
@@ -62,16 +76,8 @@ RuntimeVal *eval_if_expr(IfExpr *if_expr, Environment *env) {
   }
   if (if_expr->else_body != NULL) {
     Environment *else_env = create_environment(env, "else_env");
-    RuntimeVal *lastEvaluated = (RuntimeVal *)MK_NIL();
-    for (size_t i = 0; i < if_expr->else_body_count; i++) {
-      if (i < if_expr->else_body_count - 1) {
-        RuntimeVal *tmp = evaluate(if_expr->else_body[i], else_env);
-        release(tmp);
-      } else {
-        release(lastEvaluated);
-        lastEvaluated = evaluate(if_expr->else_body[i], else_env);
-      }
-    }
+    RuntimeVal *lastEvaluated = eval_stmt_block(if_expr->else_body,
+                                                if_expr->else_body_count, else_env);
     free_environment(else_env);
     return lastEvaluated;
   }
@@ -86,29 +92,17 @@ RuntimeVal *eval_for_expr(ForExpr *for_expr, Environment *env) {
   release(init_val);
 
   while (1) {
-    RuntimeVal *condition_val = evaluate(&(for_expr->condition->stmt), for_env);
-    if (condition_val->type != BOOLEAN_T) error("Condition of '@' must be a boolean.\n");
-    short int cond = ((BooleanVal *)condition_val)->value;
-    release(condition_val);
+    short int cond = eval_boolean_condition(for_expr->condition, for_env,
+                                            "Condition of '@' must be a boolean.\n");
     if (!cond) break;
 
     Environment *for_env_loop = create_environment(for_env, "for_env_loop");
-    for (size_t i = 0; i < for_expr->body_count; i++) {
-      RuntimeVal *tmp = evaluate(for_expr->body[i], for_env_loop);
-      if (i < for_expr->body_count - 1) {
-        release(tmp);
-      } else {
-        RuntimeVal *old = lastEvaluated;
-        lastEvaluated = tmp;
-        release(old);
-      }
-      if (cf_signal == CF_BREAK || cf_signal == CF_CONTINUE || cf_signal == CF_RETURN) break;
-    }
+    RuntimeVal *old = lastEvaluated;
+    lastEvaluated = eval_stmt_block(for_expr->body, for_expr->body_count, for_env_loop);
+    release(old);
     free_environment(for_env_loop);
 
-    if (cf_signal == CF_BREAK)    { cf_signal = CF_NONE; break; }
-    if (cf_signal == CF_RETURN)   break;
-    if (cf_signal == CF_CONTINUE) { cf_signal = CF_NONE; }
+    if (handle_loop_control_flow()) break;
 
     RuntimeVal *inc_val = evaluate((Stmt *)for_expr->increment, for_env);
     release(inc_val);
@@ -122,19 +116,8 @@ RuntimeVal *eval_for_expr(ForExpr *for_expr, Environment *env) {
 RuntimeVal *eval_arena_block(ArenaBlockExpr *arena_expr, Environment *env) {
   size_t snapshot = zox_arena_get_offset();
   Environment *arena_env = create_environment(env, "arena_env");
-  RuntimeVal *lastEvaluated = (RuntimeVal *)MK_NIL();
-
-  for (size_t i = 0; i < arena_expr->body_count; i++) {
-    RuntimeVal *tmp = evaluate(arena_expr->body[i], arena_env);
-    if (i < arena_expr->body_count - 1) {
-      release(tmp);
-    } else {
-      RuntimeVal *old = lastEvaluated;
-      lastEvaluated = tmp;
-      release(old);
-    }
-    if (cf_signal == CF_BREAK || cf_signal == CF_CONTINUE || cf_signal == CF_RETURN) break;
-  }
+  RuntimeVal *lastEvaluated = eval_stmt_block(arena_expr->body, arena_expr->body_count,
+                                              arena_env);
 
   /* Promotion phase: deep clone into heap (force_heap) then reset arena. */
   if (cf_signal == CF_RETURN) {

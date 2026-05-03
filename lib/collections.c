@@ -69,28 +69,12 @@ static RuntimeVal *col_flatten(Environment *env, RuntimeVal **args, size_t argc)
 }
 
 static int rval_eq(RuntimeVal *a, RuntimeVal *b) {
-  int equal = 0;
-
-  if (a->type == b->type) {
-    switch (a->type) {
-      case NUMBER_T:
-        equal = ((NumberVal *)a)->value == ((NumberVal *)b)->value;
-        break;
-      case BOOLEAN_T:
-        equal = ((BooleanVal *)a)->value == ((BooleanVal *)b)->value;
-        break;
-      case STRING_T:
-        equal = strcmp(((StringVal *)a)->value, ((StringVal *)b)->value) == 0;
-        break;
-      case NIL_T:
-        equal = 1;
-        break;
-      default:
-        break;
-    }
-  }
-
-  return equal;
+  if (a->type != b->type) return 0;
+  if (a->type == NIL_T) return 1;
+  if (a->type == NUMBER_T) return ((NumberVal *)a)->value == ((NumberVal *)b)->value;
+  if (a->type == BOOLEAN_T) return ((BooleanVal *)a)->value == ((BooleanVal *)b)->value;
+  if (a->type == STRING_T) return strcmp(((StringVal *)a)->value, ((StringVal *)b)->value) == 0;
+  return 0;
 }
 
 static RuntimeVal *col_unique(Environment *env, RuntimeVal **args, size_t argc) {
@@ -142,6 +126,17 @@ static RuntimeVal *col_count(Environment *env, RuntimeVal **args, size_t argc) {
   return (RuntimeVal *)MK_NUMBER(n);
 }
 
+static void group_key_to_string(RuntimeVal *key_val, char *buf, size_t size) {
+  if (key_val->type == STRING_T)
+    snprintf(buf, size, "%s", ((StringVal *)key_val)->value);
+  else if (key_val->type == NUMBER_T)
+    snprintf(buf, size, "%g", ((NumberVal *)key_val)->value);
+  else if (key_val->type == BOOLEAN_T)
+    snprintf(buf, size, "%s", ((BooleanVal *)key_val)->value ? "true" : "false");
+  else
+    snprintf(buf, size, "nil");
+}
+
 static RuntimeVal *col_group_by(Environment *env, RuntimeVal **args, size_t argc) {
   if (argc != 2 || args[0]->type != LIST_T || args[1]->type != FUNCTION_T) {
     fprintf(stderr, "collections.group_by: expects (list, function)\n");
@@ -155,16 +150,8 @@ static RuntimeVal *col_group_by(Environment *env, RuntimeVal **args, size_t argc
     RuntimeVal *item   = src->items[i];
     RuntimeVal *fargs[] = {item};
     RuntimeVal *key_val = zox_call_function(f, env, fargs, 1);
-
     char key_buf[64];
-    if (key_val->type == STRING_T)
-      snprintf(key_buf, sizeof(key_buf), "%s", ((StringVal *)key_val)->value);
-    else if (key_val->type == NUMBER_T)
-      snprintf(key_buf, sizeof(key_buf), "%g", ((NumberVal *)key_val)->value);
-    else if (key_val->type == BOOLEAN_T)
-      snprintf(key_buf, sizeof(key_buf), "%s", ((BooleanVal *)key_val)->value ? "true" : "false");
-    else
-      snprintf(key_buf, sizeof(key_buf), "nil");
+    group_key_to_string(key_val, key_buf, sizeof(key_buf));
     release(key_val);
 
     RuntimeVal *bucket = dict_get_val(dict, key_buf);

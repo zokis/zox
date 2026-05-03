@@ -2,6 +2,7 @@
 
 static RuntimeVal *file_open(Environment *env, RuntimeVal **args,
                              size_t arg_count) {
+  (void)env;
   if (arg_count != 2 || args[0]->type != STRING_T ||
       args[1]->type != STRING_T) {
     error("open() expects two string arguments: path and mode");
@@ -24,10 +25,7 @@ static RuntimeVal *file_open(Environment *env, RuntimeVal **args,
 
 static RuntimeVal *file_close(Environment *env, RuntimeVal **args,
                               size_t arg_count) {
-  if (arg_count != 1) {
-    error("fClose() expect one argument of type file");
-  }
-
+  (void)env; (void)arg_count;
   FileHandle *handle = ((FileHandle *)args[0]);
 
   if (handle->fp == NULL) {
@@ -49,10 +47,7 @@ static RuntimeVal *file_close(Environment *env, RuntimeVal **args,
 
 static RuntimeVal *file_read(Environment *env, RuntimeVal **args,
                              size_t arg_count) {
-  if (arg_count != 1) {
-    error("fRead() expect one argument of type file");
-  }
-
+  (void)env; (void)arg_count;
   FileHandle *handle = (FileHandle *)args[0];
   if (strcmp(handle->mode, "r") != 0 && strcmp(handle->mode, "r+") != 0) {
     error("The file does not open for reading");
@@ -62,19 +57,20 @@ static RuntimeVal *file_read(Environment *env, RuntimeVal **args,
   long fsize = ftell(handle->fp);
   fseek(handle->fp, 0, SEEK_SET);
 
+  if (fsize < 0) return (RuntimeVal *)MK_STRING("");
+
   char *content = malloc_safe(fsize + 1, "file_read content");
   size_t bytes_read = fread(content, 1, fsize, handle->fp);
   content[bytes_read] = '\0';
 
-  return (RuntimeVal *)MK_STRING(content);
+  RuntimeVal *res = (RuntimeVal *)MK_STRING(content);
+  free_safe(content);
+  return res;
 }
 
 static RuntimeVal *file_readline(Environment *env, RuntimeVal **args,
                                  size_t arg_count) {
-  if (arg_count != 1) {
-    error("fReadLine() expect one argument of type file");
-  }
-
+  (void)env; (void)arg_count;
   FileHandle *handle = (FileHandle *)args[0];
   if (strcmp(handle->mode, "r") != 0 && strcmp(handle->mode, "r+") != 0) {
     error("The file does not open for reading");
@@ -95,21 +91,14 @@ static RuntimeVal *file_readline(Environment *env, RuntimeVal **args,
     read--;
   }
 
-  char *utf8_line = malloc_safe(read + 1, "utf8_line");
-  memcpy(utf8_line, line, read);
-  utf8_line[read] = '\0';
-
+  RuntimeVal *res = (RuntimeVal *)MK_STRING(line);
   free_safe(line);
-
-  return (RuntimeVal *)MK_STRING(utf8_line);
+  return res;
 }
 
 static RuntimeVal *file_write(Environment *env, RuntimeVal **args,
                               size_t arg_count) {
-  if (arg_count != 2) {
-    error("fWrite() expect two arguments: file and string");
-  }
-
+  (void)env; (void)arg_count;
   FileHandle *handle = (FileHandle *)args[0];
   if (strcmp(handle->mode, "w") != 0 && strcmp(handle->mode, "w+") != 0 &&
       strcmp(handle->mode, "a") != 0 && strcmp(handle->mode, "a+") != 0) {
@@ -124,10 +113,7 @@ static RuntimeVal *file_write(Environment *env, RuntimeVal **args,
 
 static RuntimeVal *file_seek(Environment *env, RuntimeVal **args,
                              size_t arg_count) {
-  if (arg_count != 2 || args[1]->type != NUMBER_T) {
-    error("fSeek() expect two arguments: file and number");
-  }
-
+  (void)env; (void)arg_count;
   FileHandle *handle = (FileHandle *)args[0];
   long offset = (long)((NumberVal *)args[1])->value;
 
@@ -138,9 +124,7 @@ static RuntimeVal *file_seek(Environment *env, RuntimeVal **args,
 
 static RuntimeVal *file_exists(Environment *env, RuntimeVal **args,
                                size_t arg_count) {
-  if (arg_count != 1 || args[0]->type != STRING_T) {
-    error("fExists() expect one arguments: path");
-  }
+  (void)env; (void)arg_count;
   char *path = ((StringVal *)args[0])->value;
   FILE *file = fopen(path, "r");
   if (file != NULL) {
@@ -152,9 +136,7 @@ static RuntimeVal *file_exists(Environment *env, RuntimeVal **args,
 
 static RuntimeVal *file_delete(Environment *env, RuntimeVal **args,
                                size_t arg_count) {
-  if (arg_count != 1 || args[0]->type != STRING_T) {
-    error("fDelete() expect one arguments: path");
-  }
+  (void)env; (void)arg_count;
   char *path = ((StringVal *)args[0])->value;
   if (remove(path) == 0) {
     return (RuntimeVal *)MK_BOOL(1);
@@ -164,11 +146,7 @@ static RuntimeVal *file_delete(Environment *env, RuntimeVal **args,
 
 static RuntimeVal *file_move(Environment *env, RuntimeVal **args,
                              size_t arg_count) {
-  if (arg_count != 2 || args[0]->type != STRING_T ||
-      args[1]->type != STRING_T) {
-    error("fCopy() expect two path arguments");
-  }
-
+  (void)env; (void)arg_count;
   char *path1 = ((StringVal *)args[0])->value;
   char *path2 = ((StringVal *)args[1])->value;
 
@@ -180,25 +158,17 @@ static RuntimeVal *file_move(Environment *env, RuntimeVal **args,
 
 static RuntimeVal *file_copy(Environment *env, RuntimeVal **args,
                              size_t arg_count) {
-  if (arg_count != 2 || args[0]->type != STRING_T ||
-      args[1]->type != STRING_T) {
-    error("fCopy() expect two path arguments");
-  }
-
+  (void)env; (void)arg_count;
   char *path1 = ((StringVal *)args[0])->value;
   char *path2 = ((StringVal *)args[1])->value;
 
   FILE *source, *destination;
-  char *buffer;
-  size_t bufferSize = 32 * 1024;
+  char buffer[64 * 1024];
   size_t bytesRead;
-
-  buffer = (char *)malloc_safe(bufferSize, "file_copy");
 
   source = fopen(path1, "rb");
   if (source == NULL) {
     error("Does not possible open source the file");
-    free_safe(buffer);
     return (RuntimeVal *)MK_BOOL(0);
   }
 
@@ -206,18 +176,15 @@ static RuntimeVal *file_copy(Environment *env, RuntimeVal **args,
   if (destination == NULL) {
     error("Does not possible open destination the file");
     fclose(source);
-    free_safe(buffer);
     return (RuntimeVal *)MK_BOOL(0);
   }
 
-  while ((bytesRead = fread(buffer, 1, bufferSize, source)) > 0) {
+  while ((bytesRead = fread(buffer, 1, sizeof(buffer), source)) > 0) {
     fwrite(buffer, 1, bytesRead, destination);
   }
 
   fclose(source);
   fclose(destination);
-
-  free_safe(buffer);
 
   return (RuntimeVal *)MK_BOOL(1);
 }
@@ -231,9 +198,9 @@ void init_file_module(Environment *env) {
   declare_owned(env, "fRead",
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, file_read));
   declare_owned(env, "fExists",
-              (RuntimeVal *)MK_NATIVE_FN(single_param, 1, file_delete));
-  declare_owned(env, "fDelete",
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, file_exists));
+  declare_owned(env, "fDelete",
+              (RuntimeVal *)MK_NATIVE_FN(single_param, 1, file_delete));
   declare_owned(env, "fReadLine",
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, file_readline));
   declare_owned(env, "fWrite",

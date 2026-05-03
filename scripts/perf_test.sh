@@ -11,7 +11,7 @@ BASELINE="tests/benchmarks/perf_baseline.txt"
 BENCH="tests/benchmarks/bench.zo"
 RUNS=10
 THRESHOLD_PCT=10   # fail if median is >10% slower than baseline
-ARENA_SIZE="4MB"
+ARENA_SIZE="16MB"
 
 cd "$(dirname "$0")/.."
 

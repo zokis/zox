@@ -194,18 +194,22 @@ RuntimeVal *create_native_fn(char **params, size_t param_count,
 }
 
 char *type_to_string(ValueType type) {
+  char *name = "unknown";
+
   switch (type) {
-    case NIL_T:      return "nil";
-    case NUMBER_T:   return "number";
-    case BOOLEAN_T:  return "boolean";
-    case STRING_T:   return "string";
-    case FUNCTION_T: return "function";
-    case LIST_T:     return "list";
-    case DICT_T:     return "dict";
-    case TYPE_T:     return "type_def";
-    case STRUCT_T:   return "struct";
-    default:         return "unknown";
+    case NIL_T:      name = "nil"; break;
+    case NUMBER_T:   name = "number"; break;
+    case BOOLEAN_T:  name = "boolean"; break;
+    case STRING_T:   name = "string"; break;
+    case FUNCTION_T: name = "function"; break;
+    case LIST_T:     name = "list"; break;
+    case DICT_T:     name = "dict"; break;
+    case TYPE_T:     name = "type_def"; break;
+    case STRUCT_T:   name = "struct"; break;
+    default:         break;
   }
+
+  return name;
 }
 
 TypeVal *MK_TYPE(const char *name, char **fields, size_t field_count) {

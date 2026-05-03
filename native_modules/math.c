@@ -153,6 +153,7 @@ static RuntimeVal *math_variance(Environment *env, RuntimeVal **args,
                                  size_t arg_count) {
   if (arg_count != 1 || args[0]->type != LIST_T) {
     error("variance() expects one list argument");
+    return (RuntimeVal *)MK_NIL();
   }
 
   ListVal *list = (ListVal *)args[0];

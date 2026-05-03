@@ -7,11 +7,11 @@
 #include "malloc_safe.h"
 #include "zox_alloc.h"
 
-static NilVal     _nil_singleton   = { .base = { NIL_T,     STATIC_REF } };
-static BooleanVal _true_singleton  = { .base = { BOOLEAN_T, STATIC_REF }, .value = 1 };
+static NilVal _nil_singleton = { .base = { NIL_T,     STATIC_REF } };
+static BooleanVal _true_singleton = { .base = { BOOLEAN_T, STATIC_REF }, .value = 1 };
 static BooleanVal _false_singleton = { .base = { BOOLEAN_T, STATIC_REF }, .value = 0 };
-static NumberVal  _num_singletons[256];
-static int        _singletons_initialized = 0;
+static NumberVal _num_singletons[256];
+static unsigned short int _singletons_initialized = 0;
 
 static void init_singletons(void) {
   if (_singletons_initialized) return;

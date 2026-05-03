@@ -266,219 +266,256 @@ static Stmt **deserialize_body(FILE *f, size_t *count_out) {
   return body;
 }
 
+typedef Stmt *(*NodeDeserializer)(FILE *f);
+
+static Stmt *des_program(FILE *f) {
+  size_t count;
+  Stmt **body = deserialize_body(f, &count);
+  return (Stmt *)create_program(body, count);
+}
+static Stmt *des_numeric(FILE *f) { return (Stmt *)create_numeric_literal(read_f64(f)); }
+static Stmt *des_string(FILE *f) {
+  char *s = read_str(f);
+  Stmt *n = (Stmt *)create_string_literal(s ? s : "");
+  free_safe(s);
+  return n;
+}
+static Stmt *des_boolean(FILE *f) { return (Stmt *)create_boolean_literal(read_u8(f)); }
+static Stmt *des_nil(FILE *f) { return (Stmt *)create_nil_literal(); }
+static Stmt *des_identifier(FILE *f) {
+  char *sym = read_str(f);
+  Stmt *n = (Stmt *)create_identifier(sym ? sym : "");
+  free_safe(sym);
+  return n;
+}
+static Stmt *des_unary(FILE *f) {
+  char *op = read_str(f);
+  Expr *expr = deserialize_expr(f);
+  Stmt *n = (Stmt *)create_unary_expr(op ? op : "", expr);
+  free_safe(op);
+  return n;
+}
+static Stmt *des_binary(FILE *f) {
+  Expr *left  = deserialize_expr(f);
+  Expr *right = deserialize_expr(f);
+  char *op    = read_str(f);
+  Stmt *n = (Stmt *)create_binary_expr(left, right, op ? op : "");
+  free_safe(op);
+  return n;
+}
+static Stmt *des_var_decl(FILE *f) {
+  char *name = read_str(f);
+  Expr *val  = deserialize_expr(f);
+  Stmt *n = (Stmt *)create_var_expr(name ? name : "", val);
+  free_safe(name);
+  return n;
+}
+static Stmt *des_assign_var(FILE *f) {
+  char *name = read_str(f);
+  Expr *val  = deserialize_expr(f);
+  Stmt *n = (Stmt *)assign_var_expr(name ? name : "", val);
+  free_safe(name);
+  return n;
+}
+static Stmt *des_assign_list_var(FILE *f) {
+  char *name = read_str(f);
+  Expr *idx  = deserialize_expr(f);
+  Expr *val  = deserialize_expr(f);
+  Stmt *n = (Stmt *)assign_list_expr(name ? name : "", idx, val);
+  free_safe(name);
+  return n;
+}
+static Stmt *des_assign_dict_var(FILE *f) {
+  char *name = read_str(f);
+  Expr *key  = deserialize_expr(f);
+  Expr *val  = deserialize_expr(f);
+  Stmt *n = (Stmt *)assign_dict_expr(name ? name : "", key, val);
+  free_safe(name);
+  return n;
+}
+static Stmt *des_assign_list_expr(FILE *f) {
+  Expr *target = deserialize_expr(f);
+  Expr *idx    = deserialize_expr(f);
+  Expr *val    = deserialize_expr(f);
+  return (Stmt *)assign_list_expr_node(target, idx, val);
+}
+static Stmt *des_assign_dict_expr(FILE *f) {
+  Expr *target = deserialize_expr(f);
+  Expr *key    = deserialize_expr(f);
+  Expr *val    = deserialize_expr(f);
+  return (Stmt *)assign_dict_expr_node(target, key, val);
+}
+static Stmt *des_if(FILE *f) {
+  Expr   *cond            = deserialize_expr(f);
+  size_t  body_count;
+  Stmt  **body            = deserialize_body(f, &body_count);
+  size_t  else_body_count;
+  Stmt  **else_body       = deserialize_body(f, &else_body_count);
+  IfExpr *else_if         = (IfExpr *)deserialize_expr(f);
+  return (Stmt *)create_if(cond, body, body_count, else_if, else_body, else_body_count);
+}
+static Stmt *des_while(FILE *f) {
+  Expr  *cond = deserialize_expr(f);
+  size_t body_count;
+  Stmt **body = deserialize_body(f, &body_count);
+  return (Stmt *)create_while(cond, body, body_count);
+}
+static Stmt *des_for(FILE *f) {
+  Expr  *init = deserialize_expr(f);
+  Expr  *cond = deserialize_expr(f);
+  Expr  *incr = deserialize_expr(f);
+  size_t body_count;
+  Stmt **body = deserialize_body(f, &body_count);
+  return (Stmt *)create_for_expr(init, cond, incr, body, body_count);
+}
+static Stmt *des_func_def(FILE *f) {
+  char  *name       = read_str(f);
+  uint32_t pc       = read_u32(f);
+  char **params     = pc ? malloc_safe(sizeof(char *) * pc, "params") : NULL;
+  for (uint32_t i = 0; i < pc; i++) params[i] = read_str(f);
+  size_t body_count;
+  Stmt **body = deserialize_body(f, &body_count);
+  return (Stmt *)create_func_def(name, params, pc, body, body_count);
+}
+static Stmt *des_call(FILE *f) {
+  Expr    *callee   = deserialize_expr(f);
+  uint32_t ac       = read_u32(f);
+  Expr   **args     = ac ? malloc_safe(sizeof(Expr *) * ac, "call args") : NULL;
+  for (uint32_t i = 0; i < ac; i++) args[i] = deserialize_expr(f);
+  return (Stmt *)create_call_expr(callee, args, ac);
+}
+static Stmt *des_list_lit(FILE *f) {
+  uint32_t ec = read_u32(f);
+  Expr **elems = ec ? malloc_safe(sizeof(Expr *) * ec, "list elems") : NULL;
+  for (uint32_t i = 0; i < ec; i++) elems[i] = deserialize_expr(f);
+  return (Stmt *)create_list_literal(elems, ec);
+}
+static Stmt *des_dict_lit(FILE *f) {
+  uint32_t ec   = read_u32(f);
+  Expr **keys   = ec ? malloc_safe(sizeof(Expr *) * ec, "dict keys")   : NULL;
+  Expr **values = ec ? malloc_safe(sizeof(Expr *) * ec, "dict values") : NULL;
+  for (uint32_t i = 0; i < ec; i++) {
+    keys[i]   = deserialize_expr(f);
+    values[i] = deserialize_expr(f);
+  }
+  return (Stmt *)create_dict_literal(keys, values, ec);
+}
+static Stmt *des_list_index(FILE *f) {
+  Expr *list  = deserialize_expr(f);
+  Expr *start = deserialize_expr(f);
+  Expr *end   = deserialize_expr(f);
+  int   is_sl = read_u8(f);
+  return (Stmt *)create_list_index(list, start, end, is_sl);
+}
+static Stmt *des_dict_key(FILE *f) {
+  Expr *dict = deserialize_expr(f);
+  Expr *key  = deserialize_expr(f);
+  return (Stmt *)create_dict_key(dict, key);
+}
+static Stmt *des_import(FILE *f) {
+  char *module = read_str(f);
+  uint32_t ic  = read_u32(f);
+  ImportStmt *imp = malloc_safe(sizeof(ImportStmt), "ImportStmt");
+  imp->base.kind    = ImportAst;
+  imp->module_name  = module;
+  imp->import_count = ic;
+  imp->imports      = ic ? malloc_safe(sizeof(ImportItem *) * ic, "imports") : NULL;
+  for (uint32_t i = 0; i < ic; i++) {
+    ImportItem *item = malloc_safe(sizeof(ImportItem), "ImportItem");
+    item->name  = read_str(f);
+    item->alias = read_str(f);
+    imp->imports[i] = item;
+  }
+  return (Stmt *)imp;
+}
+static Stmt *des_break(FILE *f)    { (void)f; return (Stmt *)create_break(); }
+static Stmt *des_continue(FILE *f) { (void)f; return (Stmt *)create_continue(); }
+static Stmt *des_return(FILE *f)   { return (Stmt *)create_return(deserialize_expr(f)); }
+static Stmt *des_return_success(FILE *f) { return (Stmt *)create_return_success(deserialize_expr(f)); }
+static Stmt *des_return_error(FILE *f) { return (Stmt *)create_return_error(deserialize_expr(f)); }
+static Stmt *des_arena_block(FILE *f) {
+  size_t count;
+  Stmt **body = deserialize_body(f, &count);
+  return (Stmt *)create_arena_block(body, count);
+}
+static Stmt *des_unwrap(FILE *f) { return (Stmt *)create_unwrap_expr(deserialize_expr(f)); }
+static Stmt *des_match(FILE *f) {
+  Expr *target = deserialize_expr(f);
+  uint32_t count = read_u32(f);
+  MatchCase **cases = malloc_safe(sizeof(MatchCase *) * count, "deserialize_match cases");
+  for (uint32_t i = 0; i < count; i++) {
+    Expr *cond = deserialize_expr(f);
+    Expr *branch = deserialize_expr(f);
+    cases[i] = create_match_case(cond, branch);
+  }
+  return (Stmt *)create_match_expr(target, cases, (size_t)count);
+}
+static Stmt *des_type_decl(FILE *f) {
+  char *name = read_str(f);
+  uint32_t count = read_u32(f);
+  char **fields = malloc_safe(sizeof(char *) * count, "deserialize_type fields");
+  for (uint32_t i = 0; i < count; i++) {
+    fields[i] = read_str(f);
+  }
+  return (Stmt *)create_type_declaration(name, fields, (size_t)count);
+}
+static Stmt *des_member_expr(FILE *f) {
+  Expr *obj = deserialize_expr(f);
+  char *member = read_str(f);
+  return (Stmt *)create_member_expr(obj, member);
+}
+static Stmt *des_assign_member(FILE *f) {
+  Expr *obj = deserialize_expr(f);
+  char *member = read_str(f);
+  Expr *val = deserialize_expr(f);
+  return (Stmt *)create_assign_member_expr(obj, member, val);
+}
+
+static const NodeDeserializer deserializers[] = {
+  [ProgramAst] = des_program,
+  [NumericLiteralAst] = des_numeric,
+  [StringLiteralAst] = des_string,
+  [BooleanLiteralAst] = des_boolean,
+  [NilAst] = des_nil,
+  [IdentifierAst] = des_identifier,
+  [UnaryExprAst] = des_unary,
+  [BinaryExprAst] = des_binary,
+  [VarDeclarationAst] = des_var_decl,
+  [AssignVarAst] = des_assign_var,
+  [AssignListVarAst] = des_assign_list_var,
+  [AssignDictVarAst] = des_assign_dict_var,
+  [AssignListExprAst] = des_assign_list_expr,
+  [AssignDictExprAst] = des_assign_dict_expr,
+  [IfAst] = des_if,
+  [WhileAst] = des_while,
+  [ForAst] = des_for,
+  [FuncDefAst] = des_func_def,
+  [CallExprAst] = des_call,
+  [ListLiteralAst] = des_list_lit,
+  [DictLiteralAst] = des_dict_lit,
+  [ListIndexAst] = des_list_index,
+  [DictKeyAst] = des_dict_key,
+  [ImportAst] = des_import,
+  [BreakAst] = des_break,
+  [ContinueAst] = des_continue,
+  [ReturnAst] = des_return,
+  [ReturnSuccessAst] = des_return_success,
+  [ReturnErrorAst] = des_return_error,
+  [ArenaBlockAst] = des_arena_block,
+  [UnwrapAst] = des_unwrap,
+  [MatchAst] = des_match,
+  [TypeDeclarationAst] = des_type_decl,
+  [MemberExprAst] = des_member_expr,
+  [AssignMemberExprAst] = des_assign_member
+};
+
 static Stmt *deserialize_node(FILE *f) {
   uint8_t kind_byte = read_u8(f);
   if (kind_byte == 255) return NULL;
   NodeType kind = (NodeType)kind_byte;
-
-  switch (kind) {
-  case ProgramAst: {
-    size_t count;
-    Stmt **body = deserialize_body(f, &count);
-    return (Stmt *)create_program(body, count);
-  }
-  case NumericLiteralAst:
-    return (Stmt *)create_numeric_literal(read_f64(f));
-  case StringLiteralAst: {
-    char *s = read_str(f);
-    Stmt *n = (Stmt *)create_string_literal(s ? s : "");
-    free_safe(s);
-    return n;
-  }
-  case BooleanLiteralAst:
-    return (Stmt *)create_boolean_literal(read_u8(f));
-  case NilAst:
-    return (Stmt *)create_nil_literal();
-  case IdentifierAst: {
-    char *sym = read_str(f);
-    Stmt *n = (Stmt *)create_identifier(sym ? sym : "");
-    free_safe(sym);
-    return n;
-  }
-  case UnaryExprAst: {
-    char *op = read_str(f);
-    Expr *expr = deserialize_expr(f);
-    Stmt *n = (Stmt *)create_unary_expr(op ? op : "", expr);
-    free_safe(op);
-    return n;
-  }
-  case BinaryExprAst: {
-    Expr *left  = deserialize_expr(f);
-    Expr *right = deserialize_expr(f);
-    char *op    = read_str(f);
-    Stmt *n = (Stmt *)create_binary_expr(left, right, op ? op : "");
-    free_safe(op);
-    return n;
-  }
-  case VarDeclarationAst: {
-    char *name = read_str(f);
-    Expr *val  = deserialize_expr(f);
-    Stmt *n = (Stmt *)create_var_expr(name ? name : "", val);
-    free_safe(name);
-    return n;
-  }
-  case AssignVarAst: {
-    char *name = read_str(f);
-    Expr *val  = deserialize_expr(f);
-    Stmt *n = (Stmt *)assign_var_expr(name ? name : "", val);
-    free_safe(name);
-    return n;
-  }
-  case AssignListVarAst: {
-    char *name = read_str(f);
-    Expr *idx  = deserialize_expr(f);
-    Expr *val  = deserialize_expr(f);
-    Stmt *n = (Stmt *)assign_list_expr(name ? name : "", idx, val);
-    free_safe(name);
-    return n;
-  }
-  case AssignDictVarAst: {
-    char *name = read_str(f);
-    Expr *key  = deserialize_expr(f);
-    Expr *val  = deserialize_expr(f);
-    Stmt *n = (Stmt *)assign_dict_expr(name ? name : "", key, val);
-    free_safe(name);
-    return n;
-  }
-  case AssignListExprAst: {
-    Expr *target = deserialize_expr(f);
-    Expr *idx    = deserialize_expr(f);
-    Expr *val    = deserialize_expr(f);
-    return (Stmt *)assign_list_expr_node(target, idx, val);
-  }
-  case AssignDictExprAst: {
-    Expr *target = deserialize_expr(f);
-    Expr *key    = deserialize_expr(f);
-    Expr *val    = deserialize_expr(f);
-    return (Stmt *)assign_dict_expr_node(target, key, val);
-  }
-  case IfAst: {
-    Expr   *cond            = deserialize_expr(f);
-    size_t  body_count;
-    Stmt  **body            = deserialize_body(f, &body_count);
-    size_t  else_body_count;
-    Stmt  **else_body       = deserialize_body(f, &else_body_count);
-    IfExpr *else_if         = (IfExpr *)deserialize_expr(f);
-    return (Stmt *)create_if(cond, body, body_count, else_if, else_body, else_body_count);
-  }
-  case WhileAst: {
-    Expr  *cond = deserialize_expr(f);
-    size_t body_count;
-    Stmt **body = deserialize_body(f, &body_count);
-    return (Stmt *)create_while(cond, body, body_count);
-  }
-  case ForAst: {
-    Expr  *init = deserialize_expr(f);
-    Expr  *cond = deserialize_expr(f);
-    Expr  *incr = deserialize_expr(f);
-    size_t body_count;
-    Stmt **body = deserialize_body(f, &body_count);
-    return (Stmt *)create_for_expr(init, cond, incr, body, body_count);
-  }
-  case FuncDefAst: {
-    char  *name       = read_str(f);
-    uint32_t pc       = read_u32(f);
-    char **params     = pc ? malloc_safe(sizeof(char *) * pc, "params") : NULL;
-    for (uint32_t i = 0; i < pc; i++) params[i] = read_str(f);
-    size_t body_count;
-    Stmt **body = deserialize_body(f, &body_count);
-    return (Stmt *)create_func_def(name, params, pc, body, body_count);
-  }
-  case CallExprAst: {
-    Expr    *callee   = deserialize_expr(f);
-    uint32_t ac       = read_u32(f);
-    Expr   **args     = ac ? malloc_safe(sizeof(Expr *) * ac, "call args") : NULL;
-    for (uint32_t i = 0; i < ac; i++) args[i] = deserialize_expr(f);
-    return (Stmt *)create_call_expr(callee, args, ac);
-  }
-  case ListLiteralAst: {
-    uint32_t ec = read_u32(f);
-    Expr **elems = ec ? malloc_safe(sizeof(Expr *) * ec, "list elems") : NULL;
-    for (uint32_t i = 0; i < ec; i++) elems[i] = deserialize_expr(f);
-    return (Stmt *)create_list_literal(elems, ec);
-  }
-  case DictLiteralAst: {
-    uint32_t ec   = read_u32(f);
-    Expr **keys   = ec ? malloc_safe(sizeof(Expr *) * ec, "dict keys")   : NULL;
-    Expr **values = ec ? malloc_safe(sizeof(Expr *) * ec, "dict values") : NULL;
-    for (uint32_t i = 0; i < ec; i++) {
-      keys[i]   = deserialize_expr(f);
-      values[i] = deserialize_expr(f);
-    }
-    return (Stmt *)create_dict_literal(keys, values, ec);
-  }
-  case ListIndexAst: {
-    Expr *list  = deserialize_expr(f);
-    Expr *start = deserialize_expr(f);
-    Expr *end   = deserialize_expr(f);
-    int   is_sl = read_u8(f);
-    return (Stmt *)create_list_index(list, start, end, is_sl);
-  }
-  case DictKeyAst: {
-    Expr *dict = deserialize_expr(f);
-    Expr *key  = deserialize_expr(f);
-    return (Stmt *)create_dict_key(dict, key);
-  }
-  case ImportAst: {
-    char *module = read_str(f);
-    uint32_t ic  = read_u32(f);
-    ImportStmt *imp = malloc_safe(sizeof(ImportStmt), "ImportStmt");
-    imp->base.kind    = ImportAst;
-    imp->module_name  = module;
-    imp->import_count = ic;
-    imp->imports      = ic ? malloc_safe(sizeof(ImportItem *) * ic, "imports") : NULL;
-    for (uint32_t i = 0; i < ic; i++) {
-      ImportItem *item = malloc_safe(sizeof(ImportItem), "ImportItem");
-      item->name  = read_str(f);
-      item->alias = read_str(f);
-      imp->imports[i] = item;
-    }
-    return (Stmt *)imp;
-  }
-  case BreakAst:    return (Stmt *)create_break();
-  case ContinueAst: return (Stmt *)create_continue();
-  case ReturnAst:   return (Stmt *)create_return(deserialize_expr(f));
-  case ReturnSuccessAst: return (Stmt *)create_return_success(deserialize_expr(f));
-  case ReturnErrorAst:   return (Stmt *)create_return_error(deserialize_expr(f));
-  case ArenaBlockAst: {
-    size_t count;
-    Stmt **body = deserialize_body(f, &count);
-    return (Stmt *)create_arena_block(body, count);
-  }
-  case UnwrapAst:   return (Stmt *)create_unwrap_expr(deserialize_expr(f));
-  case MatchAst: {
-    Expr *target = deserialize_expr(f);
-    uint32_t count = read_u32(f);
-    MatchCase **cases = malloc_safe(sizeof(MatchCase *) * count, "deserialize_match cases");
-    for (uint32_t i = 0; i < count; i++) {
-      Expr *cond = deserialize_expr(f);
-      Expr *branch = deserialize_expr(f);
-      cases[i] = create_match_case(cond, branch);
-    }
-    return (Stmt *)create_match_expr(target, cases, (size_t)count);
-  }
-  case TypeDeclarationAst: {
-    char *name = read_str(f);
-    uint32_t count = read_u32(f);
-    char **fields = malloc_safe(sizeof(char *) * count, "deserialize_type fields");
-    for (uint32_t i = 0; i < count; i++) {
-      fields[i] = read_str(f);
-    }
-    return (Stmt *)create_type_declaration(name, fields, (size_t)count);
-  }
-  case MemberExprAst: {
-    Expr *obj = deserialize_expr(f);
-    char *member = read_str(f);
-    return (Stmt *)create_member_expr(obj, member);
-  }
-  case AssignMemberExprAst: {
-    Expr *obj = deserialize_expr(f);
-    char *member = read_str(f);
-    Expr *val = deserialize_expr(f);
-    return (Stmt *)create_assign_member_expr(obj, member, val);
-  }
-  default:          return NULL;
-  }
+  if (kind >= (sizeof(deserializers) / sizeof(deserializers[0]))) return NULL;
+  NodeDeserializer des = deserializers[kind];
+  return des ? des(f) : NULL;
 }
 
 #define ZOXC_MAGIC   "ZOXC"

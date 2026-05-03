@@ -15,6 +15,25 @@
 
 extern char *runtime_value_to_string(RuntimeVal *val);
 
+static char *builtin_key_arg(RuntimeVal *arg) {
+  char *key = runtime_value_to_string(arg);
+  if (!key) error("Dict key must be convertible to string.");
+  return key;
+}
+
+static RuntimeVal *result_dict_with_key(const char *key, RuntimeVal *value) {
+  DictVal *res = MK_DICT(1);
+  dict_set_val(res, key, value);
+  return (RuntimeVal *)res;
+}
+
+static RuntimeVal *result_lookup_or_default(RuntimeVal *arg, const char *key,
+                                            RuntimeVal *default_val) {
+  if (arg->type != DICT_T) return default_val;
+  RuntimeVal *val = dict_get_val((DictVal *)arg, key);
+  return val ? val : default_val;
+}
+
 RuntimeVal *builtin_sum(Environment *env, RuntimeVal **args, size_t arg_count) {
   if (arg_count != 1 || args[0]->type != LIST_T)
     error("The 'sum' function expects exactly one list argument.");
@@ -78,8 +97,7 @@ RuntimeVal *builtin_has_key(Environment *env, RuntimeVal **args, size_t arg_coun
   if (arg_count != 2 || args[0]->type != DICT_T)
     error("The 'has_key' function expects a dictionary and a string key.");
 
-  char *key = runtime_value_to_string(args[1]);
-  if (!key) error("Dict key must be convertible to string.");
+  char *key = builtin_key_arg(args[1]);
   RuntimeVal *result = (RuntimeVal *)MK_BOOL(dict_find_entry((DictVal *)args[0], key) != NULL);
   free_safe(key);
   return result;
@@ -89,8 +107,7 @@ RuntimeVal *builtin_get(Environment *env, RuntimeVal **args, size_t arg_count) {
   if (arg_count != 2 || args[0]->type != DICT_T)
     error("The 'get' function expects a dictionary and a string key.");
 
-  char *key = runtime_value_to_string(args[1]);
-  if (!key) error("Dict key must be convertible to string.");
+  char *key = builtin_key_arg(args[1]);
   RuntimeVal *val = dict_get_val((DictVal *)args[0], key);
   free_safe(key);
   return val ? val : (RuntimeVal *)MK_NIL();
@@ -100,8 +117,7 @@ RuntimeVal *builtin_setdefault(Environment *env, RuntimeVal **args, size_t arg_c
   if (arg_count != 3 || args[0]->type != DICT_T)
     error("The 'setdefault' function expects a dictionary, a key, and a default value.");
 
-  char *key = runtime_value_to_string(args[1]);
-  if (!key) error("Dict key must be convertible to string.");
+  char *key = builtin_key_arg(args[1]);
   DictVal *dict = (DictVal *)args[0];
   RuntimeVal *val = dict_get_val(dict, key);
   if (!val) {
@@ -212,16 +228,12 @@ RuntimeVal *builtin_print_value(Environment *env, RuntimeVal **args, size_t arg_
 
 RuntimeVal *builtin_ok(Environment *env, RuntimeVal **args, size_t arg_count) {
   if (arg_count != 1) error("ok() expects exactly one argument.");
-  DictVal *res = MK_DICT(1);
-  dict_set_val(res, "ok", args[0]);
-  return (RuntimeVal *)res;
+  return result_dict_with_key("ok", args[0]);
 }
 
 RuntimeVal *builtin_err(Environment *env, RuntimeVal **args, size_t arg_count) {
   if (arg_count != 1) error("err() expects exactly one argument.");
-  DictVal *res = MK_DICT(1);
-  dict_set_val(res, "err", args[0]);
-  return (RuntimeVal *)res;
+  return result_dict_with_key("err", args[0]);
 }
 
 RuntimeVal *builtin_is_ok(Environment *env, RuntimeVal **args, size_t arg_count) {
@@ -235,15 +247,13 @@ RuntimeVal *builtin_is_err(Environment *env, RuntimeVal **args, size_t arg_count
 }
 
 RuntimeVal *builtin_get_ok(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1 || args[0]->type != DICT_T) return (RuntimeVal *)MK_NIL();
-  RuntimeVal *val = dict_get_val((DictVal *)args[0], "ok");
-  return val ? val : (RuntimeVal *)MK_NIL();
+  if (arg_count != 1) return (RuntimeVal *)MK_NIL();
+  return result_lookup_or_default(args[0], "ok", (RuntimeVal *)MK_NIL());
 }
 
 RuntimeVal *builtin_get_err(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1 || args[0]->type != DICT_T) return (RuntimeVal *)MK_NIL();
-  RuntimeVal *val = dict_get_val((DictVal *)args[0], "err");
-  return val ? val : (RuntimeVal *)MK_NIL();
+  if (arg_count != 1) return (RuntimeVal *)MK_NIL();
+  return result_lookup_or_default(args[0], "err", (RuntimeVal *)MK_NIL());
 }
 
 void register_builtins(Environment *env) {

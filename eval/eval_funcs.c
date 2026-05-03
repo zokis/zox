@@ -115,6 +115,59 @@ RuntimeVal *eval_type_declaration(TypeDeclaration *type_decl, Environment *env) 
   return (RuntimeVal *)tv;
 }
 
+static RuntimeVal **eval_call_args(CallExpr *call_expr, Environment *env) {
+  RuntimeVal **args = malloc_safe(sizeof(RuntimeVal *) * call_expr->arg_count,
+                                  "eval_call_expr args");
+  for (size_t i = 0; i < call_expr->arg_count; i++) {
+    args[i] = evaluate(&(call_expr->arguments[i]->stmt), env);
+  }
+  return args;
+}
+
+static void release_call_args(RuntimeVal **args, size_t arg_count) {
+  for (size_t i = 0; i < arg_count; i++) {
+    release(args[i]);
+  }
+  free_safe(args);
+}
+
+static RuntimeVal *eval_function_body(FunctionVal *func, Environment *func_env) {
+  RuntimeVal *lastEvaluated = (RuntimeVal *)MK_NIL();
+
+  for (size_t i = 0; i < func->body_count; i++) {
+    RuntimeVal *tmp = evaluate(func->body[i], func_env);
+    if (i < func->body_count - 1) {
+      release(tmp);
+    } else {
+      RuntimeVal *old = lastEvaluated;
+      lastEvaluated = tmp;
+      release(old);
+    }
+    if (cf_signal == CF_RETURN) {
+      RuntimeVal *old = lastEvaluated;
+      lastEvaluated = cf_take_return_val();
+      release(old);
+      cf_signal = CF_NONE;
+      break;
+    }
+    if (cf_signal != CF_NONE) {
+      break;
+    }
+  }
+
+  return lastEvaluated;
+}
+
+static void bind_call_args(Environment *func_env, char **params,
+                           RuntimeVal **args, size_t arg_count, int retain_args) {
+  for (size_t i = 0; i < arg_count; i++) {
+    declare_var(func_env, params[i], args[i]);
+    if (!retain_args) {
+      release(args[i]);
+    }
+  }
+}
+
 RuntimeVal *eval_call_expr(CallExpr *call_expr, Environment *env) {
   RuntimeVal *callee = evaluate(&(call_expr->callee->stmt), env);
   
@@ -144,46 +197,20 @@ RuntimeVal *eval_call_expr(CallExpr *call_expr, Environment *env) {
   }
 
   if (func->builtin_func != NULL) {
-    RuntimeVal **args = malloc_safe(sizeof(RuntimeVal *) * call_expr->arg_count,
-                                    "eval_call_expr args");
-    for (size_t i = 0; i < call_expr->arg_count; i++) {
-      args[i] = evaluate(&(call_expr->arguments[i]->stmt), env);
-    }
+    RuntimeVal **args = eval_call_args(call_expr, env);
     RuntimeVal *result = func->builtin_func(env, args, call_expr->arg_count);
-    for (size_t i = 0; i < call_expr->arg_count; i++) {
-      release(args[i]);
-    }
     release(callee);
-    free_safe(args);
+    release_call_args(args, call_expr->arg_count);
     return result;
   }
 
   Environment *func_env = create_environment(func->env, "func_env");
-  for (size_t i = 0; i < func->param_count; i++) {
-    RuntimeVal *arg_val = evaluate(&(call_expr->arguments[i]->stmt), env);
-    declare_var(func_env, func->params[i], arg_val);
-    release(arg_val);
-  }
+  RuntimeVal **args = eval_call_args(call_expr, env);
+  bind_call_args(func_env, func->params, args, func->param_count, 0);
+  free_safe(args);
   release(callee);
 
-  RuntimeVal *lastEvaluated = (RuntimeVal *)MK_NIL();
-  for (size_t i = 0; i < func->body_count; i++) {
-    RuntimeVal *tmp = evaluate(func->body[i], func_env);
-    if (i < func->body_count - 1) {
-      release(tmp);
-    } else {
-      RuntimeVal *old = lastEvaluated;
-      lastEvaluated = tmp;
-      release(old);
-    }
-    if (cf_signal == CF_RETURN) {
-      RuntimeVal *old = lastEvaluated;
-      lastEvaluated = cf_take_return_val();
-      release(old);
-      cf_signal = CF_NONE;
-      break;
-    }
-  }
+  RuntimeVal *lastEvaluated = eval_function_body(func, func_env);
   free_environment(func_env);
   return lastEvaluated;
 }
@@ -203,27 +230,8 @@ RuntimeVal *zox_call_function(FunctionVal *func, Environment *env,
     return func->builtin_func(env, args, arg_count);
 
   Environment *func_env = create_environment(func->env, "func_env");
-  for (size_t i = 0; i < arg_count; i++) {
-    declare_var(func_env, func->params[i], args[i]);
-  }
-
-  RuntimeVal *result = (RuntimeVal *)MK_NIL();
-  for (size_t i = 0; i < func->body_count; i++) {
-    RuntimeVal *tmp = evaluate(func->body[i], func_env);
-    if (i < func->body_count - 1) {
-      release(tmp);
-    } else {
-      release(result);
-      result = tmp;
-    }
-    if (cf_signal == CF_RETURN) {
-      release(result);
-      result = cf_take_return_val();
-      cf_signal = CF_NONE;
-      break;
-    }
-    if (cf_signal != CF_NONE) break;
-  }
+  bind_call_args(func_env, func->params, args, arg_count, 1);
+  RuntimeVal *result = eval_function_body(func, func_env);
   free_environment(func_env);
   return result;
 }

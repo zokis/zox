@@ -37,24 +37,42 @@ unsigned short int compare_dicts(DictVal *a, DictVal *b) {
 }
 
 unsigned short int compare_runtimeval(RuntimeVal *a, RuntimeVal *b) {
-  if (a->type != b->type) return 0;
+  unsigned short int equal = 0;
+
+  if (a->type != b->type) {
+    return 0;
+  }
+
   switch (a->type) {
-    case NUMBER_T:  return ((NumberVal *)a)->value == ((NumberVal *)b)->value;
-    case BOOLEAN_T: return ((BooleanVal *)a)->value == ((BooleanVal *)b)->value;
-    case STRING_T:  return strcmp(((StringVal *)a)->value, ((StringVal *)b)->value) == 0;
-    case LIST_T:    return compare_lists((ListVal *)a, (ListVal *)b);
-    case DICT_T:    return compare_dicts((DictVal *)a, (DictVal *)b);
+    case NUMBER_T:
+      equal = ((NumberVal *)a)->value == ((NumberVal *)b)->value;
+      break;
+    case BOOLEAN_T:
+      equal = ((BooleanVal *)a)->value == ((BooleanVal *)b)->value;
+      break;
+    case STRING_T:
+      equal = strcmp(((StringVal *)a)->value, ((StringVal *)b)->value) == 0;
+      break;
+    case LIST_T:
+      equal = compare_lists((ListVal *)a, (ListVal *)b);
+      break;
+    case DICT_T:
+      equal = compare_dicts((DictVal *)a, (DictVal *)b);
+      break;
     case STRUCT_T: {
       StructVal *sa = (StructVal *)a;
       StructVal *sb = (StructVal *)b;
-      if (sa->type_def != sb->type_def) return 0;
-      for (size_t i = 0; i < sa->type_def->field_count; i++) {
-        if (!compare_runtimeval(sa->values[i], sb->values[i])) return 0;
+      equal = sa->type_def == sb->type_def;
+      for (size_t i = 0; equal && i < sa->type_def->field_count; i++) {
+        equal = compare_runtimeval(sa->values[i], sb->values[i]);
       }
-      return 1;
+      break;
     }
+    default:
+      break;
   }
-  return 0;
+
+  return equal;
 }
 
 ListVal *dict_to_keys(DictVal *dict) {
@@ -150,49 +168,53 @@ void parser_error(const char *message, Token *token, TokenType type) {
 }
 
 const char *token_type_to_string(TokenType type) {
+  const char *name = "Unknown Token";
+
   switch (type) {
-    case NumberTk:           return "Number";
-    case IdentifierTk:       return "Identifier";
-    case LetTk:              return "'let'";
-    case BinaryOperatorTk:   return "Binary Operator";
-    case BooleanLiteralTk:   return "Boolean";
-    case NilTk:              return "'nil'";
-    case EqualsTk:           return "'='";
-    case OpenParenTk:        return "'('";
-    case CloseParenTk:       return "')'";
-    case SemiColonTk:        return "';'";
-    case IfTk:               return "'?'";
-    case ElseTk:             return "':'";
-    case OpenBraceTk:        return "'{'";
-    case CloseBraceTk:       return "'}'";
-    case WhileTk:            return "'#'";
-    case ForTk:              return "'@'";
-    case StringTk:           return "String";
-    case CommaTk:            return "','";
-    case FunctionTk:         return "'$'";
-    case OpenBracketTk:      return "'['";
-    case CloseBracketTk:     return "']'";
-    case ArrowTk:            return "'->'";
-    case OpenTableTk:        return "'|>'";
-    case CloseTableTk:       return "'<|'";
-    case ImportTk:           return "'~>'";
-    case IdentifierImportTk: return "Module Identifier";
-    case AsTk:               return "'as'";
-    case DotTk:              return "'.'";
-    case UnaryOperatorTk:    return "Unary Operator";
-    case EOFTk:              return "EOF";
-    case BreakTk:            return "'~!!'";
-    case ContinueTk:         return "'__>'";
-    case ReturnTk:           return "'_>>'";
-    case OpenArenaTk:        return "'|{'";
-    case CloseArenaTk:       return "'}|'";
-    case ReturnSuccessTk:    return "'_>>@'";
-    case ReturnErrorTk:      return "'_>>!'";
-    case UnwrapTk:           return "'!?'";
-    case MatchTk:            return "'?\\?'";
-    case FatArrowTk:         return "'=>'";
-    default:                 return "Unknown Token";
+    case NumberTk:           name = "Number"; break;
+    case IdentifierTk:       name = "Identifier"; break;
+    case LetTk:              name = "'let'"; break;
+    case BinaryOperatorTk:   name = "Binary Operator"; break;
+    case BooleanLiteralTk:   name = "Boolean"; break;
+    case NilTk:              name = "'nil'"; break;
+    case EqualsTk:           name = "'='"; break;
+    case OpenParenTk:        name = "'('"; break;
+    case CloseParenTk:       name = "')'"; break;
+    case SemiColonTk:        name = "';'"; break;
+    case IfTk:               name = "'?'"; break;
+    case ElseTk:             name = "':'"; break;
+    case OpenBraceTk:        name = "'{'"; break;
+    case CloseBraceTk:       name = "'}'"; break;
+    case WhileTk:            name = "'#'"; break;
+    case ForTk:              name = "'@'"; break;
+    case StringTk:           name = "String"; break;
+    case CommaTk:            name = "','"; break;
+    case FunctionTk:         name = "'$'"; break;
+    case OpenBracketTk:      name = "'['"; break;
+    case CloseBracketTk:     name = "']'"; break;
+    case ArrowTk:            name = "'->'"; break;
+    case OpenTableTk:        name = "'|>'"; break;
+    case CloseTableTk:       name = "'<|'"; break;
+    case ImportTk:           name = "'~>'"; break;
+    case IdentifierImportTk: name = "Module Identifier"; break;
+    case AsTk:               name = "'as'"; break;
+    case DotTk:              name = "'.'"; break;
+    case UnaryOperatorTk:    name = "Unary Operator"; break;
+    case EOFTk:              name = "EOF"; break;
+    case BreakTk:            name = "'~!!'"; break;
+    case ContinueTk:         name = "'__>'"; break;
+    case ReturnTk:           name = "'_>>'"; break;
+    case OpenArenaTk:        name = "'|{'"; break;
+    case CloseArenaTk:       name = "'}|'"; break;
+    case ReturnSuccessTk:    name = "'_>>@'"; break;
+    case ReturnErrorTk:      name = "'_>>!'"; break;
+    case UnwrapTk:           name = "'!?'"; break;
+    case MatchTk:            name = "'?\\?'"; break;
+    case FatArrowTk:         name = "'=>'"; break;
+    default:                 break;
   }
+
+  return name;
 }
 
 char *read_file(const char *filename) {

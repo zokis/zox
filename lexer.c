@@ -8,7 +8,7 @@
 #include "global.h"
 #include "malloc_safe.h"
 
-Token create_token(const char *value, TokenType type, int line,
+Token create_token(const char *value, ZoxTokenType type, int line,
                    short int column) {
   Token t;
   t.value = strdup(value);
@@ -272,7 +272,7 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
     }
     if (*src == '+' || *src == '-' || *src == '*' || *src == '/' || *src == '%' || *src == '^' || *src == '<' || *src == '>' || *src == '!') {
       char op[2] = {*src, '\0'};
-      TokenType type = BinaryOperatorTk;
+      ZoxTokenType type = BinaryOperatorTk;
       if (*tokenCount == 0 ||
           tokens[*tokenCount - 1].type == BinaryOperatorTk ||
           tokens[*tokenCount - 1].type == OpenParenTk ||
@@ -311,7 +311,7 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
         column++;
       }
       ident[i] = '\0';
-      TokenType type = IdentifierTk;
+      ZoxTokenType type = IdentifierTk;
       if (!strcmp(ident, "let")) type = LetTk;
       else if (!strcmp(ident, "true") || !strcmp(ident, "false")) type = BooleanLiteralTk;
       else if (!strcmp(ident, "nil")) type = NilTk;

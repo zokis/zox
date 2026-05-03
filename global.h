@@ -27,10 +27,10 @@ extern int    zox_argc;
 extern char **zox_argv;
 
 ssize_t getline(char **lineptr, size_t *n, FILE *stream);
-void parser_error(const char *message, Token *token, TokenType type);
+void parser_error(const char *message, Token *token, ZoxTokenType type);
 void error(const char *message);
 char *read_file(const char *filename);
-const char *token_type_to_string(TokenType type);
+const char *token_type_to_string(ZoxTokenType type);
 unsigned short int compare_runtimeval(RuntimeVal *a, RuntimeVal *b);
 unsigned short int contains(RuntimeVal *obj, RuntimeVal *value);
 ListVal *dict_to_keys(DictVal *dict);

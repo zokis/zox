@@ -31,13 +31,13 @@ Token eat(Parser *parser) {
   return t;
 }
 
-Token expect(Parser *parser, TokenType type, const char *err) {
+Token expect(Parser *parser, ZoxTokenType type, const char *err) {
   Token token = eat(parser);
   if (token.type != type) parser_error(err, &token, type);
   return token;
 }
 
-static Stmt *parse_return_stmt(Parser *parser, TokenType type) {
+static Stmt *parse_return_stmt(Parser *parser, ZoxTokenType type) {
   Expr *val = NULL;
   if (at(parser).type != SemiColonTk && at(parser).type != CloseBraceTk &&
       at(parser).type != EOFTk) {

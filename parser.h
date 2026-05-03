@@ -14,7 +14,7 @@ Parser *create_parser(Token *tokens, long long int token_count);
 short int not_eof(Parser *parser);
 Token at(Parser *parser);
 Token eat(Parser *parser);
-Token expect(Parser *parser, TokenType type, const char *err);
+Token expect(Parser *parser, ZoxTokenType type, const char *err);
 Program *produce_ast(Parser *parser, const char *source_code);
 Stmt *parse_stmt(Parser *parser);
 Expr *parse_expr(Parser *parser);

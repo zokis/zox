@@ -156,7 +156,7 @@ void error(const char *message) {
   }
 }
 
-void parser_error(const char *message, Token *token, TokenType type) {
+void parser_error(const char *message, Token *token, ZoxTokenType type) {
   const char *file = error_cursor.file ? error_cursor.file : "<stdin>";
   fprintf(stderr, "Parser Error at %s:%d:%d\n%s\n(got '%s', expected %s)\n",
           file, token->line, token->column, message, token->value, token_type_to_string(type));
@@ -167,7 +167,7 @@ void parser_error(const char *message, Token *token, TokenType type) {
   }
 }
 
-const char *token_type_to_string(TokenType type) {
+const char *token_type_to_string(ZoxTokenType type) {
   const char *name = "Unknown Token";
 
   switch (type) {

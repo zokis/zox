@@ -22,7 +22,7 @@ Token at(Parser *parser);
 Token lookahead(Parser *parser, int distance);
 Token eat(Parser *parser);
 
-Token     expect(Parser *parser, TokenType type, const char *err);
+Token     expect(Parser *parser, ZoxTokenType type, const char *err);
 
 /* Parse function prototypes. */
 Expr *parse_expr(Parser *parser);

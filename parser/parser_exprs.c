@@ -318,7 +318,7 @@ Expr *parse_identifier_expr(Parser *parser) {
 }
 
 Expr *parse_primary_expr(Parser *parser) {
-  TokenType tk = at(parser).type;
+  ZoxTokenType tk = at(parser).type;
 
   switch (tk) {
   case MatchTk:

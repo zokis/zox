@@ -45,18 +45,18 @@ typedef enum {
   MatchTk,             // 38  ??
   FatArrowTk,          // 39  =>
   TypeTk               // 40  type
-} TokenType;
+} ZoxTokenType;
 
 typedef struct {
   char *value;
-  TokenType type;
+  ZoxTokenType type;
   int line;
   short int column;
 } Token;
 
 Token *tokenize(const char *sourceCode, size_t *tokenCount);
 
-Token create_token(const char *value, TokenType type, int line,
+Token create_token(const char *value, ZoxTokenType type, int line,
                    short int column);
 void free_tokens(Token *tokens, int tokenCount);
 

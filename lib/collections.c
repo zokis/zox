@@ -69,14 +69,28 @@ static RuntimeVal *col_flatten(Environment *env, RuntimeVal **args, size_t argc)
 }
 
 static int rval_eq(RuntimeVal *a, RuntimeVal *b) {
-  if (a->type != b->type) return 0;
-  switch (a->type) {
-    case NUMBER_T:  return ((NumberVal *)a)->value == ((NumberVal *)b)->value;
-    case BOOLEAN_T: return ((BooleanVal *)a)->value == ((BooleanVal *)b)->value;
-    case STRING_T:  return strcmp(((StringVal *)a)->value, ((StringVal *)b)->value) == 0;
-    case NIL_T:     return 1;
-    default:        return 0;
+  int equal = 0;
+
+  if (a->type == b->type) {
+    switch (a->type) {
+      case NUMBER_T:
+        equal = ((NumberVal *)a)->value == ((NumberVal *)b)->value;
+        break;
+      case BOOLEAN_T:
+        equal = ((BooleanVal *)a)->value == ((BooleanVal *)b)->value;
+        break;
+      case STRING_T:
+        equal = strcmp(((StringVal *)a)->value, ((StringVal *)b)->value) == 0;
+        break;
+      case NIL_T:
+        equal = 1;
+        break;
+      default:
+        break;
+    }
   }
+
+  return equal;
 }
 
 static RuntimeVal *col_unique(Environment *env, RuntimeVal **args, size_t argc) {

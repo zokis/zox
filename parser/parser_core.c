@@ -99,11 +99,16 @@ Stmt *parse_stmt(Parser *parser) {
 }
 
 Program *produce_ast(Parser *parser, const char *source_code) {
+  (void)source_code;
   Program *program = create_program(NULL, 0);
+  size_t capacity = 8;
+  program->body = (Stmt **)malloc_safe(sizeof(Stmt *) * capacity, "produce_ast");
+
   while (not_eof(parser)) {
-    program->body = (Stmt **)realloc_safe(
-        program->body, sizeof(Stmt *) * (program->body_count + 1),
-                                 "produce_ast");
+    if (program->body_count >= capacity) {
+      capacity *= 2;
+      program->body = (Stmt **)realloc_safe(program->body, sizeof(Stmt *) * capacity, "produce_ast");
+    }
     Stmt *stmt = parse_stmt(parser);
     if (stmt != NULL) program->body[program->body_count++] = stmt;
   }

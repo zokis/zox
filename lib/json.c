@@ -119,10 +119,13 @@ static RuntimeVal *json_parse_value(JsonParser *p) {
   if (c == '[')  return json_parse_array(p);
   if (c == '{')  return json_parse_object(p);
   if (c == '-' || isdigit((unsigned char)c)) return json_parse_number(p);
-  if (strncmp(p->src + p->pos, "true",  4) == 0) { p->pos += 4; return (RuntimeVal *)MK_BOOL(1); }
-  if (strncmp(p->src + p->pos, "false", 5) == 0) { p->pos += 5; return (RuntimeVal *)MK_BOOL(0); }
-  if (strncmp(p->src + p->pos, "null",  4) == 0) { p->pos += 4; return (RuntimeVal *)MK_NIL(); }
-  return (RuntimeVal *)MK_NIL();
+
+  RuntimeVal *res = NULL;
+  if (strncmp(p->src + p->pos, "true",  4) == 0) { p->pos += 4; res = (RuntimeVal *)MK_BOOL(1); }
+  else if (strncmp(p->src + p->pos, "false", 5) == 0) { p->pos += 5; res = (RuntimeVal *)MK_BOOL(0); }
+  else if (strncmp(p->src + p->pos, "null",  4) == 0) { p->pos += 4; res = (RuntimeVal *)MK_NIL(); }
+  else { res = (RuntimeVal *)MK_NIL(); }
+  return res;
 }
 
 typedef struct { char *buf; size_t len; size_t cap; } Buf;
@@ -154,6 +157,30 @@ static void stringify_string(const char *s, Buf *b) {
   buf_push_char(b, '"');
 }
 
+static void stringify_array(ListVal *list, Buf *b) {
+  buf_push_char(b, '[');
+  for (size_t i = 0; i < list->size; i++) {
+    if (i > 0) buf_push_char(b, ',');
+    stringify_val(list->items[i], b);
+  }
+  buf_push_char(b, ']');
+}
+
+static void stringify_object(DictVal *dict, Buf *b) {
+  buf_push_char(b, '{');
+  int first = 1;
+  for (size_t i = 0; i < dict->capacity; i++) {
+    if (dict->entries[i].key != NULL) {
+      if (!first) buf_push_char(b, ',');
+      stringify_string(dict->entries[i].key, b);
+      buf_push_char(b, ':');
+      stringify_val(dict->entries[i].value, b);
+      first = 0;
+    }
+  }
+  buf_push_char(b, '}');
+}
+
 static void stringify_val(RuntimeVal *val, Buf *b) {
   switch (val->type) {
     case NIL_T:     buf_push(b, "null"); break;
@@ -164,38 +191,10 @@ static void stringify_val(RuntimeVal *val, Buf *b) {
       buf_push(b, tmp);
       break;
     }
-    case STRING_T:
-      stringify_string(((StringVal *)val)->value, b);
-      break;
-    case LIST_T: {
-      ListVal *list = (ListVal *)val;
-      buf_push_char(b, '[');
-      for (size_t i = 0; i < list->size; i++) {
-        if (i > 0) buf_push_char(b, ',');
-        stringify_val(list->items[i], b);
-      }
-      buf_push_char(b, ']');
-      break;
-    }
-    case DICT_T: {
-      DictVal *dict = (DictVal *)val;
-      buf_push_char(b, '{');
-      int first = 1;
-      for (size_t i = 0; i < dict->capacity; i++) {
-        if (dict->entries[i].key != NULL) {
-          if (!first) buf_push_char(b, ',');
-          stringify_string(dict->entries[i].key, b);
-          buf_push_char(b, ':');
-          stringify_val(dict->entries[i].value, b);
-          first = 0;
-        }
-      }
-      buf_push_char(b, '}');
-      break;
-    }
-    default:
-      buf_push(b, "null");
-      break;
+    case STRING_T: stringify_string(((StringVal *)val)->value, b); break;
+    case LIST_T:   stringify_array((ListVal *)val, b); break;
+    case DICT_T:   stringify_object((DictVal *)val, b); break;
+    default:       buf_push(b, "null"); break;
   }
 }
 

@@ -18,8 +18,10 @@ static RuntimeVal *col_range(Environment *env, RuntimeVal **args, size_t argc) {
                    ? ((NumberVal *)args[2])->value : 1.0;
   if (step == 0) { fprintf(stderr, "collections.range: step cannot be zero\n"); return (RuntimeVal *)MK_NIL(); }
 
-  size_t cap = (size_t)((end - start) / step);
-  if (cap < 1) cap = 1;
+  double diff = end - start;
+  if ((step > 0 && diff <= 0) || (step < 0 && diff >= 0)) return (RuntimeVal *)MK_LIST(0);
+
+  size_t cap = (size_t)(diff / step) + 1;
   ListVal *list = MK_LIST(cap);
   for (double v = start; (step > 0 ? v < end : v > end); v += step) {
     RuntimeVal *n = (RuntimeVal *)MK_NUMBER(v);
@@ -54,7 +56,13 @@ static RuntimeVal *col_flatten(Environment *env, RuntimeVal **args, size_t argc)
     return (RuntimeVal *)MK_NIL();
   }
   ListVal *src    = (ListVal *)args[0];
-  ListVal *result = MK_LIST(src->size * 2);
+  size_t   total  = 0;
+  for (size_t i = 0; i < src->size; i++) {
+    if (src->items[i]->type == LIST_T) total += ((ListVal *)src->items[i])->size;
+    else total++;
+  }
+
+  ListVal *result = MK_LIST(total);
   for (size_t i = 0; i < src->size; i++) {
     if (src->items[i]->type == LIST_T) {
       ListVal *inner = (ListVal *)src->items[i];
@@ -69,6 +77,7 @@ static RuntimeVal *col_flatten(Environment *env, RuntimeVal **args, size_t argc)
 }
 
 static int rval_eq(RuntimeVal *a, RuntimeVal *b) {
+  if (a == b) return 1;
   if (a->type != b->type) return 0;
   if (a->type == NIL_T) return 1;
   if (a->type == NUMBER_T) return ((NumberVal *)a)->value == ((NumberVal *)b)->value;
@@ -144,25 +153,33 @@ static RuntimeVal *col_group_by(Environment *env, RuntimeVal **args, size_t argc
   }
   ListVal    *src  = (ListVal *)args[0];
   FunctionVal *f   = (FunctionVal *)args[1];
-  DictVal    *dict = MK_DICT(8);
+  size_t      initial_cap = src->size > 8 ? src->size / 2 : 8;
+  DictVal    *dict = MK_DICT(initial_cap);
 
   for (size_t i = 0; i < src->size; i++) {
     RuntimeVal *item   = src->items[i];
     RuntimeVal *fargs[] = {item};
     RuntimeVal *key_val = zox_call_function(f, env, fargs, 1);
+    
     char key_buf[64];
-    group_key_to_string(key_val, key_buf, sizeof(key_buf));
-    release(key_val);
-
-    RuntimeVal *bucket = dict_get_val(dict, key_buf);
-    if (!bucket) {
-      bucket = (RuntimeVal *)MK_LIST(4);
-      dict_set_val(dict, key_buf, bucket);
-      release(bucket);
-      bucket = dict_get_val(dict, key_buf);
+    const char *key_ptr;
+    if (key_val->type == STRING_T) {
+      key_ptr = ((StringVal *)key_val)->value;
+    } else {
+      group_key_to_string(key_val, key_buf, sizeof(key_buf));
+      key_ptr = key_buf;
     }
-    list_append_val((ListVal *)bucket, item);
-    release(bucket);
+
+    Entry *entry = dict_find_entry(dict, key_ptr);
+    if (!entry) {
+      ListVal *bucket = MK_LIST(4);
+      dict_set_val(dict, key_ptr, (RuntimeVal *)bucket);
+      list_append_val(bucket, item);
+      release((RuntimeVal *)bucket);
+    } else {
+      list_append_val((ListVal *)entry->value, item);
+    }
+    release(key_val);
   }
   return (RuntimeVal *)dict;
 }

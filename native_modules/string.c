@@ -1,29 +1,31 @@
 #include "nm_internal.h"
 
 static RuntimeVal *str_upper(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 1 || args[0]->type != STRING_T) error("upper() expects one string");
+  (void)env; (void)argc;
   char *src = ((StringVal *)args[0])->value;
-  char *dst = malloc_safe(strlen(src) + 1, "str_upper");
-  for (int i = 0; src[i]; i++) dst[i] = (char)toupper((unsigned char)src[i]);
-  dst[strlen(src)] = '\0';
+  size_t len = strlen(src);
+  char *dst = malloc_safe(len + 1, "str_upper");
+  for (size_t i = 0; i < len; i++) dst[i] = (char)toupper((unsigned char)src[i]);
+  dst[len] = '\0';
   RuntimeVal *r = (RuntimeVal *)MK_STRING(dst);
   free_safe(dst);
   return r;
 }
 
 static RuntimeVal *str_lower(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 1 || args[0]->type != STRING_T) error("lower() expects one string");
+  (void)env; (void)argc;
   char *src = ((StringVal *)args[0])->value;
-  char *dst = malloc_safe(strlen(src) + 1, "str_lower");
-  for (int i = 0; src[i]; i++) dst[i] = (char)tolower((unsigned char)src[i]);
-  dst[strlen(src)] = '\0';
+  size_t len = strlen(src);
+  char *dst = malloc_safe(len + 1, "str_lower");
+  for (size_t i = 0; i < len; i++) dst[i] = (char)tolower((unsigned char)src[i]);
+  dst[len] = '\0';
   RuntimeVal *r = (RuntimeVal *)MK_STRING(dst);
   free_safe(dst);
   return r;
 }
 
 static RuntimeVal *str_trim(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 1 || args[0]->type != STRING_T) error("trim() expects one string");
+  (void)env; (void)argc;
   char *s = ((StringVal *)args[0])->value;
   while (isspace((unsigned char)*s)) s++;
   size_t len = strlen(s);
@@ -37,16 +39,14 @@ static RuntimeVal *str_trim(Environment *env, RuntimeVal **args, size_t argc) {
 }
 
 static RuntimeVal *str_starts_with(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 2 || args[0]->type != STRING_T || args[1]->type != STRING_T)
-    error("startsWith() expects two strings");
+  (void)env; (void)argc;
   char *s   = ((StringVal *)args[0])->value;
   char *pre = ((StringVal *)args[1])->value;
   return (RuntimeVal *)MK_BOOL(strncmp(s, pre, strlen(pre)) == 0 ? 1 : 0);
 }
 
 static RuntimeVal *str_ends_with(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 2 || args[0]->type != STRING_T || args[1]->type != STRING_T)
-    error("endsWith() expects two strings");
+  (void)env; (void)argc;
   char *s   = ((StringVal *)args[0])->value;
   char *suf = ((StringVal *)args[1])->value;
   size_t sl = strlen(s), pl = strlen(suf);
@@ -55,9 +55,7 @@ static RuntimeVal *str_ends_with(Environment *env, RuntimeVal **args, size_t arg
 }
 
 static RuntimeVal *str_replace(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 3 || args[0]->type != STRING_T ||
-      args[1]->type != STRING_T || args[2]->type != STRING_T)
-    error("replace() expects three strings: (str, from, to)");
+  (void)env; (void)argc;
   char *src  = ((StringVal *)args[0])->value;
   char *from = ((StringVal *)args[1])->value;
   char *to   = ((StringVal *)args[2])->value;
@@ -89,8 +87,7 @@ static RuntimeVal *str_replace(Environment *env, RuntimeVal **args, size_t argc)
 }
 
 static RuntimeVal *str_split(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 2 || args[0]->type != STRING_T || args[1]->type != STRING_T)
-    error("split() expects two strings: (str, delimiter)");
+  (void)env; (void)argc;
   char *src = ((StringVal *)args[0])->value;
   char *delim = ((StringVal *)args[1])->value;
   size_t delim_len = strlen(delim);
@@ -127,8 +124,7 @@ static RuntimeVal *str_split(Environment *env, RuntimeVal **args, size_t argc) {
 }
 
 static RuntimeVal *str_join(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 2 || args[0]->type != LIST_T || args[1]->type != STRING_T)
-    error("join() expects (list, delimiter)");
+  (void)env; (void)argc;
   ListVal *list   = (ListVal *)args[0];
   char    *delim  = ((StringVal *)args[1])->value;
   size_t   dlen   = strlen(delim);
@@ -140,18 +136,25 @@ static RuntimeVal *str_join(Environment *env, RuntimeVal **args, size_t argc) {
     if (i + 1 < list->size) total += dlen;
   }
   char *dst = malloc_safe(total, "str_join");
-  dst[0] = '\0';
+  char *w = dst;
   for (size_t i = 0; i < list->size; i++) {
-    strcat(dst, ((StringVal *)list->items[i])->value);
-    if (i + 1 < list->size) strcat(dst, delim);
+    char *s = ((StringVal *)list->items[i])->value;
+    size_t slen = strlen(s);
+    memcpy(w, s, slen);
+    w += slen;
+    if (i + 1 < list->size) {
+      memcpy(w, delim, dlen);
+      w += dlen;
+    }
   }
+  *w = '\0';
   RuntimeVal *r = (RuntimeVal *)MK_STRING(dst);
   free_safe(dst);
   return r;
 }
 
 static RuntimeVal *str_to_number(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 1 || args[0]->type != STRING_T) error("toNumber() expects one string");
+  (void)env; (void)argc;
   char *end;
   double val = strtod(((StringVal *)args[0])->value, &end);
   if (end == ((StringVal *)args[0])->value) return (RuntimeVal *)MK_NIL();
@@ -159,16 +162,22 @@ static RuntimeVal *str_to_number(Environment *env, RuntimeVal **args, size_t arg
 }
 
 static RuntimeVal *str_to_string(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 1) error("toString() expects one argument");
+  (void)env; (void)argc;
   RuntimeVal *val = args[0];
   char buf[64];
   switch (val->type) {
   case STRING_T:
     retain(val);
     return val;
-  case NUMBER_T:
-    snprintf(buf, sizeof(buf), "%g", ((NumberVal *)val)->value);
+  case NUMBER_T: {
+    double n = ((NumberVal *)val)->value;
+    if (n >= 0 && n <= 255 && n == (int)n) {
+      snprintf(buf, sizeof(buf), "%d", (int)n);
+    } else {
+      snprintf(buf, sizeof(buf), "%g", n);
+    }
     return (RuntimeVal *)MK_STRING(buf);
+  }
   case BOOLEAN_T:
     return (RuntimeVal *)MK_STRING(((BooleanVal *)val)->value ? "true" : "false");
   case NIL_T:

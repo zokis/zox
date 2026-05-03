@@ -5,18 +5,52 @@
 #include <dlfcn.h>
 #endif
 
-char *find_module_path(const char *module_name) {
+static int is_native_module(const char *module_name) {
   for (int i = 0; native_modules[i].name != NULL; i++) {
-    if (strcmp(native_modules[i].name, module_name) == 0)
-      return strdup("native");
+    if (strcmp(native_modules[i].name, module_name) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int has_module_extension(const char *module_name) {
+  size_t len = strlen(module_name);
+  return (len > 3 && strcmp(module_name + len - 3, ".so") == 0) ||
+         (len > 4 && strcmp(module_name + len - 4, ".dll") == 0) ||
+         (len > 3 && strcmp(module_name + len - 3, ".zo") == 0);
+}
+
+static void normalize_module_path(char *module_path, size_t size,
+                                  const char *module_name) {
+  strncpy(module_path, module_name, size - 1);
+  module_path[size - 1] = '\0';
+  for (char *p = module_path; *p; p++) {
+    if (*p == '.') {
+      *p = PATH_SEPARATOR[0];
+    }
+  }
+}
+
+static char *dup_existing_path(const char *path) {
+  if (access(path, F_OK) == -1) {
+    return NULL;
+  }
+  return strdup(path);
+}
+
+char *find_module_path(const char *module_name) {
+  char *found_path = NULL;
+
+  if (is_native_module(module_name)) {
+    return strdup("native");
   }
 
-  size_t len = strlen(module_name);
-  if ((len > 3 && strcmp(module_name + len - 3, ".so") == 0) ||
-      (len > 4 && strcmp(module_name + len - 4, ".dll") == 0) ||
-      (len > 3 && strcmp(module_name + len - 3, ".zo") == 0)) {
-    if (access(module_name, F_OK) != -1)
-      return strdup(module_name);
+  if (has_module_extension(module_name)) {
+    found_path = dup_existing_path(module_name);
+    if (found_path) {
+      return found_path;
+    }
   }
 
 #ifdef _WIN32
@@ -26,26 +60,59 @@ char *find_module_path(const char *module_name) {
 #endif
   char full_path[512];
   char module_path[256];
-  strncpy(module_path, module_name, sizeof(module_path) - 1);
-  module_path[sizeof(module_path) - 1] = '\0';
-  char *p = module_path;
-  while (*p) { if (*p == '.') *p = PATH_SEPARATOR[0]; p++; }
+  normalize_module_path(module_path, sizeof(module_path), module_name);
 
   for (int i = 0; i < (int)(sizeof(paths) / sizeof(paths[0])); i++) {
     snprintf(full_path, sizeof(full_path), "%s%s%s.zo",
              paths[i], PATH_SEPARATOR, module_path);
-    if (access(full_path, F_OK) != -1) return strdup(full_path);
+    found_path = dup_existing_path(full_path);
+    if (found_path) return found_path;
 #ifndef _WIN32
     snprintf(full_path, sizeof(full_path), "%s%s%s.so",
              paths[i], PATH_SEPARATOR, module_path);
-    if (access(full_path, F_OK) != -1) return strdup(full_path);
+    found_path = dup_existing_path(full_path);
+    if (found_path) return found_path;
 #else
     snprintf(full_path, sizeof(full_path), "%s%s%s.dll",
              paths[i], PATH_SEPARATOR, module_path);
-    if (access(full_path, F_OK) != -1) return strdup(full_path);
+    found_path = dup_existing_path(full_path);
+    if (found_path) return found_path;
 #endif
   }
   return NULL;
+}
+
+static void declare_import_item(Environment *target_env, Environment *module_env,
+                                ImportItem *item, const char *module_name) {
+  RuntimeVal *val = lookup_var(module_env, item->name);
+  if (!val) {
+    char error_msg[256];
+    snprintf(error_msg, sizeof(error_msg),
+             "Cannot find '%s' in module '%s'", item->name, module_name);
+    error(error_msg);
+  }
+  declare_var(target_env, item->alias ? item->alias : item->name, val);
+}
+
+static void declare_import_items(Environment *target_env, Environment *module_env,
+                                 ImportStmt *import_stmt, const char *module_name) {
+  for (size_t i = 0; i < import_stmt->import_count; i++) {
+    declare_import_item(target_env, module_env, import_stmt->imports[i], module_name);
+  }
+}
+
+static RuntimeVal *eval_import_native(ImportStmt *import_stmt, Environment *env) {
+  for (int i = 0; native_modules[i].name != NULL; i++) {
+    if (strcmp(native_modules[i].name, import_stmt->module_name) == 0) {
+      Environment *module_env = create_environment(env, import_stmt->module_name);
+      native_modules[i].init_func(module_env);
+      declare_import_items(env, module_env, import_stmt, import_stmt->module_name);
+      free_environment(module_env);
+      return (RuntimeVal *)MK_NIL();
+    }
+  }
+  error("Native module registry lookup failed.");
+  return (RuntimeVal *)MK_NIL();
 }
 
 static RuntimeVal *eval_import_dynamic(const char *so_path,
@@ -81,19 +148,7 @@ static RuntimeVal *eval_import_dynamic(const char *so_path,
   Environment *module_env = create_environment(env, (char *)so_path);
   init_fn(module_env);
 
-  for (size_t i = 0; i < import_stmt->import_count; i++) {
-    ImportItem *item = import_stmt->imports[i];
-    RuntimeVal *val  = lookup_var(module_env, item->name);
-    if (!val) {
-      char error_msg[256];
-      snprintf(error_msg, sizeof(error_msg),
-               "Cannot find '%s' in module '%s'", item->name, so_path);
-      free_environment(module_env);
-      dlclose(handle);
-      error(error_msg);
-    }
-    declare_var(env, item->alias ? item->alias : item->name, val);
-  }
+  declare_import_items(env, module_env, import_stmt, so_path);
 
   /* parent env owns dlopen handle */
   env->so_handles = realloc(env->so_handles,
@@ -121,27 +176,9 @@ RuntimeVal *eval_import_stmt(ImportStmt *import_stmt, Environment *env) {
   }
 
   if (strcmp(module_path, "native") == 0) {
-    for (int i = 0; native_modules[i].name != NULL; i++) {
-      if (strcmp(native_modules[i].name, import_stmt->module_name) == 0) {
-        Environment *module_env = create_environment(env, import_stmt->module_name);
-        native_modules[i].init_func(module_env);
-        for (size_t j = 0; j < import_stmt->import_count; j++) {
-          ImportItem *item = import_stmt->imports[j];
-          RuntimeVal *val  = lookup_var(module_env, item->name);
-          if (!val) {
-            char error_msg[256];
-            snprintf(error_msg, sizeof(error_msg),
-                     "Cannot find '%s' in module '%s'",
-                     item->name, import_stmt->module_name);
-            error(error_msg);
-          }
-          declare_var(env, item->alias ? item->alias : item->name, val);
-        }
-        free_environment(module_env);
-        free_safe(module_path);
-        return (RuntimeVal *)MK_NIL();
-      }
-    }
+    RuntimeVal *result = eval_import_native(import_stmt, env);
+    free_safe(module_path);
+    return result;
   }
 
   if (is_dynamic_lib(module_path)) {
@@ -159,18 +196,7 @@ RuntimeVal *eval_import_stmt(ImportStmt *import_stmt, Environment *env) {
   RuntimeVal *prog_result = eval_program(program, module_env);
   release(prog_result);
 
-  for (size_t i = 0; i < import_stmt->import_count; i++) {
-    ImportItem *item = import_stmt->imports[i];
-    RuntimeVal *val  = lookup_var(module_env, item->name);
-    if (!val) {
-      char error_msg[256];
-      snprintf(error_msg, sizeof(error_msg),
-               "Cannot find '%s' in module '%s'",
-               item->name, import_stmt->module_name);
-      error(error_msg);
-    }
-    declare_var(env, item->alias ? item->alias : item->name, val);
-  }
+  declare_import_items(env, module_env, import_stmt, import_stmt->module_name);
 
   free_safe(module_code);
   free_tokens(tokens, token_count);

@@ -12,19 +12,22 @@ void list_append_val(ListVal *list, RuntimeVal *item) {
 }
 
 char *dict_key_to_string(RuntimeVal *val) {
+  char *result = NULL;
   switch (val->type) {
-    case NIL_T:     return strdup("nil");
-    case BOOLEAN_T: return strdup(((BooleanVal *)val)->value ? "true" : "false");
+    case NIL_T: result = strdup("nil"); break;
+    case BOOLEAN_T: result = strdup(((BooleanVal *)val)->value ? "true" : "false"); break;
     case NUMBER_T: {
       int needed = snprintf(NULL, 0, "%.17g", ((NumberVal *)val)->value);
-      if (needed < 0) return NULL;
-      char *result = malloc_safe((size_t)needed + 1, "dict_key_to_string");
-      snprintf(result, (size_t)needed + 1, "%.17g", ((NumberVal *)val)->value);
-      return result;
+      if (needed >= 0) {
+        result = malloc_safe((size_t)needed + 1, "dict_key_to_string");
+        snprintf(result, (size_t)needed + 1, "%.17g", ((NumberVal *)val)->value);
+      }
+      break;
     }
-    case STRING_T:  return strdup(((StringVal *)val)->value);
-    default:        return NULL;
+    case STRING_T: result = strdup(((StringVal *)val)->value); break;
+    default: break;
   }
+  return result;
 }
 
 Entry *dict_find_entry(DictVal *dict, const char *key) {
@@ -105,73 +108,80 @@ static char *append_str(char **buf, size_t *len, size_t *cap, const char *s) {
   return *buf;
 }
 
+static char *val_to_repr(RuntimeVal *val);
+
+static void list_to_repr(ListVal *list, char **buf, size_t *len, size_t *cap) {
+  append_str(buf, len, cap, "{");
+  for (size_t i = 0; i < list->size; i++) {
+    if (i > 0) append_str(buf, len, cap, ", ");
+    char *item = val_to_repr(list->items[i]);
+    append_str(buf, len, cap, item ? item : "nil");
+    free_safe(item);
+  }
+  append_str(buf, len, cap, "}");
+}
+
+static void dict_to_repr(DictVal *dict, char **buf, size_t *len, size_t *cap) {
+  int first = 1;
+  append_str(buf, len, cap, "[");
+  for (size_t i = 0; i < dict->capacity; i++) {
+    if (!dict->entries[i].key) continue;
+    if (!first) append_str(buf, len, cap, "; ");
+    first = 0;
+    append_str(buf, len, cap, "\"");
+    append_str(buf, len, cap, dict->entries[i].key);
+    append_str(buf, len, cap, "\" -> ");
+    char *v = val_to_repr(dict->entries[i].value);
+    append_str(buf, len, cap, v ? v : "nil");
+    free_safe(v);
+  }
+  append_str(buf, len, cap, "]");
+}
+
+static char *type_to_repr(TypeVal *tv) {
+  size_t needed = strlen("type<>") + strlen(tv->name) + 1;
+  char *buf = malloc_safe(needed, "type repr");
+  snprintf(buf, needed, "type<%s>", tv->name);
+  return buf;
+}
+
+static void struct_to_repr(StructVal *sv, char **buf, size_t *len, size_t *cap) {
+  append_str(buf, len, cap, sv->type_def->name);
+  append_str(buf, len, cap, "(");
+  for (size_t i = 0; i < sv->type_def->field_count; i++) {
+    if (i > 0) append_str(buf, len, cap, ", ");
+    char *v = val_to_repr(sv->values[i]);
+    append_str(buf, len, cap, v ? v : "nil");
+    free_safe(v);
+  }
+  append_str(buf, len, cap, ")");
+}
+
 static char *val_to_repr(RuntimeVal *val) {
   char *prim = dict_key_to_string(val);
   if (prim) return prim;
 
   char *buf = NULL;
-  size_t len = 0, cap = 0;
+  size_t len = 0, cap = 16;
 
   switch (val->type) {
-    case LIST_T: {
-      ListVal *list = (ListVal *)val;
-      cap = 16;
+    case LIST_T:
       buf = malloc_safe(cap, "list repr");
-      append_str(&buf, &len, &cap, "{");
-      for (size_t i = 0; i < list->size; i++) {
-        if (i > 0) append_str(&buf, &len, &cap, ", ");
-        char *item = val_to_repr(list->items[i]);
-        append_str(&buf, &len, &cap, item ? item : "nil");
-        free_safe(item);
-      }
-      append_str(&buf, &len, &cap, "}");
+      list_to_repr((ListVal *)val, &buf, &len, &cap);
       break;
-    }
 
-    case DICT_T: {
-      DictVal *dict = (DictVal *)val;
-      cap = 16;
+    case DICT_T:
       buf = malloc_safe(cap, "dict repr");
-      int first = 1;
-      append_str(&buf, &len, &cap, "[");
-      for (size_t i = 0; i < dict->capacity; i++) {
-        if (!dict->entries[i].key) continue;
-        if (!first) append_str(&buf, &len, &cap, "; ");
-        first = 0;
-        append_str(&buf, &len, &cap, "\"");
-        append_str(&buf, &len, &cap, dict->entries[i].key);
-        append_str(&buf, &len, &cap, "\" -> ");
-        char *v = val_to_repr(dict->entries[i].value);
-        append_str(&buf, &len, &cap, v ? v : "nil");
-        free_safe(v);
-      }
-      append_str(&buf, &len, &cap, "]");
+      dict_to_repr((DictVal *)val, &buf, &len, &cap);
       break;
-    }
 
-    case TYPE_T: {
-      TypeVal *tv = (TypeVal *)val;
-      size_t needed = strlen("type<>") + strlen(tv->name) + 1;
-      buf = malloc_safe(needed, "type repr");
-      snprintf(buf, needed, "type<%s>", tv->name);
-      break;
-    }
+    case TYPE_T:
+      return type_to_repr((TypeVal *)val);
 
-    case STRUCT_T: {
-      StructVal *sv = (StructVal *)val;
-      cap = 32;
+    case STRUCT_T:
       buf = malloc_safe(cap, "struct repr");
-      append_str(&buf, &len, &cap, sv->type_def->name);
-      append_str(&buf, &len, &cap, "(");
-      for (size_t i = 0; i < sv->type_def->field_count; i++) {
-        if (i > 0) append_str(&buf, &len, &cap, ", ");
-        char *v = val_to_repr(sv->values[i]);
-        append_str(&buf, &len, &cap, v ? v : "nil");
-        free_safe(v);
-      }
-      append_str(&buf, &len, &cap, ")");
+      struct_to_repr((StructVal *)val, &buf, &len, &cap);
       break;
-    }
 
     default:
       break;
@@ -225,6 +235,49 @@ RuntimeVal *get_string_slice(StringVal *str, int start, int end) {
   return result;
 }
 
+static RuntimeVal *eval_string_index(StringVal *str, int start, ListIndex *list_index, Environment *env) {
+  if (!list_index->is_slice) {
+    if (start < 0) start = strlen(str->value) + start;
+    if (start < 0 || start >= (int)strlen(str->value)) error("String index out of bounds.\n");
+    char single_char[2] = {str->value[start], '\0'};
+    return (RuntimeVal *)MK_STRING(single_char);
+  } else {
+    int end = strlen(str->value);
+    if (list_index->end != NULL) {
+      RuntimeVal *end_val = evaluate(&(list_index->end->stmt), env);
+      end = (int)((NumberVal *)end_val)->value;
+      release(end_val);
+    }
+    return get_string_slice(str, start, end);
+  }
+}
+
+static RuntimeVal *eval_struct_index(StructVal *sv, int start, ListIndex *list_index) {
+  if (list_index->is_slice) error("Slicing not supported for structs.");
+  if (start < 0 || (size_t)start >= sv->type_def->field_count) error("Struct index out of bounds.");
+  RuntimeVal *result = sv->values[start];
+  retain(result);
+  return result;
+}
+
+static RuntimeVal *eval_list_collection_index(ListVal *list, int start, ListIndex *list_index, Environment *env) {
+  if (!list_index->is_slice) {
+    if (start < 0) start = list->size + start;
+    if (start < 0 || start >= (int)list->size) error("List index out of bounds.\n");
+    RuntimeVal *result = list->items[start];
+    retain(result);
+    return result;
+  } else {
+    int end = list->size;
+    if (list_index->end != NULL) {
+      RuntimeVal *end_val = evaluate(&(list_index->end->stmt), env);
+      end = (int)((NumberVal *)end_val)->value;
+      release(end_val);
+    }
+    return get_list_slice(list, start, end);
+  }
+}
+
 RuntimeVal *eval_list_index(ListIndex *list_index, Environment *env) {
   RuntimeVal *list_val  = evaluate(&(list_index->list->stmt), env);
   RuntimeVal *start_val = evaluate(&(list_index->start->stmt), env);
@@ -237,57 +290,11 @@ RuntimeVal *eval_list_index(ListIndex *list_index, Environment *env) {
   release(start_val);
 
   RuntimeVal *result = NULL;
-
   switch (list_val->type) {
-    case STRING_T: {
-      StringVal *str = (StringVal *)list_val;
-      if (!list_index->is_slice) {
-        if (start < 0) start = strlen(str->value) + start;
-        if (start < 0 || start >= (int)strlen(str->value)) error("String index out of bounds.\n");
-        char single_char[2] = {str->value[start], '\0'};
-        result = (RuntimeVal *)MK_STRING(single_char);
-      } else {
-        int end = strlen(str->value);
-        if (list_index->end != NULL) {
-          RuntimeVal *end_val = evaluate(&(list_index->end->stmt), env);
-          end = (int)((NumberVal *)end_val)->value;
-          release(end_val);
-        }
-        result = get_string_slice(str, start, end);
-      }
-      break;
-    }
-
-    case STRUCT_T: {
-      StructVal *sv = (StructVal *)list_val;
-      if (list_index->is_slice) error("Slicing not supported for structs.");
-      if (start < 0 || (size_t)start >= sv->type_def->field_count) error("Struct index out of bounds.");
-      result = sv->values[start];
-      retain(result);
-      break;
-    }
-
-    case LIST_T: {
-      ListVal *list = (ListVal *)list_val;
-      if (!list_index->is_slice) {
-        if (start < 0) start = list->size + start;
-        if (start < 0 || start >= (int)list->size) error("List index out of bounds.\n");
-        result = list->items[start];
-        retain(result);
-      } else {
-        int end = list->size;
-        if (list_index->end != NULL) {
-          RuntimeVal *end_val = evaluate(&(list_index->end->stmt), env);
-          end = (int)((NumberVal *)end_val)->value;
-          release(end_val);
-        }
-        result = get_list_slice(list, start, end);
-      }
-      break;
-    }
-
-    default:
-      break;
+    case STRING_T: result = eval_string_index((StringVal *)list_val, start, list_index, env); break;
+    case STRUCT_T: result = eval_struct_index((StructVal *)list_val, start, list_index); break;
+    case LIST_T:   result = eval_list_collection_index((ListVal *)list_val, start, list_index, env); break;
+    default: break;
   }
 
   release(list_val);

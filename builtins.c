@@ -48,23 +48,32 @@ RuntimeVal *builtin_sum(Environment *env, RuntimeVal **args, size_t arg_count) {
   return (RuntimeVal *)MK_NUMBER(total);
 }
 
+static RuntimeVal *find_in_list(ListVal *list, RuntimeVal *target) {
+  for (size_t i = 0; i < list->size; i++) {
+    if (compare_runtimeval(list->items[i], target))
+      return (RuntimeVal *)MK_NUMBER((double)i);
+  }
+  return (RuntimeVal *)MK_NUMBER(-1.0);
+}
+
+static RuntimeVal *find_in_string(StringVal *str, RuntimeVal *target) {
+  if (target->type != STRING_T)
+    error("The 'find' function on a string expects a string search value.");
+  const char *haystack = str->value;
+  const char *needle   = ((StringVal *)target)->value;
+  char *pos = strstr(haystack, needle);
+  if (pos) return (RuntimeVal *)MK_NUMBER((double)(pos - haystack));
+  return (RuntimeVal *)MK_NUMBER(-1.0);
+}
+
 RuntimeVal *builtin_find(Environment *env, RuntimeVal **args, size_t arg_count) {
   if (arg_count != 2)
     error("The 'find' function expects two arguments (collection and value).");
 
   if (args[0]->type == LIST_T) {
-    ListVal *list = (ListVal *)args[0];
-    for (size_t i = 0; i < list->size; i++) {
-      if (compare_runtimeval(list->items[i], args[1]))
-        return (RuntimeVal *)MK_NUMBER((double)i);
-    }
+    return find_in_list((ListVal *)args[0], args[1]);
   } else if (args[0]->type == STRING_T) {
-    if (args[1]->type != STRING_T)
-      error("The 'find' function on a string expects a string search value.");
-    const char *haystack = ((StringVal *)args[0])->value;
-    const char *needle   = ((StringVal *)args[1])->value;
-    char *pos = strstr(haystack, needle);
-    if (pos) return (RuntimeVal *)MK_NUMBER((double)(pos - haystack));
+    return find_in_string((StringVal *)args[0], args[1]);
   } else {
     error("The 'find' function is only supported for lists and strings.");
   }
@@ -172,40 +181,44 @@ RuntimeVal *builtin_typeof(Environment *env, RuntimeVal **args, size_t arg_count
   return (RuntimeVal *)MK_STRING(type_to_string(args[0]->type));
 }
 
+static RuntimeVal *copy_list(ListVal *old) {
+  ListVal *new = MK_LIST(old->size);
+  for (size_t i = 0; i < old->size; i++) {
+    new->items[i] = old->items[i];
+    retain(new->items[i]);
+  }
+  new->size = old->size;
+  return (RuntimeVal *)new;
+}
+
+static RuntimeVal *copy_dict(DictVal *old) {
+  DictVal *new = MK_DICT(old->capacity);
+  for (size_t i = 0; i < old->capacity; i++) {
+    if (old->entries[i].key) {
+      dict_set_val(new, old->entries[i].key, old->entries[i].value);
+    }
+  }
+  return (RuntimeVal *)new;
+}
+
+static RuntimeVal *copy_struct(StructVal *old) {
+  RuntimeVal **values = malloc_safe(sizeof(RuntimeVal *) * old->type_def->field_count, "struct copy values");
+  for (size_t i = 0; i < old->type_def->field_count; i++) {
+    values[i] = old->values[i];
+    retain(values[i]);
+  }
+  return (RuntimeVal *)MK_STRUCT(old->type_def, values);
+}
+
 RuntimeVal *builtin_copy(Environment *env, RuntimeVal **args, size_t arg_count) {
   if (arg_count != 1) error("copy() expects one argument");
   RuntimeVal *val = args[0];
-  if (val->type == LIST_T) {
-    ListVal *old = (ListVal *)val;
-    ListVal *new = MK_LIST(old->size);
-    for (size_t i = 0; i < old->size; i++) {
-      new->items[i] = old->items[i];
-      retain(new->items[i]);
-    }
-    new->size = old->size;
-    return (RuntimeVal *)new;
+  switch (val->type) {
+    case LIST_T:   return copy_list((ListVal *)val);
+    case DICT_T:   return copy_dict((DictVal *)val);
+    case STRUCT_T: return copy_struct((StructVal *)val);
+    default:       retain(val); return val;
   }
-  if (val->type == DICT_T) {
-    DictVal *old = (DictVal *)val;
-    DictVal *new = MK_DICT(old->capacity);
-    for (size_t i = 0; i < old->capacity; i++) {
-      if (old->entries[i].key) {
-        dict_set_val(new, old->entries[i].key, old->entries[i].value);
-      }
-    }
-    return (RuntimeVal *)new;
-  }
-  if (val->type == STRUCT_T) {
-    StructVal *old = (StructVal *)val;
-    RuntimeVal **values = malloc_safe(sizeof(RuntimeVal *) * old->type_def->field_count, "struct copy values");
-    for (size_t i = 0; i < old->type_def->field_count; i++) {
-      values[i] = old->values[i];
-      retain(values[i]);
-    }
-    return (RuntimeVal *)MK_STRUCT(old->type_def, values);
-  }
-  retain(val);
-  return val;
 }
 
 RuntimeVal *builtin_random(Environment *env, RuntimeVal **args, size_t arg_count) {
@@ -256,50 +269,46 @@ RuntimeVal *builtin_get_err(Environment *env, RuntimeVal **args, size_t arg_coun
   return result_lookup_or_default(args[0], "err", (RuntimeVal *)MK_NIL());
 }
 
-void register_builtins(Environment *env) {
-  static char *no_params[]     = {NULL};
-  static char *single_param[]  = {"value"};
-  static char *double_param[]  = {"param1", "param2"};
-  static char *triple_param[]  = {"param1", "param2", "param3"};
+static char *no_params[]     = {NULL};
+static char *single_param[]  = {"value"};
+static char *double_param[]  = {"param1", "param2"};
+static char *triple_param[]  = {"param1", "param2", "param3"};
 
-  declare_owned(env, "keys",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_keys));
-  declare_owned(env, "has_key",
-    (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_has_key));
-  declare_owned(env, "get",
-    (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_get));
-  declare_owned(env, "setdefault",
-    (RuntimeVal *)MK_FUNCTION(triple_param, 3, NULL, 0, NULL, builtin_setdefault));
-  declare_owned(env, "len",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_len));
-  declare_owned(env, "print",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_print_value));
-  declare_owned(env, "println",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_println_value));
-  declare_owned(env, "values",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_values));
-  declare_owned(env, "sum",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_sum));
-  declare_owned(env, "random_int",
-    (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_random_int));
-  declare_owned(env, "find",
-    (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_find));
-  declare_owned(env, "random",
-    (RuntimeVal *)MK_FUNCTION(no_params, 0, NULL, 0, NULL, builtin_random));
-  declare_owned(env, "typeof",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_typeof));
-  declare_owned(env, "copy",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_copy));
-  declare_owned(env, "ok",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_ok));
-  declare_owned(env, "err",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_err));
-  declare_owned(env, "is_ok",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_is_ok));
-  declare_owned(env, "is_err",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_is_err));
-  declare_owned(env, "get_ok",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_get_ok));
-  declare_owned(env, "get_err",
-    (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_get_err));
+static void register_collection_builtins(Environment *env) {
+  declare_owned(env, "keys", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_keys));
+  declare_owned(env, "values", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_values));
+  declare_owned(env, "has_key", (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_has_key));
+  declare_owned(env, "get", (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_get));
+  declare_owned(env, "setdefault", (RuntimeVal *)MK_FUNCTION(triple_param, 3, NULL, 0, NULL, builtin_setdefault));
+  declare_owned(env, "len", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_len));
+  declare_owned(env, "sum", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_sum));
+  declare_owned(env, "find", (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_find));
+}
+
+static void register_io_builtins(Environment *env) {
+  declare_owned(env, "print", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_print_value));
+  declare_owned(env, "println", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_println_value));
+}
+
+static void register_utility_builtins(Environment *env) {
+  declare_owned(env, "random_int", (RuntimeVal *)MK_FUNCTION(double_param, 2, NULL, 0, NULL, builtin_random_int));
+  declare_owned(env, "random", (RuntimeVal *)MK_FUNCTION(no_params, 0, NULL, 0, NULL, builtin_random));
+  declare_owned(env, "typeof", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_typeof));
+  declare_owned(env, "copy", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_copy));
+}
+
+static void register_result_builtins(Environment *env) {
+  declare_owned(env, "ok", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_ok));
+  declare_owned(env, "err", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_err));
+  declare_owned(env, "is_ok", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_is_ok));
+  declare_owned(env, "is_err", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_is_err));
+  declare_owned(env, "get_ok", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_get_ok));
+  declare_owned(env, "get_err", (RuntimeVal *)MK_FUNCTION(single_param, 1, NULL, 0, NULL, builtin_get_err));
+}
+
+void register_builtins(Environment *env) {
+  register_collection_builtins(env);
+  register_io_builtins(env);
+  register_utility_builtins(env);
+  register_result_builtins(env);
 }

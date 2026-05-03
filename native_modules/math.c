@@ -4,6 +4,7 @@
 #define MATH_FUNC_1ARG(name, func)                                             \
   static RuntimeVal *math_##name(Environment *env, RuntimeVal **args,          \
                                  size_t arg_count) {                           \
+    (void)env;                                                                 \
     if (arg_count != 1 || args[0]->type != NUMBER_T) {                         \
       error(#name "() expects one number argument");                           \
       return (RuntimeVal *)MK_NIL();                                           \
@@ -15,6 +16,7 @@
 #define MATH_FUNC_2ARG(name, func)                                             \
   static RuntimeVal *math_##name(Environment *env, RuntimeVal **args,          \
                                  size_t arg_count) {                           \
+    (void)env;                                                                 \
     if (arg_count != 2 || args[0]->type != NUMBER_T ||                         \
         args[1]->type != NUMBER_T) {                                           \
       error(#name "() expects two number arguments");                          \
@@ -58,6 +60,7 @@ int compare_runtime_vals(const void *a, const void *b) {
 
 static RuntimeVal *math_list_min_max(int is_min, const char *op, Environment *env,
                                      RuntimeVal **args, size_t arg_count) {
+  (void)env;
   if (arg_count != 1 || args[0]->type != LIST_T) {
     char error_message[100];
     snprintf(error_message, sizeof(error_message),
@@ -67,19 +70,18 @@ static RuntimeVal *math_list_min_max(int is_min, const char *op, Environment *en
   }
 
   ListVal *list = (ListVal *)args[0];
-  double extreme = 0.0;
-  int found = 0;
-
   if (list == NULL || list->size == 0) {
     return (RuntimeVal *)MK_NIL();
   }
 
-  for (size_t i = 0; i < list->size; i++) {
-    RuntimeVal *item = list->items[i];
+  size_t list_size = list->size;
+  RuntimeVal **items = list->items;
+  double extreme = 0.0;
+  int found = 0;
 
-    if (item->type != NUMBER_T) {
-      continue;
-    }
+  for (size_t i = 0; i < list_size; i++) {
+    RuntimeVal *item = items[i];
+    if (item->type != NUMBER_T) continue;
 
     double value = ((NumberVal *)item)->value;
     if (!found || (is_min ? value < extreme : value > extreme)) {
@@ -104,21 +106,22 @@ static RuntimeVal *math_list_max(Environment *env, RuntimeVal **args,
 
 static RuntimeVal *math_median(Environment *env, RuntimeVal **args,
                                size_t arg_count) {
+  (void)env;
   if (arg_count != 1 || args[0]->type != LIST_T) {
     error("median() expects one list argument");
   }
 
   ListVal *list = (ListVal *)args[0];
-
   if (list == NULL || list->size == 0) {
     return (RuntimeVal *)MK_NUMBER(0);
   }
 
+  size_t list_size = list->size;
   RuntimeVal **num_items = (RuntimeVal **)malloc_safe(
-      list->size * sizeof(RuntimeVal *), "math_median");
+      list_size * sizeof(RuntimeVal *), "math_median");
   size_t count = 0;
 
-  for (size_t i = 0; i < list->size; i++) {
+  for (size_t i = 0; i < list_size; i++) {
     if (list->items[i]->type == NUMBER_T) {
       num_items[count++] = list->items[i];
     }
@@ -148,36 +151,34 @@ static RuntimeVal *math_median(Environment *env, RuntimeVal **args,
 
 static RuntimeVal *math_variance(Environment *env, RuntimeVal **args,
                                  size_t arg_count) {
+  (void)env;
   if (arg_count != 1 || args[0]->type != LIST_T) {
     error("variance() expects one list argument");
   }
 
   ListVal *list = (ListVal *)args[0];
-
   if (list == NULL || list->size == 0) {
     return (RuntimeVal *)MK_NUMBER(0);
   }
 
+  size_t list_size = list->size;
+  RuntimeVal **items = list->items;
   double mean = 0.0;
   double squared_diff_sum = 0.0;
   size_t count = 0;
 
-  for (size_t i = 0; i < list->size; i++) {
-    RuntimeVal *item = list->items[i];
+  for (size_t i = 0; i < list_size; i++) {
+    RuntimeVal *item = items[i];
     if (item->type == NUMBER_T) {
       double value = ((NumberVal *)item)->value;
-      double delta;
-
       count++;
-      delta = value - mean;
+      double delta = value - mean;
       mean += delta / count;
       squared_diff_sum += delta * (value - mean);
     }
   }
 
-  if (count == 0) {
-    return (RuntimeVal *)MK_NUMBER(0);
-  }
+  if (count == 0) return (RuntimeVal *)MK_NUMBER(0);
 
   return (RuntimeVal *)MK_NUMBER(squared_diff_sum / count);
 }
@@ -195,6 +196,7 @@ static RuntimeVal *math_standard_deviation(Environment *env, RuntimeVal **args,
 
 static RuntimeVal *math_correlation(Environment *env, RuntimeVal **args,
                                     size_t arg_count) {
+  (void)env;
   if (arg_count != 2 || args[0]->type != LIST_T || args[1]->type != LIST_T) {
     error("correlation() expects two list arguments");
   }
@@ -203,24 +205,22 @@ static RuntimeVal *math_correlation(Environment *env, RuntimeVal **args,
   ListVal *y = (ListVal *)args[1];
   size_t n = (x->size < y->size) ? x->size : y->size;
 
-  if (n == 0) {
-    return (RuntimeVal *)MK_NUMBER(0);
-  }
+  if (n == 0) return (RuntimeVal *)MK_NUMBER(0);
 
   double mean_x = 0.0, mean_y = 0.0;
   double sum_sq_x = 0.0, sum_sq_y = 0.0, sum_xy = 0.0;
   size_t count = 0;
+  RuntimeVal **x_items = x->items;
+  RuntimeVal **y_items = y->items;
 
   for (size_t i = 0; i < n; i++) {
-    if (x->items[i]->type == NUMBER_T && y->items[i]->type == NUMBER_T) {
-      double value_x = ((NumberVal *)x->items[i])->value;
-      double value_y = ((NumberVal *)y->items[i])->value;
-      double delta_x;
-      double delta_y;
+    if (x_items[i]->type == NUMBER_T && y_items[i]->type == NUMBER_T) {
+      double value_x = ((NumberVal *)x_items[i])->value;
+      double value_y = ((NumberVal *)y_items[i])->value;
 
       count++;
-      delta_x = value_x - mean_x;
-      delta_y = value_y - mean_y;
+      double delta_x = value_x - mean_x;
+      double delta_y = value_y - mean_y;
       mean_x += delta_x / count;
       mean_y += delta_y / count;
       sum_sq_x += delta_x * (value_x - mean_x);
@@ -229,15 +229,14 @@ static RuntimeVal *math_correlation(Environment *env, RuntimeVal **args,
     }
   }
 
-  if (count == 0 || sum_sq_x == 0.0 || sum_sq_y == 0.0) {
-    return (RuntimeVal *)MK_NUMBER(0);
-  }
+  if (count == 0 || sum_sq_x == 0.0 || sum_sq_y == 0.0) return (RuntimeVal *)MK_NUMBER(0);
 
   return (RuntimeVal *)MK_NUMBER(sum_xy / sqrt(sum_sq_x * sum_sq_y));
 }
 
 static RuntimeVal *math_gcd(Environment *env, RuntimeVal **args,
                             size_t arg_count) {
+  (void)env;
   if (arg_count != 2 || args[0]->type != NUMBER_T || args[1]->type != NUMBER_T) {
     error("gcd() expects two number arguments");
     return (RuntimeVal *)MK_NIL();
@@ -257,23 +256,24 @@ static RuntimeVal *math_gcd(Environment *env, RuntimeVal **args,
 
 static RuntimeVal *math_average(Environment *env, RuntimeVal **args,
                                 size_t arg_count) {
+  (void)env;
   if (arg_count != 1 || args[0]->type != LIST_T) {
     error("average() expects one list argument");
   }
   ListVal *list = (ListVal *)args[0];
-
   if (list == NULL || list->size == 0) {
     return (RuntimeVal *)MK_NUMBER(0);
   }
 
+  size_t list_size = list->size;
+  RuntimeVal **items = list->items;
   double soma = 0.0;
   size_t count = 0;
 
-  for (size_t i = 0; i < list->size; i++) {
-    RuntimeVal *item = list->items[i];
+  for (size_t i = 0; i < list_size; i++) {
+    RuntimeVal *item = items[i];
     if (item->type == NUMBER_T) {
-      NumberVal *numVal = (NumberVal *)item;
-      soma += numVal->value;
+      soma += ((NumberVal *)item)->value;
       count++;
     }
   }

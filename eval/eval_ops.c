@@ -1,37 +1,64 @@
 /* Binary/unary operations: number, string, list, dict. */
 #include "eval_internal.h"
 
+typedef enum {
+  OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_MOD, OP_POW,
+  OP_GT, OP_GTE, OP_LT, OP_LTE, OP_EQ, OP_NEQ,
+  OP_AND, OP_OR,
+  OP_BIT_AND, OP_BIT_OR, OP_BIT_XOR, OP_SHL, OP_SHR,
+  OP_UNKNOWN
+} OpKind;
+
+static OpKind get_op_kind(const char *operator) {
+  if (operator[0] == '+') return operator[1] == '\0' ? OP_ADD : OP_UNKNOWN;
+  if (operator[0] == '-') return operator[1] == '\0' ? OP_SUB : OP_UNKNOWN;
+  if (operator[0] == '*') return operator[1] == '\0' ? OP_MUL : (operator[1] == '*' && operator[2] == '\0') ? OP_POW : OP_UNKNOWN;
+  if (operator[0] == '/') return operator[1] == '\0' ? OP_DIV : OP_UNKNOWN;
+  if (operator[0] == '%') return operator[1] == '\0' ? OP_MOD : OP_UNKNOWN;
+  if (operator[0] == '>') return operator[1] == '\0' ? OP_GT : (operator[1] == '=' && operator[2] == '\0') ? OP_GTE : (operator[1] == '>' && operator[2] == '\0') ? OP_SHR : OP_UNKNOWN;
+  if (operator[0] == '<') return operator[1] == '\0' ? OP_LT : (operator[1] == '=' && operator[2] == '\0') ? OP_LTE : (operator[1] == '<' && operator[2] == '\0') ? OP_SHL : OP_UNKNOWN;
+  if (operator[0] == '=') return (operator[1] == '=' && operator[2] == '\0') ? OP_EQ : OP_UNKNOWN;
+  if (operator[0] == '!') return (operator[1] == '=' && operator[2] == '\0') ? OP_NEQ : OP_UNKNOWN;
+  if (operator[0] == '&') return operator[1] == '\0' ? OP_BIT_AND : (operator[1] == '&' && operator[2] == '\0') ? OP_AND : OP_UNKNOWN;
+  if (operator[0] == '|') return operator[1] == '\0' ? OP_BIT_OR : (operator[1] == '|' && operator[2] == '\0') ? OP_OR : OP_UNKNOWN;
+  if (operator[0] == '^') return operator[1] == '\0' ? OP_BIT_XOR : OP_UNKNOWN;
+  return OP_UNKNOWN;
+}
+
 NumberVal *eval_numeric_binary_expr(NumberVal *lhs, NumberVal *rhs,
                                     const char *operator) {
-  double result;
+  double result = 0;
   unsigned short int isComparison = 0;
+  OpKind kind = get_op_kind(operator);
 
-  if (!strcmp(operator, "+"))       result = lhs->value + rhs->value;
-  else if (!strcmp(operator, "-"))  result = lhs->value - rhs->value;
-  else if (!strcmp(operator, "*"))  result = lhs->value * rhs->value;
-  else if (!strcmp(operator, "/")) {
-    if (rhs->value == 0) error("Error: Division by zero\n");
-    result = lhs->value / rhs->value;
-  }
-  else if (!strcmp(operator, "%"))  result = (int)lhs->value % (int)rhs->value;
-  else if (!strcmp(operator, "**")) result = pow(lhs->value, rhs->value);
-  else if (!strcmp(operator, ">"))  { result = lhs->value > rhs->value;  isComparison = 1; }
-  else if (!strcmp(operator, ">=")) { result = lhs->value >= rhs->value; isComparison = 1; }
-  else if (!strcmp(operator, "<"))  { result = lhs->value < rhs->value;  isComparison = 1; }
-  else if (!strcmp(operator, "<=")) { result = lhs->value <= rhs->value; isComparison = 1; }
-  else if (!strcmp(operator, "==")) { result = lhs->value == rhs->value; isComparison = 1; }
-  else if (!strcmp(operator, "!=")) { result = lhs->value != rhs->value; isComparison = 1; }
-  else if (!strcmp(operator, "&&")) { result = lhs->value && rhs->value; isComparison = 1; }
-  else if (!strcmp(operator, "||")) { result = lhs->value || rhs->value; isComparison = 1; }
-  else if (!strcmp(operator, "&"))  result = (int)lhs->value & (int)rhs->value;
-  else if (!strcmp(operator, "|"))  result = (int)lhs->value | (int)rhs->value;
-  else if (!strcmp(operator, "^"))  result = (int)lhs->value ^ (int)rhs->value;
-  else if (!strcmp(operator, "<<")) result = (int)lhs->value << (int)rhs->value;
-  else if (!strcmp(operator, ">>")) result = (int)lhs->value >> (int)rhs->value;
-  else {
-    char error_message[100];
-    snprintf(error_message, sizeof(error_message), "Error: Unknown operator '%s'\n", operator);
-    error(error_message);
+  switch (kind) {
+    case OP_ADD: result = lhs->value + rhs->value; break;
+    case OP_SUB: result = lhs->value - rhs->value; break;
+    case OP_MUL: result = lhs->value * rhs->value; break;
+    case OP_DIV:
+      if (rhs->value == 0) error("Error: Division by zero\n");
+      result = lhs->value / rhs->value;
+      break;
+    case OP_MOD: result = (int)lhs->value % (int)rhs->value; break;
+    case OP_POW: result = pow(lhs->value, rhs->value); break;
+    case OP_GT:  result = lhs->value > rhs->value;  isComparison = 1; break;
+    case OP_GTE: result = lhs->value >= rhs->value; isComparison = 1; break;
+    case OP_LT:  result = lhs->value < rhs->value;  isComparison = 1; break;
+    case OP_LTE: result = lhs->value <= rhs->value; isComparison = 1; break;
+    case OP_EQ:  result = lhs->value == rhs->value; isComparison = 1; break;
+    case OP_NEQ: result = lhs->value != rhs->value; isComparison = 1; break;
+    case OP_AND: result = lhs->value && rhs->value; isComparison = 1; break;
+    case OP_OR:  result = lhs->value || rhs->value; isComparison = 1; break;
+    case OP_BIT_AND: result = (int)lhs->value & (int)rhs->value; break;
+    case OP_BIT_OR:  result = (int)lhs->value | (int)rhs->value; break;
+    case OP_BIT_XOR: result = (int)lhs->value ^ (int)rhs->value; break;
+    case OP_SHL: result = (int)lhs->value << (int)rhs->value; break;
+    case OP_SHR: result = (int)lhs->value >> (int)rhs->value; break;
+    default: {
+      char error_message[100];
+      snprintf(error_message, sizeof(error_message), "Error: Unknown operator '%s'\n", operator);
+      error(error_message);
+    }
   }
 
   if (isComparison) return (NumberVal *)MK_BOOL(result);
@@ -241,77 +268,97 @@ Expr *runtime_value_to_expr(RuntimeVal *val) {
 /* lhs/rhs arrive ref+1; caller releases them. */
 RuntimeVal *eval_binary_expr_evaluated(RuntimeVal *lhs, RuntimeVal *rhs,
                                        const char *operator) {
-  if ((lhs->type == NUMBER_T || lhs->type == BOOLEAN_T) &&
-      (rhs->type == NUMBER_T || rhs->type == BOOLEAN_T)) {
-    NumberVal *lhs_num = (lhs->type == NUMBER_T) ? (NumberVal *)lhs : MK_NUMBER(((BooleanVal *)lhs)->value ? 1.0 : 0.0);
-    NumberVal *rhs_num = (rhs->type == NUMBER_T) ? (NumberVal *)rhs : MK_NUMBER(((BooleanVal *)rhs)->value ? 1.0 : 0.0);
-    RuntimeVal *result = (RuntimeVal *)eval_numeric_binary_expr(lhs_num, rhs_num, operator);
-    if (lhs->type == BOOLEAN_T) release((RuntimeVal *)lhs_num);
-    if (rhs->type == BOOLEAN_T) release((RuntimeVal *)rhs_num);
-    return result;
-  }
-  if (lhs->type == STRING_T && rhs->type == STRING_T)
-    return eval_string_binary_expr((StringVal *)lhs, (StringVal *)rhs, operator);
-  if (lhs->type == STRING_T && rhs->type == NUMBER_T && !strcmp(operator, "*"))
-    return eval_string_repeat((StringVal *)lhs, (NumberVal *)rhs);
-  if (lhs->type == LIST_T) {
-    if (!strcmp(operator, "<<"))
-      return eval_list_any_binary_expr(operator, (ListVal *)lhs, rhs);
-    if (rhs->type == LIST_T) {
-      if (!strcmp(operator, "==") || !strcmp(operator, "!=")) {
-        int eq = (((ListVal *)lhs)->size == ((ListVal *)rhs)->size);
-        ListVal *ll = (ListVal *)lhs, *rl = (ListVal *)rhs;
-        for (size_t i = 0; i < ll->size && eq; i++) {
-          RuntimeVal *res = eval_binary_expr_evaluated(ll->items[i], rl->items[i], "==");
-          eq = (res->type == BOOLEAN_T && ((BooleanVal *)res)->value);
-          release(res);
-        }
-        return (RuntimeVal *)MK_BOOL(!strcmp(operator, "==") ? eq : !eq);
+  switch (lhs->type) {
+    case NUMBER_T:
+    case BOOLEAN_T:
+      if (rhs->type == NUMBER_T || rhs->type == BOOLEAN_T) {
+        NumberVal *lhs_num = (lhs->type == NUMBER_T) ? (NumberVal *)lhs : MK_NUMBER(((BooleanVal *)lhs)->value ? 1.0 : 0.0);
+        NumberVal *rhs_num = (rhs->type == NUMBER_T) ? (NumberVal *)rhs : MK_NUMBER(((BooleanVal *)rhs)->value ? 1.0 : 0.0);
+        RuntimeVal *result = (RuntimeVal *)eval_numeric_binary_expr(lhs_num, rhs_num, operator);
+        if (lhs->type == BOOLEAN_T) release((RuntimeVal *)lhs_num);
+        if (rhs->type == BOOLEAN_T) release((RuntimeVal *)rhs_num);
+        return result;
       }
-      return (RuntimeVal *)eval_list_binary_expr((ListVal *)lhs, (ListVal *)rhs, operator);
-    }
-    return eval_list_any_binary_expr(operator, (ListVal *)lhs, rhs);
+      break;
+
+    case STRING_T:
+      if (rhs->type == STRING_T)
+        return eval_string_binary_expr((StringVal *)lhs, (StringVal *)rhs, operator);
+      if (rhs->type == NUMBER_T && !strcmp(operator, "*"))
+        return eval_string_repeat((StringVal *)lhs, (NumberVal *)rhs);
+      break;
+
+    case LIST_T:
+      if (!strcmp(operator, "<<"))
+        return eval_list_any_binary_expr(operator, (ListVal *)lhs, rhs);
+      if (rhs->type == LIST_T) {
+        if (!strcmp(operator, "==") || !strcmp(operator, "!=")) {
+          int eq = (((ListVal *)lhs)->size == ((ListVal *)rhs)->size);
+          ListVal *ll = (ListVal *)lhs, *rl = (ListVal *)rhs;
+          for (size_t i = 0; i < ll->size && eq; i++) {
+            RuntimeVal *res = eval_binary_expr_evaluated(ll->items[i], rl->items[i], "==");
+            eq = (res->type == BOOLEAN_T && ((BooleanVal *)res)->value);
+            release(res);
+          }
+          return (RuntimeVal *)MK_BOOL(!strcmp(operator, "==") ? eq : !eq);
+        }
+        return (RuntimeVal *)eval_list_binary_expr((ListVal *)lhs, (ListVal *)rhs, operator);
+      }
+      return eval_list_any_binary_expr(operator, (ListVal *)lhs, rhs);
+
+    case DICT_T:
+      if (rhs->type == DICT_T) {
+        if (!strcmp(operator, "==") || !strcmp(operator, "!=")) {
+          DictVal *ld = (DictVal *)lhs, *rd = (DictVal *)rhs;
+          unsigned short int eq = 1;
+          for (size_t i = 0; i < ld->capacity && eq; i++) {
+            if (ld->entries[i].key != NULL) {
+              Entry *found = dict_find_entry(rd, ld->entries[i].key);
+              if (!found) { eq = 0; break; }
+              RuntimeVal *cmp = eval_binary_expr_evaluated(ld->entries[i].value, found->value, "==");
+              eq = (cmp->type == BOOLEAN_T && ((BooleanVal *)cmp)->value);
+              release(cmp);
+            }
+          }
+          return (RuntimeVal *)MK_BOOL(!strcmp(operator, "==") ? eq : !eq);
+        }
+        return (RuntimeVal *)eval_dict_binary_expr((DictVal *)lhs, (DictVal *)rhs, operator);
+      }
+      break;
+
+    case STRUCT_T:
+      if (rhs->type == STRUCT_T) {
+        if (!strcmp(operator, "==") || !strcmp(operator, "!=")) {
+          StructVal *sa = (StructVal *)lhs, *sb = (StructVal *)rhs;
+          if (sa->type_def != sb->type_def)
+            return (RuntimeVal *)MK_BOOL(!strcmp(operator, "!="));
+          int eq = 1;
+          for (size_t i = 0; i < sa->type_def->field_count && eq; i++) {
+            RuntimeVal *cmp = eval_binary_expr_evaluated(sa->values[i], sb->values[i], "==");
+            eq = (cmp->type == BOOLEAN_T && ((BooleanVal *)cmp)->value);
+            release(cmp);
+          }
+          return (RuntimeVal *)MK_BOOL(!strcmp(operator, "==") ? eq : !eq);
+        }
+      }
+      break;
+
+    default:
+      break;
   }
+
   if (rhs->type == LIST_T && lhs->type != LIST_T && !strcmp(operator, "*"))
     return eval_list_any_binary_expr(operator, (ListVal *)rhs, lhs);
-  if (lhs->type == DICT_T && rhs->type == DICT_T) {
-    if (!strcmp(operator, "==") || !strcmp(operator, "!=")) {
-      DictVal *ld = (DictVal *)lhs, *rd = (DictVal *)rhs;
-      unsigned short int eq = 1;
-      for (size_t i = 0; i < ld->capacity && eq; i++) {
-        if (ld->entries[i].key != NULL) {
-          Entry *found = dict_find_entry(rd, ld->entries[i].key);
-          if (!found) { eq = 0; break; }
-          RuntimeVal *cmp = eval_binary_expr_evaluated(ld->entries[i].value, found->value, "==");
-          eq = (cmp->type == BOOLEAN_T && ((BooleanVal *)cmp)->value);
-          release(cmp);
-        }
-      }
-      return (RuntimeVal *)MK_BOOL(!strcmp(operator, "==") ? eq : !eq);
-    }
-    return (RuntimeVal *)eval_dict_binary_expr((DictVal *)lhs, (DictVal *)rhs, operator);
-  }
-  if (lhs->type == STRUCT_T && rhs->type == STRUCT_T) {
-    if (!strcmp(operator, "==") || !strcmp(operator, "!=")) {
-      StructVal *sa = (StructVal *)lhs, *sb = (StructVal *)rhs;
-      if (sa->type_def != sb->type_def)
-        return (RuntimeVal *)MK_BOOL(!strcmp(operator, "!="));
-      int eq = 1;
-      for (size_t i = 0; i < sa->type_def->field_count && eq; i++) {
-        RuntimeVal *cmp = eval_binary_expr_evaluated(sa->values[i], sb->values[i], "==");
-        eq = (cmp->type == BOOLEAN_T && ((BooleanVal *)cmp)->value);
-        release(cmp);
-      }
-      return (RuntimeVal *)MK_BOOL(!strcmp(operator, "==") ? eq : !eq);
-    }
-  }
+
   if (lhs->type != rhs->type) {
     if (!strcmp(operator, "==")) return (RuntimeVal *)MK_BOOL(0);
     if (!strcmp(operator, "!=")) return (RuntimeVal *)MK_BOOL(1);
     return (RuntimeVal *)MK_BOOL(0);
   }
+
   if (!strcmp(operator, "==")) return (RuntimeVal *)MK_BOOL(lhs == rhs);
   if (!strcmp(operator, "!=")) return (RuntimeVal *)MK_BOOL(lhs != rhs);
+
   char error_message[100];
   snprintf(error_message, sizeof(error_message),
            "Unsupported types (%s, %s) for operator %s\n",

@@ -9,7 +9,8 @@
 #endif
 
 static RuntimeVal *os_sleep(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 1 || args[0]->type != NUMBER_T) error("sleep() expects one number (ms)");
+  (void)env; (void)argc;
+  if (args[0]->type != NUMBER_T) error("sleep() expects one number (ms)");
   long ms = (long)((NumberVal *)args[0])->value;
 #ifdef _WIN32
   Sleep(ms);
@@ -20,19 +21,22 @@ static RuntimeVal *os_sleep(Environment *env, RuntimeVal **args, size_t argc) {
 }
 
 static RuntimeVal *os_exit(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 1 || args[0]->type != NUMBER_T) error("exit() expects one number");
+  (void)env; (void)argc;
+  if (args[0]->type != NUMBER_T) error("exit() expects one number");
   exit((int)((NumberVal *)args[0])->value);
   return (RuntimeVal *)MK_NIL();
 }
 
 static RuntimeVal *os_env(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 1 || args[0]->type != STRING_T) error("env() expects one string");
+  (void)env; (void)argc;
+  if (args[0]->type != STRING_T) error("env() expects one string");
   char *val = getenv(((StringVal *)args[0])->value);
   if (!val) return (RuntimeVal *)MK_NIL();
   return (RuntimeVal *)MK_STRING(val);
 }
 
 static RuntimeVal *os_args(Environment *env, RuntimeVal **args, size_t argc) {
+  (void)env; (void)args; (void)argc;
   ListVal *list = MK_LIST(zox_argc > 0 ? zox_argc : 1);
   for (int i = 0; i < zox_argc; i++) {
     RuntimeVal *item = (RuntimeVal *)MK_STRING(zox_argv[i]);
@@ -43,17 +47,23 @@ static RuntimeVal *os_args(Environment *env, RuntimeVal **args, size_t argc) {
 }
 
 static RuntimeVal *os_exec(Environment *env, RuntimeVal **args, size_t argc) {
-  if (argc != 1 || args[0]->type != STRING_T) error("exec() expects one string");
+  (void)env; (void)argc;
+  if (args[0]->type != STRING_T) error("exec() expects one string");
   char *cmd = ((StringVal *)args[0])->value;
   FILE *fp = popen(cmd, "r");
   if (!fp) return (RuntimeVal *)MK_NIL();
 
   char *buf = NULL;
   size_t total = 0;
-  char tmp[256];
+  size_t cap = 0;
+  char tmp[4096];
   while (fgets(tmp, sizeof(tmp), fp)) {
     size_t chunk = strlen(tmp);
-    buf = realloc_safe(buf, total + chunk + 1, "os_exec buf");
+    if (total + chunk + 1 > cap) {
+      cap = cap ? cap * 2 : 8192;
+      if (total + chunk + 1 > cap) cap = total + chunk + 1;
+      buf = realloc_safe(buf, cap, "os_exec buf");
+    }
     memcpy(buf + total, tmp, chunk);
     total += chunk;
   }

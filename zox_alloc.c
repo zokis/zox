@@ -1,9 +1,10 @@
 #include "zox_alloc.h"
 
+#include <string.h>
 #include "malloc_safe.h"
 
 /* max free list depth per kind when no arena is configured */
-#define POOL_CAP 64
+#define POOL_CAP 128
 
 typedef struct PoolNode {
   struct PoolNode *next;
@@ -16,6 +17,8 @@ static unsigned char *arena_base   = NULL;
 static size_t         arena_size   = 0;
 static size_t         arena_offset = 0;
 static int            force_heap   = 0;
+
+#define ARENA_OWNS(ptr) (arena_base && (unsigned char *)(ptr) >= arena_base && (unsigned char *)(ptr) < arena_base + arena_size)
 
 void zox_arena_init(size_t bytes) {
   free_safe(arena_base);
@@ -39,8 +42,7 @@ void zox_arena_set_offset(size_t offset) {
   for (int i = 0; i < ZOX_ALLOC_KIND_COUNT; i++) {
     PoolNode **curr = &free_lists[i];
     while (*curr) {
-      unsigned char *p = (unsigned char *)*curr;
-      if (arena_base && p >= arena_base + offset && p < arena_base + arena_size) {
+      if (ARENA_OWNS(*curr) && (unsigned char *)*curr >= arena_base + offset) {
         *curr = (*curr)->next;
         stats[i].depth--;
       } else {
@@ -52,16 +54,11 @@ void zox_arena_set_offset(size_t offset) {
 }
 
 int zox_arena_owns(void *ptr) {
-  unsigned char *p = (unsigned char *)ptr;
-  return arena_base && p >= arena_base && p < arena_base + arena_size;
+  return ARENA_OWNS(ptr);
 }
 
 void zox_alloc_force_heap(int force) {
   force_heap = force;
-}
-
-static int arena_owns(void *ptr) {
-  return zox_arena_owns(ptr);
 }
 
 static void *arena_bump(size_t size) {
@@ -76,7 +73,7 @@ static void *arena_bump(size_t size) {
 void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label) {
   if (kind >= ZOX_ALLOC_KIND_COUNT || force_heap) {
     if (kind < ZOX_ALLOC_KIND_COUNT) stats[kind].heap++;
-    return malloc_safe(size, label);
+    return calloc_safe(1, size, label);
   }
   stats[kind].alloc++;
   PoolNode *node = free_lists[kind];
@@ -87,18 +84,29 @@ void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label) {
     return node;
   }
   void *ptr = arena_bump(size);
-  if (ptr) { stats[kind].arena++; return ptr; }
+  if (ptr) {
+    memset(ptr, 0, size);
+    stats[kind].arena++;
+    return ptr;
+  }
   stats[kind].heap++;
-  return malloc_safe(size, label);
+  return calloc_safe(1, size, label);
 }
 
 void zox_free_obj(ZoxAllocKind kind, void *ptr) {
   if (!ptr) return;
   if (kind >= ZOX_ALLOC_KIND_COUNT) { free_safe(ptr); return; }
   stats[kind].freed++;
-  /* arena mode: pool only arena-owned ptrs, free overflow immediately.
-     no-arena mode: pool up to POOL_CAP, free the rest. */
-  int pool_it = arena_base ? arena_owns(ptr) : (stats[kind].depth < POOL_CAP);
+
+  int pool_it;
+  if (arena_base) {
+    /* If arena is active, pool everything that fits in the arena. 
+       Also pool heap objects up to POOL_CAP to maintain parity with Standard mode. */
+    pool_it = ARENA_OWNS(ptr) || (stats[kind].depth < POOL_CAP);
+  } else {
+    pool_it = (stats[kind].depth < POOL_CAP);
+  }
+
   if (pool_it) {
     stats[kind].pooled++;
     stats[kind].depth++;
@@ -115,13 +123,12 @@ void zox_alloc_cleanup(void) {
     PoolNode *node = free_lists[i];
     while (node) {
       PoolNode *next = node->next;
-      if (!arena_owns(node)) free_safe(node);  /* Free heap objects */
+      if (!ARENA_OWNS(node)) free_safe(node);
       node = next;
     }
     free_lists[i] = NULL;
     stats[i].depth = 0;
   }
-  /* Arena buffer and its contained objects are freed by zox_arena_destroy */
 }
 
 static const char *kind_names[ZOX_ALLOC_KIND_COUNT] = {

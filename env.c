@@ -27,39 +27,68 @@ static size_t all_envs_count = 0;
 static size_t all_envs_cap = 0;
 
 static void detach_val_env(RuntimeVal *val);
-static void cleanup_env_entries(Environment *env);
-static void cleanup_env_storage(Environment *env);
 static int find_entry_index(Environment *env, const char *varname, size_t *index_out);
+
+static void cleanup_full_env(Environment *env) {
+  for (size_t i = 0; i < env->capacity; i++) {
+    if (env->entries[i].key != NULL) {
+      free_safe(env->entries[i].key);
+      release(env->entries[i].value);
+    }
+  }
+  free_safe(env->entries);
+  
+  if (env->owned_program) {
+    free_program((Program *)env->owned_program);
+  }
+  if (env->scope_name) {
+    free_safe(env->scope_name);
+  }
+#ifndef _WIN32
+  for (size_t i = 0; i < env->so_handle_count; i++) {
+    dlclose(env->so_handles[i]);
+  }
+  if (env->so_handles) free_safe(env->so_handles);
+#endif
+}
 
 static void register_env(Environment *env) {
   if (all_envs_count >= all_envs_cap) {
     all_envs_cap = all_envs_cap ? all_envs_cap * 2 : 64;
     all_envs = (Environment **)realloc(all_envs, all_envs_cap * sizeof(Environment *));
   }
+  env->registry_index = all_envs_count;
   all_envs[all_envs_count++] = env;
 }
 
 static void unregister_env(Environment *env) {
-  for (size_t i = 0; i < all_envs_count; i++) {
-    if (all_envs[i] == env) {
-      all_envs[i] = all_envs[all_envs_count - 1];
-      all_envs_count--;
-      return;
-    }
+  size_t idx = env->registry_index;
+  if (idx < all_envs_count && all_envs[idx] == env) {
+    Environment *last = all_envs[all_envs_count - 1];
+    all_envs[idx] = last;
+    last->registry_index = idx;
+    all_envs_count--;
   }
 }
 
 Environment *create_environment(Environment *parent, char *scope_name) {
   Environment *env = alloc_environment();
-  env->parent     = parent;
-  env->capacity   = INITIAL_CAPACITY;
-  env->size       = 0;
-  env->entries    = (HashEntry *)calloc(env->capacity, sizeof(HashEntry));
+  env->parent      = parent;
+
+  if (!env->entries) {
+    env->capacity = INITIAL_CAPACITY;
+    env->entries  = (HashEntry *)calloc(env->capacity, sizeof(HashEntry));
+  } else {
+    /* Entries buffer is reused and already cleared by destroy_environment. */
+    env->size = 0;
+  }
+  
   env->scope_name = scope_name ? strdup(scope_name) : NULL;
   env->ref_count  = 1;
   env->owned_program = NULL;
   env->so_handles      = NULL;
   env->so_handle_count = 0;
+  
   if (parent) retain_env(parent);
   register_env(env);
   return env;
@@ -70,7 +99,35 @@ void retain_env(Environment *env) {
 }
 
 static void destroy_environment(Environment *env) {
-  cleanup_env_storage(env);
+  /* Clear entries but keep the buffer for reuse. */
+  for (size_t i = 0; i < env->capacity; i++) {
+    if (env->entries[i].key != NULL) {
+      free_safe(env->entries[i].key);
+      release(env->entries[i].value);
+      env->entries[i].key = NULL;
+      env->entries[i].value = NULL;
+    }
+  }
+  
+  if (env->owned_program) {
+    free_program((Program *)env->owned_program);
+    env->owned_program = NULL;
+  }
+  if (env->scope_name) {
+    free_safe(env->scope_name);
+    env->scope_name = NULL;
+  }
+#ifndef _WIN32
+  for (size_t i = 0; i < env->so_handle_count; i++) {
+    dlclose(env->so_handles[i]);
+  }
+  if (env->so_handles) {
+    free_safe(env->so_handles);
+    env->so_handles = NULL;
+  }
+  env->so_handle_count = 0;
+#endif
+
   Environment *parent = env->parent;
   unregister_env(env);
   zox_free_obj(ZOX_ALLOC_ENV, env);
@@ -91,30 +148,6 @@ static void break_env_internal(Environment *env) {
   }
 }
 
-static void cleanup_env_entries(Environment *env) {
-  for (size_t i = 0; i < env->capacity; i++) {
-    if (env->entries[i].key == NULL) continue;
-    free_safe(env->entries[i].key);
-    release(env->entries[i].value);
-  }
-  free_safe(env->entries);
-}
-
-static void cleanup_env_storage(Environment *env) {
-  cleanup_env_entries(env);
-  if (env->owned_program) {
-    free_program((Program *)env->owned_program);
-  }
-  if (env->scope_name) {
-    free_safe(env->scope_name);
-  }
-#ifndef _WIN32
-  for (size_t i = 0; i < env->so_handle_count; i++) {
-    dlclose(env->so_handles[i]);
-  }
-  free_safe(env->so_handles);
-#endif
-}
 
 static void detach_val_env(RuntimeVal *val) {
   if (!val) return;
@@ -154,22 +187,15 @@ void break_env_cycles(Environment *env) {
   (void)env;
   if (all_envs_count == 0) return;
 
-  /* Shutdown Pass 1: Break all closure links. 
-     We don't release_env here to avoid recursive destruction. */
+  /* Shutdown Pass 1: Break all closure links. */
   for (size_t i = 0; i < all_envs_count; i++) {
     break_env_internal(all_envs[i]);
   }
 
-  /* Shutdown Pass 2: Manually free all environments in the registry.
-     We iterate backwards and free everything. unregister_env will handle 
-     the removal from the array. */
+  /* Shutdown Pass 2: Manually free all environments in the registry. */
   while (all_envs_count > 0) {
     Environment *e = all_envs[all_envs_count - 1];
-
-    cleanup_env_storage(e);
-
-    /* Important: We don't release_env(parent) here as the parent 
-       is already in all_envs and will be freed by this loop. */
+    cleanup_full_env(e);
     all_envs_count--; 
     zox_free_obj(ZOX_ALLOC_ENV, e);
   }

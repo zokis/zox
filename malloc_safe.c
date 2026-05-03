@@ -11,6 +11,15 @@ void *malloc_safe(size_t size, const char *error_message) {
   return ptr;
 }
 
+void *calloc_safe(size_t num, size_t size, const char *error_message) {
+  void *ptr = calloc(num, size);
+  if (ptr == NULL) {
+    fprintf(stderr, "Memory allocation error: %s\n", error_message);
+    exit(1);
+  }
+  return ptr;
+}
+
 void *realloc_safe(void *ptr, size_t size, const char *error_message) {
   void *new_ptr = realloc(ptr, size);
   if (new_ptr == NULL) {

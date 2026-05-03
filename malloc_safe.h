@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 void *malloc_safe(size_t size, const char *error_message);
+void *calloc_safe(size_t num, size_t size, const char *error_message);
 void *realloc_safe(void *ptr, size_t size, const char *error_message);
 void free_safe(void *ptr);
 

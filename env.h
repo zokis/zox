@@ -21,6 +21,7 @@ struct Environment {
   void *owned_program; /* imported module AST owned by env */
   void **so_handles;   /* dlopen handles owned by env */
   size_t so_handle_count;
+  size_t registry_index;
 };
 
 Environment *create_environment(Environment *parent, char *scope_name);

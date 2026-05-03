@@ -151,6 +151,7 @@ static int find_entry_index(Environment *env, const char *varname, size_t *index
 }
 
 void break_env_cycles(Environment *env) {
+  (void)env;
   if (all_envs_count == 0) return;
 
   /* Shutdown Pass 1: Break all closure links. 
@@ -227,23 +228,35 @@ void declare_owned(Environment *env, const char *varname, RuntimeVal *value) {
 }
 
 void assign_var(Environment *env, const char *varname, RuntimeVal *value) {
-  Environment *resolved_env = resolve(env, varname);
+  Environment *current = env;
   size_t index;
 
-  if (find_entry_index(resolved_env, varname, &index)) {
-    if (resolved_env->entries[index].value == value) return; /* self-assign */
-    release(resolved_env->entries[index].value);
-    resolved_env->entries[index].value = value;
-    retain(value);
+  while (current != NULL) {
+    if (find_entry_index(current, varname, &index)) {
+      if (current->entries[index].value == value) return; /* self-assign */
+      release(current->entries[index].value);
+      current->entries[index].value = value;
+      retain(value);
+      return;
+    }
+    current = current->parent;
   }
+
+  char error_message[100];
+  snprintf(error_message, sizeof(error_message),
+           "Cannot assign variable '%s' as it does not exist.", varname);
+  error(error_message);
 }
 
 RuntimeVal *lookup_var(Environment *env, const char *varname) {
-  Environment *resolved_env = resolve(env, varname);
+  Environment *current = env;
   size_t index;
 
-  if (find_entry_index(resolved_env, varname, &index)) {
-    return resolved_env->entries[index].value;
+  while (current != NULL) {
+    if (find_entry_index(current, varname, &index)) {
+      return current->entries[index].value;
+    }
+    current = current->parent;
   }
 
   char error_message[100];

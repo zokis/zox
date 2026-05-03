@@ -2,7 +2,7 @@
            assert_eq, assert_true,
            test_summary };
 ~> math { abs, sqrt, floor, ceil, round, sin, cos, tan, log, pow, min, max,
-           lmin, lmax, average, median, variance };
+           lmin, lmax, average, median, variance, standardDeviation, correlation, gcd };
 
 suite("Math module");
 
@@ -50,7 +50,18 @@ $ math_stats() {
     let ns = {1, 2, 3, 4, 5};
     assert_eq(average(ns), 3);
     assert_eq(median(ns),  3);
-    assert_eq(variance({1, 2, 3, 4}), 1.25)
+    assert_eq(variance({1, 2, 3, 4}), 1.25);
+    assert_eq(standardDeviation({1, 2, 3, 4}), sqrt(1.25))
+}
+
+
+$ math_correlation() {
+    assert_eq(correlation({1, 2, 3}, {4, 5, 6}), 1)
+}
+
+$ math_gcd() {
+    assert_eq(gcd(12, 18), 6);
+    assert_eq(gcd(18, 12), 6)
 }
 
 $ math_trig() {
@@ -64,7 +75,9 @@ test("rounding",     math_rounding);
 test("pow",          math_pow);
 test("min / max",    math_minmax);
 test("lmin / lmax",  math_list_minmax);
-test("average / median / variance", math_stats);
+test("average / median / variance / stddev", math_stats);
+test("correlation", math_correlation);
+test("gcd", math_gcd);
 test("trig at 0",    math_trig);
 
 test_summary()

@@ -153,7 +153,6 @@ static RuntimeVal *math_variance(Environment *env, RuntimeVal **args,
                                  size_t arg_count) {
   if (arg_count != 1 || args[0]->type != LIST_T) {
     error("variance() expects one list argument");
-    return (RuntimeVal *)MK_NIL();
   }
 
   ListVal *list = (ListVal *)args[0];
@@ -191,6 +190,87 @@ static RuntimeVal *math_variance(Environment *env, RuntimeVal **args,
 
   return (RuntimeVal *)MK_NUMBER(squared_diff_sum / count);
 }
+
+static RuntimeVal *math_standard_deviation(Environment *env, RuntimeVal **args,
+                                          size_t arg_count) {
+  RuntimeVal *variance_result = math_variance(env, args, arg_count);
+  if (variance_result->type != NUMBER_T) {
+    return (RuntimeVal *)MK_NUMBER(0);
+  }
+
+  double variance = ((NumberVal *)variance_result)->value;
+  return (RuntimeVal *)MK_NUMBER(sqrt(variance));
+}
+
+static RuntimeVal *math_correlation(Environment *env, RuntimeVal **args,
+                                    size_t arg_count) {
+  if (arg_count != 2 || args[0]->type != LIST_T || args[1]->type != LIST_T) {
+    error("correlation() expects two list arguments");
+  }
+
+  ListVal *x = (ListVal *)args[0];
+  ListVal *y = (ListVal *)args[1];
+  size_t n = (x->size < y->size) ? x->size : y->size;
+
+  if (n == 0) {
+    return (RuntimeVal *)MK_NUMBER(0);
+  }
+
+  double sum_x = 0.0, sum_y = 0.0;
+  size_t count = 0;
+
+  for (size_t i = 0; i < n; i++) {
+    if (x->items[i]->type == NUMBER_T && y->items[i]->type == NUMBER_T) {
+      sum_x += ((NumberVal *)x->items[i])->value;
+      sum_y += ((NumberVal *)y->items[i])->value;
+      count++;
+    }
+  }
+
+  if (count == 0) {
+    return (RuntimeVal *)MK_NUMBER(0);
+  }
+
+  double mean_x = sum_x / count;
+  double mean_y = sum_y / count;
+  double num = 0.0, den_x = 0.0, den_y = 0.0;
+
+  for (size_t i = 0; i < n; i++) {
+    if (x->items[i]->type == NUMBER_T && y->items[i]->type == NUMBER_T) {
+      double dx = ((NumberVal *)x->items[i])->value - mean_x;
+      double dy = ((NumberVal *)y->items[i])->value - mean_y;
+      num += dx * dy;
+      den_x += dx * dx;
+      den_y += dy * dy;
+    }
+  }
+
+  if (den_x == 0.0 || den_y == 0.0) {
+    return (RuntimeVal *)MK_NUMBER(0);
+  }
+
+  return (RuntimeVal *)MK_NUMBER(num / sqrt(den_x * den_y));
+}
+
+static RuntimeVal *math_gcd(Environment *env, RuntimeVal **args,
+                            size_t arg_count) {
+  if (arg_count != 2 || args[0]->type != NUMBER_T || args[1]->type != NUMBER_T) {
+    error("gcd() expects two number arguments");
+    return (RuntimeVal *)MK_NIL();
+  }
+
+  long long a = (long long)llabs((long long)((NumberVal *)args[0])->value);
+  long long b = (long long)llabs((long long)((NumberVal *)args[1])->value);
+
+  while (b != 0) {
+    long long t = b;
+    b = a % b;
+    a = t;
+  }
+
+  return (RuntimeVal *)MK_NUMBER((double)a);
+}
+
 static RuntimeVal *math_average(Environment *env, RuntimeVal **args,
                                 size_t arg_count) {
   if (arg_count != 1 || args[0]->type != LIST_T) {
@@ -240,6 +320,12 @@ void init_math_module(Environment *env) {
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_median));
   declare_owned(env, "variance",
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_variance));
+  declare_owned(env, "standardDeviation",
+              (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_standard_deviation));
+  declare_owned(env, "correlation",
+              (RuntimeVal *)MK_NATIVE_FN(double_param, 2, math_correlation));
+  declare_owned(env, "gcd",
+              (RuntimeVal *)MK_NATIVE_FN(double_param, 2, math_gcd));
   declare_owned(env, "lmin",
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_list_min));
   declare_owned(env, "lmax",

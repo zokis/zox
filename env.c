@@ -26,10 +26,10 @@ static Environment **all_envs = NULL;
 static size_t all_envs_count = 0;
 static size_t all_envs_cap = 0;
 
-static void break_val_env(RuntimeVal *val);
 static void detach_val_env(RuntimeVal *val);
 static void cleanup_env_entries(Environment *env);
 static void cleanup_env_storage(Environment *env);
+static int find_entry_index(Environment *env, const char *varname, size_t *index_out);
 
 static void register_env(Environment *env) {
   if (all_envs_count >= all_envs_cap) {
@@ -116,27 +116,6 @@ static void cleanup_env_storage(Environment *env) {
 #endif
 }
 
-static void break_val_env(RuntimeVal *val) {
-  if (!val) return;
-  if (val->type == FUNCTION_T) {
-    FunctionVal *fv = (FunctionVal *)val;
-    if (fv->env) {
-      Environment *captured = fv->env;
-      fv->env = NULL;
-      release_env(captured);
-    }
-  } else if (val->type == LIST_T) {
-    ListVal *lv = (ListVal *)val;
-    for (size_t i = 0; i < lv->size; i++)
-      break_val_env(lv->items[i]);
-  } else if (val->type == DICT_T) {
-    DictVal *dv = (DictVal *)val;
-    for (size_t i = 0; i < dv->capacity; i++)
-      if (dv->entries[i].key != NULL)
-        break_val_env(dv->entries[i].value);
-  }
-}
-
 static void detach_val_env(RuntimeVal *val) {
   if (!val) return;
   if (val->type == FUNCTION_T) {
@@ -154,6 +133,21 @@ static void detach_val_env(RuntimeVal *val) {
       }
     }
   }
+}
+
+static int find_entry_index(Environment *env, const char *varname, size_t *index_out) {
+  size_t index = hash(varname, env->capacity);
+
+  while (env->entries[index].key != NULL) {
+    if (strcmp(env->entries[index].key, varname) == 0) {
+      *index_out = index;
+      return 1;
+    }
+    index = (index + 1) % env->capacity;
+  }
+
+  *index_out = index;
+  return 0;
 }
 
 void break_env_cycles(Environment *env) {
@@ -209,19 +203,18 @@ static void resize_hash_table(Environment *env) {
 }
 
 void declare_var(Environment *env, const char *varname, RuntimeVal *value) {
+  size_t index;
+
   if ((float)env->size / env->capacity >= LOAD_FACTOR_THRESHOLD)
     resize_hash_table(env);
 
-  size_t index = hash(varname, env->capacity);
-  while (env->entries[index].key != NULL) {
-    if (strcmp(env->entries[index].key, varname) == 0) {
-      char error_message[100];
-      snprintf(error_message, sizeof(error_message),
-               "Cannot declare variable %s. It is already defined.\n", varname);
-      error(error_message);
-    }
-    index = (index + 1) % env->capacity;
+  if (find_entry_index(env, varname, &index)) {
+    char error_message[100];
+    snprintf(error_message, sizeof(error_message),
+             "Cannot declare variable %s. It is already defined.\n", varname);
+    error(error_message);
   }
+
   env->entries[index].key   = strdup(varname);
   env->entries[index].value = value;
   retain(value);
@@ -235,29 +228,24 @@ void declare_owned(Environment *env, const char *varname, RuntimeVal *value) {
 
 void assign_var(Environment *env, const char *varname, RuntimeVal *value) {
   Environment *resolved_env = resolve(env, varname);
-  size_t index = hash(varname, resolved_env->capacity);
+  size_t index;
 
-  while (resolved_env->entries[index].key != NULL) {
-    if (strcmp(resolved_env->entries[index].key, varname) == 0) {
-      if (resolved_env->entries[index].value == value) return; /* self-assign */
-      release(resolved_env->entries[index].value);
-      resolved_env->entries[index].value = value;
-      retain(value);
-      return;
-    }
-    index = (index + 1) % resolved_env->capacity;
+  if (find_entry_index(resolved_env, varname, &index)) {
+    if (resolved_env->entries[index].value == value) return; /* self-assign */
+    release(resolved_env->entries[index].value);
+    resolved_env->entries[index].value = value;
+    retain(value);
   }
 }
 
 RuntimeVal *lookup_var(Environment *env, const char *varname) {
   Environment *resolved_env = resolve(env, varname);
-  size_t index = hash(varname, resolved_env->capacity);
+  size_t index;
 
-  while (resolved_env->entries[index].key != NULL) {
-    if (strcmp(resolved_env->entries[index].key, varname) == 0)
-      return resolved_env->entries[index].value;
-    index = (index + 1) % resolved_env->capacity;
+  if (find_entry_index(resolved_env, varname, &index)) {
+    return resolved_env->entries[index].value;
   }
+
   char error_message[100];
   snprintf(error_message, sizeof(error_message),
            "Value not found for variable %s\n", varname);
@@ -267,12 +255,11 @@ RuntimeVal *lookup_var(Environment *env, const char *varname) {
 
 Environment *resolve(Environment *env, const char *varname) {
   Environment *current = env;
+  size_t index;
+
   while (current != NULL) {
-    size_t index = hash(varname, current->capacity);
-    while (current->entries[index].key != NULL) {
-      if (strcmp(current->entries[index].key, varname) == 0)
-        return current;
-      index = (index + 1) % current->capacity;
+    if (find_entry_index(current, varname, &index)) {
+      return current;
     }
     current = current->parent;
   }

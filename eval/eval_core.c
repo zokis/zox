@@ -33,96 +33,162 @@ RuntimeVal *eval_program(Program *program, Environment *env) {
   return lastEvaluated;
 }
 
-RuntimeVal *evaluate(Stmt *astNode, Environment *env) {
-  switch (astNode->kind) {
-  case ProgramAst:         return eval_program((Program *)astNode, env);
-  case BooleanLiteralAst:  return (RuntimeVal *)MK_BOOL(((BooleanLiteral *)astNode)->value);
-  case NilAst:             return (RuntimeVal *)MK_NIL();
-  case NumericLiteralAst:  return (RuntimeVal *)MK_NUMBER(((NumericLiteral *)astNode)->value);
-  case IdentifierAst:      return eval_identifier_expr((Identifier *)astNode, env);
-  case BinaryExprAst: {
-    BinaryExpr *binop = (BinaryExpr *)astNode;
-    RuntimeVal *lhs = evaluate(&(binop->left->stmt), env);
-    RuntimeVal *rhs = evaluate(&(binop->right->stmt), env);
-    RuntimeVal *result = eval_binary_expr_evaluated(lhs, rhs, binop->operator);
-    release(lhs);
-    release(rhs);
-    return result;
+static RuntimeVal *eval_binary_node(BinaryExpr *binop, Environment *env) {
+  RuntimeVal *lhs = evaluate(&(binop->left->stmt), env);
+  RuntimeVal *rhs = evaluate(&(binop->right->stmt), env);
+  RuntimeVal *result = eval_binary_expr_evaluated(lhs, rhs, binop->operator);
+  release(lhs);
+  release(rhs);
+  return result;
+}
+
+static RuntimeVal *eval_return_node(ReturnStmt *ret, Environment *env) {
+  RuntimeVal *val = ret->value ? evaluate(&(ret->value->stmt), env) : (RuntimeVal *)MK_NIL();
+  cf_set_return(val);
+  return (RuntimeVal *)MK_NIL();
+}
+
+static RuntimeVal *eval_result_return_node(ReturnStmt *ret, Environment *env, const char *key) {
+  RuntimeVal *val = ret->value ? evaluate(&(ret->value->stmt), env) : (RuntimeVal *)MK_NIL();
+  DictVal *res = MK_DICT(1);
+  dict_set_val(res, key, val);
+  cf_set_return((RuntimeVal *)res);
+  release(val);
+  return (RuntimeVal *)MK_NIL();
+}
+
+static RuntimeVal *eval_unwrap_node(UnwrapExpr *u, Environment *env) {
+  RuntimeVal *val = evaluate(&(u->expr->stmt), env);
+  if (val->type != DICT_T) error("Unwrap operator !? expects a result dictionary {ok: v} or {err: v}.");
+  DictVal *d = (DictVal *)val;
+  RuntimeVal *err_val = dict_get_val(d, "err");
+  if (err_val) {
+    /* Propagate early return: the value IS the result dict. */
+    cf_set_return(val);
+    release(err_val);
+    return (RuntimeVal *)MK_NIL();
   }
-  case VarDeclarationAst:  return eval_var_expr((VarDeclaration *)astNode, env);
-  case AssignVarAst:       return eval_assign_var_expr((AssignVar *)astNode, env);
-  case IfAst:              return eval_if_expr((IfExpr *)astNode, env);
-  case WhileAst:           return eval_while_expr((WhileExpr *)astNode, env);
-  case MatchAst:           return eval_match_expr((MatchExpr *)astNode, env);
-  case ForAst:             return eval_for_expr((ForExpr *)astNode, env);
-  case ArenaBlockAst:      return eval_arena_block((ArenaBlockExpr *)astNode, env);
-  case StringLiteralAst:   return eval_string_literal((StringLiteral *)astNode);
-  case FuncDefAst:         return eval_func_def((FuncDef *)astNode, env);
-  case TypeDeclarationAst: return eval_type_declaration((TypeDeclaration *)astNode, env);
-  case CallExprAst:        return eval_call_expr((CallExpr *)astNode, env);
-  case MemberExprAst:      return eval_member_expr((MemberExpr *)astNode, env);
-  case AssignMemberExprAst: return eval_assign_member_expr((AssignMemberExpr *)astNode, env);
-  case ListLiteralAst:     return eval_list_literal((ListLiteral *)astNode, env);
-  case DictLiteralAst:     return eval_dict_literal((DictLiteral *)astNode, env);
-  case ListIndexAst:       return eval_list_index((ListIndex *)astNode, env);
-  case DictKeyAst:         return eval_dict_key((DictKey *)astNode, env);
-  case AssignListVarAst:   return eval_assign_list_var_expr((AssignListVar *)astNode, env);
-  case AssignDictVarAst:   return eval_assign_dict_var_expr((AssignDictVar *)astNode, env);
-  case ImportAst:          return eval_import_stmt((ImportStmt *)astNode, env);
-  case AssignListExprAst:  return eval_assign_list_expr((AssignListExpr *)astNode, env);
-  case AssignDictExprAst:  return eval_assign_dict_expr((AssignDictExpr *)astNode, env);
-  case UnaryExprAst:       return eval_unary_expr((UnaryExpr *)astNode, env);
+  RuntimeVal *ok_val = dict_get_val(d, "ok");
+  if (!ok_val) error("Unwrap operator !? expects a result dictionary with 'ok' or 'err' key.");
+  retain(ok_val);
+  release(val);
+  return ok_val; /* caller takes ownership */
+}
+
+RuntimeVal *evaluate(Stmt *astNode, Environment *env) {
+  RuntimeVal *result = NULL;
+
+  switch (astNode->kind) {
+  case ProgramAst:
+    result = eval_program((Program *)astNode, env);
+    break;
+  case BooleanLiteralAst:
+    result = (RuntimeVal *)MK_BOOL(((BooleanLiteral *)astNode)->value);
+    break;
+  case NilAst:
+    result = (RuntimeVal *)MK_NIL();
+    break;
+  case NumericLiteralAst:
+    result = (RuntimeVal *)MK_NUMBER(((NumericLiteral *)astNode)->value);
+    break;
+  case IdentifierAst:
+    result = eval_identifier_expr((Identifier *)astNode, env);
+    break;
+  case BinaryExprAst:
+    result = eval_binary_node((BinaryExpr *)astNode, env);
+    break;
+  case VarDeclarationAst:
+    result = eval_var_expr((VarDeclaration *)astNode, env);
+    break;
+  case AssignVarAst:
+    result = eval_assign_var_expr((AssignVar *)astNode, env);
+    break;
+  case IfAst:
+    result = eval_if_expr((IfExpr *)astNode, env);
+    break;
+  case WhileAst:
+    result = eval_while_expr((WhileExpr *)astNode, env);
+    break;
+  case MatchAst:
+    result = eval_match_expr((MatchExpr *)astNode, env);
+    break;
+  case ForAst:
+    result = eval_for_expr((ForExpr *)astNode, env);
+    break;
+  case ArenaBlockAst:
+    result = eval_arena_block((ArenaBlockExpr *)astNode, env);
+    break;
+  case StringLiteralAst:
+    result = eval_string_literal((StringLiteral *)astNode);
+    break;
+  case FuncDefAst:
+    result = eval_func_def((FuncDef *)astNode, env);
+    break;
+  case TypeDeclarationAst:
+    result = eval_type_declaration((TypeDeclaration *)astNode, env);
+    break;
+  case CallExprAst:
+    result = eval_call_expr((CallExpr *)astNode, env);
+    break;
+  case MemberExprAst:
+    result = eval_member_expr((MemberExpr *)astNode, env);
+    break;
+  case AssignMemberExprAst:
+    result = eval_assign_member_expr((AssignMemberExpr *)astNode, env);
+    break;
+  case ListLiteralAst:
+    result = eval_list_literal((ListLiteral *)astNode, env);
+    break;
+  case DictLiteralAst:
+    result = eval_dict_literal((DictLiteral *)astNode, env);
+    break;
+  case ListIndexAst:
+    result = eval_list_index((ListIndex *)astNode, env);
+    break;
+  case DictKeyAst:
+    result = eval_dict_key((DictKey *)astNode, env);
+    break;
+  case AssignListVarAst:
+    result = eval_assign_list_var_expr((AssignListVar *)astNode, env);
+    break;
+  case AssignDictVarAst:
+    result = eval_assign_dict_var_expr((AssignDictVar *)astNode, env);
+    break;
+  case ImportAst:
+    result = eval_import_stmt((ImportStmt *)astNode, env);
+    break;
+  case AssignListExprAst:
+    result = eval_assign_list_expr((AssignListExpr *)astNode, env);
+    break;
+  case AssignDictExprAst:
+    result = eval_assign_dict_expr((AssignDictExpr *)astNode, env);
+    break;
+  case UnaryExprAst:
+    result = eval_unary_expr((UnaryExpr *)astNode, env);
+    break;
   case BreakAst:
     cf_signal = CF_BREAK;
-    return (RuntimeVal *)MK_NIL();
+    result = (RuntimeVal *)MK_NIL();
+    break;
   case ContinueAst:
     cf_signal = CF_CONTINUE;
-    return (RuntimeVal *)MK_NIL();
-  case ReturnAst: {
-    ReturnStmt *ret = (ReturnStmt *)astNode;
-    RuntimeVal *val = ret->value ? evaluate(&(ret->value->stmt), env) : (RuntimeVal *)MK_NIL();
-    cf_set_return(val);
-    return (RuntimeVal *)MK_NIL();
-  }
-  case ReturnSuccessAst: {
-    ReturnStmt *ret = (ReturnStmt *)astNode;
-    RuntimeVal *val = ret->value ? evaluate(&(ret->value->stmt), env) : (RuntimeVal *)MK_NIL();
-    DictVal *res = MK_DICT(1);
-    dict_set_val(res, "ok", val);
-    cf_set_return((RuntimeVal *)res);
-    release(val);
-    return (RuntimeVal *)MK_NIL();
-  }
-  case ReturnErrorAst: {
-    ReturnStmt *ret = (ReturnStmt *)astNode;
-    RuntimeVal *val = ret->value ? evaluate(&(ret->value->stmt), env) : (RuntimeVal *)MK_NIL();
-    DictVal *res = MK_DICT(1);
-    dict_set_val(res, "err", val);
-    cf_set_return((RuntimeVal *)res);
-    release(val);
-    return (RuntimeVal *)MK_NIL();
-  }
-  case UnwrapAst: {
-    UnwrapExpr *u = (UnwrapExpr *)astNode;
-    RuntimeVal *val = evaluate(&(u->expr->stmt), env);
-    if (val->type != DICT_T) error("Unwrap operator !? expects a result dictionary {ok: v} or {err: v}.");
-    DictVal *d = (DictVal *)val;
-    RuntimeVal *err_val = dict_get_val(d, "err");
-    if (err_val) {
-      /* Propagate early return: the value IS the result dict. */
-      cf_set_return(val);
-      release(err_val);
-      return (RuntimeVal *)MK_NIL();
-    }
-    RuntimeVal *ok_val = dict_get_val(d, "ok");
-    if (!ok_val) error("Unwrap operator !? expects a result dictionary with 'ok' or 'err' key.");
-    retain(ok_val);
-    release(val);
-    return ok_val; /* caller takes ownership */
-  }
+    result = (RuntimeVal *)MK_NIL();
+    break;
+  case ReturnAst:
+    result = eval_return_node((ReturnStmt *)astNode, env);
+    break;
+  case ReturnSuccessAst:
+    result = eval_result_return_node((ReturnStmt *)astNode, env, "ok");
+    break;
+  case ReturnErrorAst:
+    result = eval_result_return_node((ReturnStmt *)astNode, env, "err");
+    break;
+  case UnwrapAst:
+    result = eval_unwrap_node((UnwrapExpr *)astNode, env);
+    break;
   default: error("This AST Node has not yet been setup for interpretation.\n");
   }
-  return NULL;
+  return result;
 }
 
 #include "../zox_alloc.h"

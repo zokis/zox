@@ -22,7 +22,6 @@ println("");
     ?(len(zo_file) == 0) { __> };
 
     let test_name = replace(replace(zo_file, unit_dir + "/", ""), ".zo", "");
-
     let output = exec(zox_bin + " " + zo_file + " 2>&1");
     let f1 = find(output, "Result: ");
     let f2 = find(output, " 0 failed");

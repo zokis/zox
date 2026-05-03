@@ -37,43 +37,58 @@ Token expect(Parser *parser, TokenType type, const char *err) {
   return token;
 }
 
+static Stmt *parse_return_stmt(Parser *parser, TokenType type) {
+  Expr *val = NULL;
+  if (at(parser).type != SemiColonTk && at(parser).type != CloseBraceTk &&
+      at(parser).type != EOFTk) {
+    val = parse_expr(parser);
+  }
+  if (type == ReturnSuccessTk) return (Stmt *)create_return_success(val);
+  if (type == ReturnErrorTk) return (Stmt *)create_return_error(val);
+  return (Stmt *)create_return(val);
+}
+
 Stmt *parse_stmt(Parser *parser) {
   Stmt *stmt = NULL;
 
-  if (at(parser).type == ImportTk) {
-    stmt = parse_import_stmt(parser);
-  } else if (at(parser).type == TypeTk) {
-    stmt = parse_type_declaration(parser);
-  } else if (at(parser).type == LetTk) {
-    stmt = (Stmt *)parse_var_declaration(parser);
-  } else if (at(parser).type == WhileTk) {
-    eat(parser);
-    stmt = (Stmt *)parse_while_expr(parser);
-  } else if (at(parser).type == ForTk) {
-    eat(parser);
-    stmt = (Stmt *)parse_for_expr(parser);
-  } else if (at(parser).type == IfTk) {
-    eat(parser);
-    stmt = (Stmt *)parse_if_expr(parser);
-  } else if (at(parser).type == BreakTk) {
-    eat(parser);
-    stmt = (Stmt *)create_break();
-  } else if (at(parser).type == ContinueTk) {
-    eat(parser);
-    stmt = (Stmt *)create_continue();
-  } else if (at(parser).type == ReturnTk || at(parser).type == ReturnSuccessTk ||
-             at(parser).type == ReturnErrorTk) {
-    TokenType type = eat(parser).type;
-    Expr *val = NULL;
-    if (at(parser).type != SemiColonTk && at(parser).type != CloseBraceTk &&
-        at(parser).type != EOFTk) {
-      val = parse_expr(parser);
-    }
-    if (type == ReturnSuccessTk) stmt = (Stmt *)create_return_success(val);
-    else if (type == ReturnErrorTk)   stmt = (Stmt *)create_return_error(val);
-    else stmt = (Stmt *)create_return(val);
-  } else {
-    stmt = (Stmt *)parse_expr(parser);
+  switch (at(parser).type) {
+    case ImportTk:
+      stmt = parse_import_stmt(parser);
+      break;
+    case TypeTk:
+      stmt = parse_type_declaration(parser);
+      break;
+    case LetTk:
+      stmt = (Stmt *)parse_var_declaration(parser);
+      break;
+    case WhileTk:
+      eat(parser);
+      stmt = (Stmt *)parse_while_expr(parser);
+      break;
+    case ForTk:
+      eat(parser);
+      stmt = (Stmt *)parse_for_expr(parser);
+      break;
+    case IfTk:
+      eat(parser);
+      stmt = (Stmt *)parse_if_expr(parser);
+      break;
+    case BreakTk:
+      eat(parser);
+      stmt = (Stmt *)create_break();
+      break;
+    case ContinueTk:
+      eat(parser);
+      stmt = (Stmt *)create_continue();
+      break;
+    case ReturnTk:
+    case ReturnSuccessTk:
+    case ReturnErrorTk:
+      stmt = parse_return_stmt(parser, eat(parser).type);
+      break;
+    default:
+      stmt = (Stmt *)parse_expr(parser);
+      break;
   }
 
   if (stmt != NULL && at(parser).type == SemiColonTk) {

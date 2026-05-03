@@ -49,7 +49,6 @@ static RuntimeVal *os_exec(Environment *env, RuntimeVal **args, size_t argc) {
   if (!fp) return (RuntimeVal *)MK_NIL();
 
   char *buf = NULL;
-  size_t buf_size = 0;
   size_t total = 0;
   char tmp[256];
   while (fgets(tmp, sizeof(tmp), fp)) {
@@ -57,7 +56,6 @@ static RuntimeVal *os_exec(Environment *env, RuntimeVal **args, size_t argc) {
     buf = realloc_safe(buf, total + chunk + 1, "os_exec buf");
     memcpy(buf + total, tmp, chunk);
     total += chunk;
-    buf_size = total + 1;
   }
   pclose(fp);
   if (!buf) return (RuntimeVal *)MK_STRING("");

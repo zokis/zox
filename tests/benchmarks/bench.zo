@@ -148,3 +148,93 @@ let m = 0;
     ?(is_even(m)) { even_count = even_count + 1 }
 }
 println(even_count)
+
+-# Custom types and pattern matching (1000 iterations)
+type Point3D { x, y, z };
+
+$ classify_point(p) {
+    let s_val = p.x + p.y + p.z;
+    ?? (s_val) {
+        s_val > 60 => "far",
+        s_val > 30 => "mid",
+        _          => "near"
+    }
+}
+
+let points_near = 0;
+let p_idx = 0;
+#(p_idx < 1000) {
+    let p = Point3D(p_idx % 20, p_idx % 30, p_idx % 40);
+    ?(classify_point(p) == "near") {
+        points_near = points_near + 1
+    }
+    p_idx = p_idx + 1
+}
+println(points_near)
+
+-# Result propagation and while loop (500 iterations)
+$ safe_div(a, b) {
+    ?(b == 0) { _>>! "div0" } : { _>>@ a / b }
+}
+
+let ok_count = 0;
+let d_idx = 0;
+#(d_idx < 500) {
+    let res = safe_div(d_idx, d_idx % 5);
+    ?? (res) {
+        is_ok(res) => { ok_count = ok_count + 1 },
+        _          => { nil }
+    }
+    d_idx = d_idx + 1
+}
+println(ok_count)
+
+-# Collections library Stress
+~> "./lib/collections.so" { range, flatten, unique, group_by };
+
+let r = range(0, 100, 1);
+$ dbl(x) { {x, x} }
+let doubled = map(r, dbl);
+let flat = flatten(doubled);
+let uniq = unique(flat);
+println(len(uniq))
+
+$ parity(x) {
+    ?(x % 2 == 0) { "even" } : { "odd" }
+}
+
+let groups = group_by(uniq, parity);
+println(len(groups{"even"}))
+
+-# Control flow with break/continue and string operators (200 iterations)
+$ control_flow_stress(n) {
+    let res_str = "";
+    @(let i = 0; i < n; i = i + 1) {
+        ?(i % 10 == 0) { __> }  -# continue
+        ?(i > 150) { ~!! }      -# break
+        res_str = res_str + toString(i % 5);
+        ?(len(res_str) > 50) {
+            res_str = res_str - "01" - "2"  -# string removal
+        }
+    }
+    res_str
+}
+println(len(control_flow_stress(200)))
+
+-# Power operator and complex arithmetic
+let p_sum = 0;
+@(let k = 1; k <= 10; k = k + 1) {
+    p_sum = p_sum + (k ** 2)
+}
+println(p_sum)
+
+-# Type mutation and deep access
+type Container { val, inner };
+let c = Container(10, Container(20, nil));
+c.inner.val = 30;
+println(c.inner.val)
+
+-# Date library (Zox-implemented module)
+~> "./lib/date.zo" { parse, format };
+let dt = parse("2026-05-03 15:00:00");
+println(format(dt, "YYYY"))

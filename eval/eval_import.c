@@ -123,6 +123,7 @@ static RuntimeVal *eval_import_dynamic(const char *so_path,
                                        ImportStmt *import_stmt,
                                        Environment *env) {
 #ifdef _WIN32
+  (void)import_stmt; (void)env;
   char error_msg[256];
   snprintf(error_msg, sizeof(error_msg),
            "Dynamic modules (.dll) not yet supported on Windows: %s", so_path);

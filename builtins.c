@@ -15,7 +15,12 @@
 
 extern char *runtime_value_to_string(RuntimeVal *val);
 
-static char *builtin_key_arg(RuntimeVal *arg) {
+static char *builtin_key_arg(RuntimeVal *arg, int *should_free) {
+  if (arg->type == STRING_T) {
+    *should_free = 0;
+    return ((StringVal *)arg)->value;
+  }
+  *should_free = 1;
   char *key = runtime_value_to_string(arg);
   if (!key) error("Dict key must be convertible to string.");
   return key;
@@ -35,7 +40,8 @@ static RuntimeVal *result_lookup_or_default(RuntimeVal *arg, const char *key,
 }
 
 RuntimeVal *builtin_sum(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1 || args[0]->type != LIST_T)
+  (void)env; (void)arg_count;
+  if (args[0]->type != LIST_T)
     error("The 'sum' function expects exactly one list argument.");
 
   ListVal *list = (ListVal *)args[0];
@@ -67,9 +73,7 @@ static RuntimeVal *find_in_string(StringVal *str, RuntimeVal *target) {
 }
 
 RuntimeVal *builtin_find(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 2)
-    error("The 'find' function expects two arguments (collection and value).");
-
+  (void)env; (void)arg_count;
   if (args[0]->type == LIST_T) {
     return find_in_list((ListVal *)args[0], args[1]);
   } else if (args[0]->type == STRING_T) {
@@ -81,14 +85,16 @@ RuntimeVal *builtin_find(Environment *env, RuntimeVal **args, size_t arg_count) 
 }
 
 RuntimeVal *builtin_keys(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1 || args[0]->type != DICT_T)
+  (void)env; (void)arg_count;
+  if (args[0]->type != DICT_T)
     error("The 'keys' function expects exactly one dictionary argument.");
 
   return (RuntimeVal *)dict_to_keys((DictVal *)args[0]);
 }
 
 RuntimeVal *builtin_values(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1 || args[0]->type != DICT_T)
+  (void)env; (void)arg_count;
+  if (args[0]->type != DICT_T)
     error("The 'values' function expects exactly one dictionary argument.");
 
   DictVal *dict = (DictVal *)args[0];
@@ -103,30 +109,36 @@ RuntimeVal *builtin_values(Environment *env, RuntimeVal **args, size_t arg_count
 }
 
 RuntimeVal *builtin_has_key(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 2 || args[0]->type != DICT_T)
+  (void)env; (void)arg_count;
+  if (args[0]->type != DICT_T)
     error("The 'has_key' function expects a dictionary and a string key.");
 
-  char *key = builtin_key_arg(args[1]);
+  int should_free;
+  char *key = builtin_key_arg(args[1], &should_free);
   RuntimeVal *result = (RuntimeVal *)MK_BOOL(dict_find_entry((DictVal *)args[0], key) != NULL);
-  free_safe(key);
+  if (should_free) free_safe(key);
   return result;
 }
 
 RuntimeVal *builtin_get(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 2 || args[0]->type != DICT_T)
+  (void)env; (void)arg_count;
+  if (args[0]->type != DICT_T)
     error("The 'get' function expects a dictionary and a string key.");
 
-  char *key = builtin_key_arg(args[1]);
+  int should_free;
+  char *key = builtin_key_arg(args[1], &should_free);
   RuntimeVal *val = dict_get_val((DictVal *)args[0], key);
-  free_safe(key);
+  if (should_free) free_safe(key);
   return val ? val : (RuntimeVal *)MK_NIL();
 }
 
 RuntimeVal *builtin_setdefault(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 3 || args[0]->type != DICT_T)
+  (void)env; (void)arg_count;
+  if (args[0]->type != DICT_T)
     error("The 'setdefault' function expects a dictionary, a key, and a default value.");
 
-  char *key = builtin_key_arg(args[1]);
+  int should_free;
+  char *key = builtin_key_arg(args[1], &should_free);
   DictVal *dict = (DictVal *)args[0];
   RuntimeVal *val = dict_get_val(dict, key);
   if (!val) {
@@ -134,13 +146,12 @@ RuntimeVal *builtin_setdefault(Environment *env, RuntimeVal **args, size_t arg_c
     val = args[2];
     retain(val);
   }
-  free_safe(key);
+  if (should_free) free_safe(key);
   return val;
 }
 
 RuntimeVal *builtin_len(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1) error("len() function expects exactly one argument.");
-
+  (void)env; (void)arg_count;
   switch (args[0]->type) {
   case LIST_T:   return (RuntimeVal *)MK_NUMBER((double)((ListVal *)args[0])->size);
   case DICT_T:   return (RuntimeVal *)MK_NUMBER((double)((DictVal *)args[0])->size);
@@ -152,6 +163,7 @@ RuntimeVal *builtin_len(Environment *env, RuntimeVal **args, size_t arg_count) {
 }
 
 void _builtin_print_value(Environment *env, RuntimeVal **args, size_t arg_count, int newline) {
+  (void)env;
   for (size_t i = 0; i < arg_count; i++) {
     char *str = runtime_value_to_string(args[i]);
     if (str) {
@@ -171,7 +183,7 @@ RuntimeVal *builtin_println_value(Environment *env, RuntimeVal **args, size_t ar
 }
 
 RuntimeVal *builtin_typeof(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1) error("typeof() expects one argument");
+  (void)env; (void)arg_count;
   if (args[0]->type == STRUCT_T) {
     StructVal *sv = (StructVal *)args[0];
     char buf[256];
@@ -211,7 +223,7 @@ static RuntimeVal *copy_struct(StructVal *old) {
 }
 
 RuntimeVal *builtin_copy(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1) error("copy() expects one argument");
+  (void)env; (void)arg_count;
   RuntimeVal *val = args[0];
   switch (val->type) {
     case LIST_T:   return copy_list((ListVal *)val);
@@ -222,11 +234,13 @@ RuntimeVal *builtin_copy(Environment *env, RuntimeVal **args, size_t arg_count) 
 }
 
 RuntimeVal *builtin_random(Environment *env, RuntimeVal **args, size_t arg_count) {
+  (void)env; (void)args; (void)arg_count;
   return (RuntimeVal *)MK_NUMBER((double)rand() / (double)RAND_MAX);
 }
 
 RuntimeVal *builtin_random_int(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 2 || args[0]->type != NUMBER_T || args[1]->type != NUMBER_T)
+  (void)env; (void)arg_count;
+  if (args[0]->type != NUMBER_T || args[1]->type != NUMBER_T)
     error("random_int(min, max) expects two numbers");
   int min = (int)((NumberVal *)args[0])->value;
   int max = (int)((NumberVal *)args[1])->value;
@@ -235,37 +249,40 @@ RuntimeVal *builtin_random_int(Environment *env, RuntimeVal **args, size_t arg_c
 }
 
 RuntimeVal *builtin_print_value(Environment *env, RuntimeVal **args, size_t arg_count) {
+  (void)arg_count;
   _builtin_print_value(env, args, 1, 0);
   return (RuntimeVal *)MK_NIL();
 }
 
 RuntimeVal *builtin_ok(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1) error("ok() expects exactly one argument.");
+  (void)env; (void)arg_count;
   return result_dict_with_key("ok", args[0]);
 }
 
 RuntimeVal *builtin_err(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1) error("err() expects exactly one argument.");
+  (void)env; (void)arg_count;
   return result_dict_with_key("err", args[0]);
 }
 
 RuntimeVal *builtin_is_ok(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1 || args[0]->type != DICT_T) return (RuntimeVal *)MK_BOOL(0);
+  (void)env; (void)arg_count;
+  if (args[0]->type != DICT_T) return (RuntimeVal *)MK_BOOL(0);
   return (RuntimeVal *)MK_BOOL(dict_find_entry((DictVal *)args[0], "ok") != NULL);
 }
 
 RuntimeVal *builtin_is_err(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1 || args[0]->type != DICT_T) return (RuntimeVal *)MK_BOOL(0);
+  (void)env; (void)arg_count;
+  if (args[0]->type != DICT_T) return (RuntimeVal *)MK_BOOL(0);
   return (RuntimeVal *)MK_BOOL(dict_find_entry((DictVal *)args[0], "err") != NULL);
 }
 
 RuntimeVal *builtin_get_ok(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1) return (RuntimeVal *)MK_NIL();
+  (void)env; (void)arg_count;
   return result_lookup_or_default(args[0], "ok", (RuntimeVal *)MK_NIL());
 }
 
 RuntimeVal *builtin_get_err(Environment *env, RuntimeVal **args, size_t arg_count) {
-  if (arg_count != 1) return (RuntimeVal *)MK_NIL();
+  (void)env; (void)arg_count;
   return result_lookup_or_default(args[0], "err", (RuntimeVal *)MK_NIL());
 }
 

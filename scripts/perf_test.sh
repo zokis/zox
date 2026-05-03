@@ -9,8 +9,8 @@ set -euo pipefail
 
 BASELINE="tests/benchmarks/perf_baseline.txt"
 BENCH="tests/benchmarks/bench.zo"
-RUNS=10
-THRESHOLD_PCT=10   # fail if median is >10% slower than baseline
+RUNS=15
+THRESHOLD_PCT=9   # fail if median is >10% slower than baseline
 ARENA_SIZE="16MB"
 
 cd "$(dirname "$0")/.."

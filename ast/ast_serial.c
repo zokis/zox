@@ -281,7 +281,7 @@ static Stmt *des_string(FILE *f) {
   return n;
 }
 static Stmt *des_boolean(FILE *f) { return (Stmt *)create_boolean_literal(read_u8(f)); }
-static Stmt *des_nil(FILE *f) { return (Stmt *)create_nil_literal(); }
+static Stmt *des_nil(FILE *f) { (void)f; return (Stmt *)create_nil_literal(); }
 static Stmt *des_identifier(FILE *f) {
   char *sym = read_str(f);
   Stmt *n = (Stmt *)create_identifier(sym ? sym : "");

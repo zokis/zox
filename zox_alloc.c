@@ -1,6 +1,7 @@
 #include "zox_alloc.h"
 
 #include <string.h>
+#include <stdlib.h>
 #include "malloc_safe.h"
 
 /* max free list depth per kind when no arena is configured */
@@ -11,6 +12,7 @@ typedef struct PoolNode {
 } PoolNode;
 
 static PoolNode      *free_lists[ZOX_ALLOC_KIND_COUNT];
+static void         (*cleanup_fns[ZOX_ALLOC_KIND_COUNT])(void *ptr);
 static ZoxAllocStats  stats[ZOX_ALLOC_KIND_COUNT];
 
 static unsigned char *arena_base   = NULL;
@@ -21,35 +23,25 @@ static int            force_heap   = 0;
 #define ARENA_OWNS(ptr) (arena_base && (unsigned char *)(ptr) >= arena_base && (unsigned char *)(ptr) < arena_base + arena_size)
 
 void zox_arena_init(size_t bytes) {
-  free_safe(arena_base);
+  if (arena_base) free(arena_base);
   arena_base   = (unsigned char *)malloc_safe(bytes, "ZoxArena");
   arena_size   = bytes;
   arena_offset = 0;
 }
 
 void zox_arena_destroy(void) {
-  free_safe(arena_base);
+  if (arena_base) free(arena_base);
   arena_base   = NULL;
   arena_size   = 0;
   arena_offset = 0;
 }
 
+void *zox_arena_get_base(void) { return (void *)arena_base; }
 size_t zox_arena_get_offset(void) { return arena_offset; }
 
 void zox_arena_set_offset(size_t offset) {
   if (offset > arena_offset) return;
-  /* Purge free list nodes that point into the arena region we're about to "free" */
-  for (int i = 0; i < ZOX_ALLOC_KIND_COUNT; i++) {
-    PoolNode **curr = &free_lists[i];
-    while (*curr) {
-      if (ARENA_OWNS(*curr) && (unsigned char *)*curr >= arena_base + offset) {
-        *curr = (*curr)->next;
-        stats[i].depth--;
-      } else {
-        curr = &((*curr)->next);
-      }
-    }
-  }
+  /* Arena objects are never pooled, ensuring safe O(1) reset. */
   arena_offset = offset;
 }
 
@@ -71,11 +63,9 @@ static void *arena_bump(size_t size) {
 }
 
 void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label) {
-  if (kind >= ZOX_ALLOC_KIND_COUNT || force_heap) {
-    if (kind < ZOX_ALLOC_KIND_COUNT) stats[kind].heap++;
-    return calloc_safe(1, size, label);
-  }
-  stats[kind].alloc++;
+  if (kind >= ZOX_ALLOC_KIND_COUNT) return calloc_safe(1, size, label);
+
+  /* Try pool first (heap objects only) */
   PoolNode *node = free_lists[kind];
   if (node) {
     free_lists[kind] = node->next;
@@ -83,39 +73,48 @@ void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label) {
     stats[kind].depth--;
     return node;
   }
+
+  if (kind == ZOX_ALLOC_ENV || force_heap) {
+    stats[kind].heap++;
+    return calloc_safe(1, size, label);
+  }
+
+  stats[kind].alloc++;
   void *ptr = arena_bump(size);
   if (ptr) {
     memset(ptr, 0, size);
     stats[kind].arena++;
     return ptr;
   }
+  
   stats[kind].heap++;
   return calloc_safe(1, size, label);
 }
 
 void zox_free_obj(ZoxAllocKind kind, void *ptr) {
   if (!ptr) return;
-  if (kind >= ZOX_ALLOC_KIND_COUNT) { free_safe(ptr); return; }
+  if (kind >= ZOX_ALLOC_KIND_COUNT) {
+    if (!ARENA_OWNS(ptr)) free_safe(ptr);
+    return;
+  }
   stats[kind].freed++;
 
-  int pool_it;
-  if (arena_base) {
-    /* If arena is active, pool everything that fits in the arena. 
-       Also pool heap objects up to POOL_CAP to maintain parity with Standard mode. */
-    pool_it = ARENA_OWNS(ptr) || (stats[kind].depth < POOL_CAP);
-  } else {
-    pool_it = (stats[kind].depth < POOL_CAP);
-  }
+  if (ARENA_OWNS(ptr)) return;
 
-  if (pool_it) {
+  if (stats[kind].depth < POOL_CAP) {
     stats[kind].pooled++;
     stats[kind].depth++;
     PoolNode *node = (PoolNode *)ptr;
     node->next = free_lists[kind];
     free_lists[kind] = node;
   } else {
+    if (cleanup_fns[kind]) cleanup_fns[kind](ptr);
     free_safe(ptr);
   }
+}
+
+void zox_alloc_set_cleanup_fn(ZoxAllocKind kind, void (*cleanup_fn)(void *ptr)) {
+  if (kind < ZOX_ALLOC_KIND_COUNT) cleanup_fns[kind] = cleanup_fn;
 }
 
 void zox_alloc_cleanup(void) {
@@ -123,7 +122,8 @@ void zox_alloc_cleanup(void) {
     PoolNode *node = free_lists[i];
     while (node) {
       PoolNode *next = node->next;
-      if (!ARENA_OWNS(node)) free_safe(node);
+      if (cleanup_fns[i]) cleanup_fns[i](node);
+      free_safe(node);
       node = next;
     }
     free_lists[i] = NULL;

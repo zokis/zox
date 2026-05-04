@@ -172,7 +172,12 @@ RuntimeVal *eval_match_expr(MatchExpr *match_expr, Environment *env) {
 
 RuntimeVal *eval_member_expr(MemberExpr *member_expr, Environment *env) {
   RuntimeVal *object = evaluate(&(member_expr->object->stmt), env);
-  if (object->type != STRUCT_T) error("Accessing member of non-struct value.");
+  if (object->type != STRUCT_T) {
+    fprintf(stderr, "DEBUG: Member access '%s' on non-struct type: %s\n",
+            member_expr->member, type_to_string(object->type));
+    release(object);
+    error("Accessing member of non-struct value.");
+  }
   
   StructVal *sv = (StructVal *)object;
   for (size_t i = 0; i < sv->type_def->field_count; i++) {
@@ -187,6 +192,37 @@ RuntimeVal *eval_member_expr(MemberExpr *member_expr, Environment *env) {
   char error_msg[100];
   snprintf(error_msg, sizeof(error_msg), "Struct 'type<%s>' has no field '%s'.", 
            sv->type_def->name, member_expr->member);
+  release(object);
+  error(error_msg);
+  return (RuntimeVal *)MK_NIL();
+}
+
+RuntimeVal *eval_assign_member_expr(AssignMemberExpr *node, Environment *env) {
+  RuntimeVal *value  = evaluate(&(node->value->stmt), env);
+  RuntimeVal *object = evaluate(&(node->object->stmt), env);
+  
+  if (object->type != STRUCT_T) {
+    release(value);
+    release(object);
+    error("Attempted to assign member of a non-struct value.");
+  }
+  
+  StructVal *sv = (StructVal *)object;
+  for (size_t i = 0; i < sv->type_def->field_count; i++) {
+    if (strcmp(sv->type_def->fields[i], node->member) == 0) {
+      release(sv->values[i]);
+      sv->values[i] = value;
+      retain(value);
+      release(object);
+      return value;
+    }
+  }
+  
+  char error_msg[100];
+  snprintf(error_msg, sizeof(error_msg), "Struct 'type<%s>' has no field '%s'.", 
+           sv->type_def->name, node->member);
+  release(value);
+  release(object);
   error(error_msg);
   return (RuntimeVal *)MK_NIL();
 }

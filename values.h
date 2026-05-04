@@ -1,10 +1,10 @@
-#include "ast.h"
-#include "env.h"
-#include <stddef.h>
-
 #ifndef VALUE_H
 #define VALUE_H
 
+#include "ast.h"
+#include <stddef.h>
+
+/* Forward declaration to avoid circular dependency with env.h */
 typedef struct Environment Environment;
 
 /* ref_count = -1 -> static singleton, retain/release no-op. */
@@ -15,16 +15,15 @@ typedef enum {
   NUMBER_T,
   BOOLEAN_T,
   STRING_T,
+  FUNCTION_T,
   LIST_T,
   DICT_T,
   TYPE_T,
   STRUCT_T,
-  MODULE_T,
-  /* TABLE_T reserved for future reintroduction. */
-  FUNCTION_T
+  MODULE_T
 } ValueType;
 
-typedef struct {
+typedef struct RuntimeVal {
   ValueType type;
   int ref_count;
 } RuntimeVal;
@@ -35,13 +34,13 @@ typedef struct {
 
 typedef struct {
   RuntimeVal base;
-  short int value;
-} BooleanVal;
+  double value;
+} NumberVal;
 
 typedef struct {
   RuntimeVal base;
-  double value;
-} NumberVal;
+  int value;
+} BooleanVal;
 
 typedef struct {
   RuntimeVal base;
@@ -56,7 +55,7 @@ typedef struct {
   size_t body_count;
   Environment *env;
   RuntimeVal *(*builtin_func)(Environment *env, RuntimeVal **args,
-                              size_t arg_count);
+                               size_t arg_count);
 } FunctionVal;
 
 typedef struct {
@@ -80,45 +79,51 @@ typedef struct {
 
 typedef struct {
   RuntimeVal base;
-  char       *name;
-  char       **fields;
-  size_t      field_count;
+  char *name;
+  char **fields;
+  size_t field_count;
 } TypeVal;
 
 typedef struct {
   RuntimeVal base;
-  TypeVal    *type_def;
+  TypeVal *type_def;
   RuntimeVal **values;
 } StructVal;
 
-/* TableVal temporarily removed. */
+typedef struct {
+  RuntimeVal base;
+  Environment *env;
+} ModuleVal;
 
 typedef RuntimeVal *(*NativeFn)(Environment *env, RuntimeVal **args,
                                 int arg_count);
 
 NilVal *MK_NIL();
-BooleanVal *MK_BOOL(unsigned short int b);
+BooleanVal *MK_BOOL(int value);
 NumberVal *MK_NUMBER(double n);
 StringVal *MK_STRING(const char *str);
-RuntimeVal *create_native_fn(char **params, size_t param_count,
-                             RuntimeVal *(*fn)(Environment *env,
-                                               RuntimeVal **args,
-                                               size_t arg_count));
 FunctionVal *MK_FUNCTION(char **params, size_t param_count, Stmt **body,
                          size_t body_count, Environment *env,
                          RuntimeVal *(*builtin_func)(Environment *env,
                                                      RuntimeVal **args,
                                                      size_t arg_count));
+RuntimeVal *create_native_fn(char **params, size_t param_count,
+                             RuntimeVal *(*fn)(Environment *env,
+                                               RuntimeVal **args,
+                                               size_t arg_count));
+
 ListVal *MK_LIST(size_t capacity);
 DictVal *MK_DICT(size_t capacity);
 TypeVal *MK_TYPE(const char *name, char **fields, size_t field_count);
 StructVal *MK_STRUCT(TypeVal *type_def, RuntimeVal **values);
+ModuleVal *MK_MODULE(Environment *env);
+
 RuntimeVal *promote_val(RuntimeVal *val);
 char *dict_key_to_string(RuntimeVal *val);
 Entry *dict_find_entry(DictVal *dict, const char *key);
 RuntimeVal *dict_get_val(DictVal *dict, const char *key);
 
-char *type_to_string(ValueType type);
+const char *type_to_string(ValueType type);
 
 /* Reference counting. */
 void retain(RuntimeVal *val);

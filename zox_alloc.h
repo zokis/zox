@@ -28,12 +28,14 @@ typedef struct {
 
 void  zox_arena_init(size_t bytes);
 void  zox_arena_destroy(void);
+void *zox_arena_get_base(void);
 size_t zox_arena_get_offset(void);
 void   zox_arena_set_offset(size_t offset);
 int    zox_arena_owns(void *ptr);
 void   zox_alloc_force_heap(int force);
 void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label);
 void  zox_free_obj(ZoxAllocKind kind, void *ptr);
+void  zox_alloc_set_cleanup_fn(ZoxAllocKind kind, void (*cleanup_fn)(void *ptr));
 void  zox_alloc_cleanup(void);
 void  zox_alloc_report(FILE *out);
 

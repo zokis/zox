@@ -20,7 +20,7 @@ CFLAGS_LIB     = -shared -fPIC -O2
 LIB_SRCS := $(wildcard lib/*.c)
 LIB_SOS  := $(LIB_SRCS:.c=.so)
 
-.PHONY: all dev test libs buildlib full fulldev testlib testlibs clean install listlibs help
+.PHONY: all dev test libs buildlib full fulldev testlib testlibs perf perf-update bench-leak clean install listlibs help
 
 ## Build release core (default).
 all:
@@ -67,6 +67,18 @@ perf:
 perf-update:
 	@bash scripts/perf_test.sh --update
 
+## Run benchmarks in dev mode to detect memory leaks.
+bench-leak: fulldev
+	@echo "Checking leaks in bench.zo (Standard)..."
+	@ASAN_OPTIONS=detect_leaks=1 ./$(BIN) tests/benchmarks/bench.zo > /dev/null
+	@echo "Checking leaks in bench.zo (Arena 16MB)..."
+	@ASAN_OPTIONS=detect_leaks=1 ./$(BIN) --arena=16 tests/benchmarks/bench.zo > /dev/null
+	@echo "Checking leaks in bench_memory.zo (Standard)..."
+	@ASAN_OPTIONS=detect_leaks=1 ./$(BIN) tests/benchmarks/bench_memory.zo > /dev/null
+	@echo "Checking leaks in bench_memory.zo (Arena 16MB)..."
+	@ASAN_OPTIONS=detect_leaks=1 ./$(BIN) --arena=16 tests/benchmarks/bench_memory.zo > /dev/null
+	@echo "No leaks detected."
+
 ## Remove binary and compiled libs.
 clean:
 	rm -f $(BIN) $(LIB_SOS)
@@ -90,6 +102,10 @@ help:
 	@echo "  make full     - core + all libs"
 	@echo "  make fulldev  - dev core + all libs"
 	@echo "  make test     - build and run test suite"
+	@echo "  make testlibs - run all library unit tests"
+	@echo "  make perf     - run performance regression tests"
+	@echo "  make perf-update - update performance baseline"
+	@echo "  make bench-leak - run benchmarks with leak detection"
 	@echo "  make listlibs - list available libs"
 	@echo "  make clean    - remove binary and compiled .so files"
 	@echo "  make install  - install into /usr/local/bin"

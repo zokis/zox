@@ -1,0 +1,28 @@
+AddressSanitizer:DEADLYSIGNAL
+=================================================================
+==121396==ERROR: AddressSanitizer: SEGV on unknown address 0x00009fff8000 (pc 0x55739ab9658b bp 0x7ffc20eabc20 sp 0x7ffc20eabbb0 T0)
+==121396==The signal is caused by a READ memory access.
+    #0 0x55739ab9658b in free_runtime_val /mnt/z/claude/zox/values.c:55
+    #1 0x55739ab96ce7 in release /mnt/z/claude/zox/values.c:103
+    #2 0x55739ab97d0f in eval_binary_node eval/eval_core.c:41
+    #3 0x55739ab98115 in evaluate eval/eval_core.c:98
+    #4 0x55739aba2324 in eval_assign_var_expr eval/eval_funcs.c:15
+    #5 0x55739ab9814d in evaluate eval/eval_core.c:104
+    #6 0x55739ab9e58c in eval_stmt_block eval/eval_control.c:17
+    #7 0x55739ab9ec2e in eval_for_expr eval/eval_control.c:101
+    #8 0x55739ab981bd in evaluate eval/eval_core.c:116
+    #9 0x55739aba3451 in eval_function_body eval/eval_funcs.c:138
+    #10 0x55739aba3e0a in eval_call_expr eval/eval_funcs.c:213
+    #11 0x55739ab98242 in evaluate eval/eval_core.c:131
+    #12 0x55739aba2240 in eval_var_expr eval/eval_funcs.c:5
+    #13 0x55739ab98131 in evaluate eval/eval_core.c:101
+    #14 0x55739ab97bb0 in eval_program eval/eval_core.c:26
+    #15 0x55739ab7a0b9 in run_program /mnt/z/claude/zox/main.c:62
+    #16 0x55739ab7b476 in main /mnt/z/claude/zox/main.c:184
+    #17 0x7f55ce0ebd8f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #18 0x7f55ce0ebe3f in __libc_start_main_impl ../csu/libc-start.c:392
+    #19 0x55739ab79c64 in _start (/mnt/z/claude/zox/zox+0x11c64)
+
+AddressSanitizer can not provide additional info.
+SUMMARY: AddressSanitizer: SEGV /mnt/z/claude/zox/values.c:55 in free_runtime_val
+==121396==ABORTING

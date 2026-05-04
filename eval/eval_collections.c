@@ -265,6 +265,10 @@ static RuntimeVal *eval_list_collection_index(ListVal *list, int start, ListInde
     if (start < 0) start = list->size + start;
     if (start < 0 || start >= (int)list->size) error("List index out of bounds.\n");
     RuntimeVal *result = list->items[start];
+    if (!result || result->type == NIL_T) {
+      fprintf(stderr, "DEBUG: list[%d] is nil (size=%zu, items=%p, items[%d]=%p)\n",
+              start, list->size, (void*)list->items, start, (void*)result);
+    }
     retain(result);
     return result;
   } else {

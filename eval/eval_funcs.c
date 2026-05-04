@@ -21,18 +21,36 @@ RuntimeVal *eval_assign_list_var_expr(AssignListVar *var, Environment *env) {
   RuntimeVal *value = evaluate(&(var->value->stmt), env);
   RuntimeVal *index_val = evaluate(&(var->index->stmt), env);
   RuntimeVal *target = lookup_var(env, var->varname);
+  
+  if (index_val->type != NUMBER_T) {
+    release(value);
+    release(index_val);
+    error("Index must be a number.\n");
+  }
   int idx = (int)((NumberVal *)index_val)->value;
   release(index_val);
-  retain(value);
+
   if (target->type == STRUCT_T) {
     StructVal *sv = (StructVal *)target;
-    if (idx < 0 || (size_t)idx >= sv->type_def->field_count) error("Struct index out of bounds.");
+    if (idx < 0 || (size_t)idx >= sv->type_def->field_count) {
+      release(value);
+      error("Struct index out of bounds.");
+    }
     release(sv->values[idx]);
     sv->values[idx] = value;
-  } else {
+    retain(value);
+  } else if (target->type == LIST_T) {
     ListVal *list = (ListVal *)target;
+    if (idx < 0 || (size_t)idx >= list->size) {
+      release(value);
+      error("List index out of bounds.");
+    }
     release(list->items[idx]);
     list->items[idx] = value;
+    retain(value);
+  } else {
+    release(value);
+    error("Target is not indexable.\n");
   }
   return value;
 }
@@ -40,9 +58,22 @@ RuntimeVal *eval_assign_list_var_expr(AssignListVar *var, Environment *env) {
 RuntimeVal *eval_assign_dict_var_expr(AssignDictVar *var, Environment *env) {
   RuntimeVal *value = evaluate(&(var->value->stmt), env);
   RuntimeVal *key_val = evaluate(&(var->key->stmt), env);
-  DictVal *dict = (DictVal *)lookup_var(env, var->varname);
+  RuntimeVal *target = lookup_var(env, var->varname);
+  
+  if (target->type != DICT_T) {
+    release(value);
+    release(key_val);
+    error("Target is not a dictionary.\n");
+  }
+  
+  DictVal *dict = (DictVal *)target;
   char *key = runtime_value_to_string(key_val);
-  if (key == NULL) error("Dict key must be convertible to a string.\n");
+  if (key == NULL) {
+    release(value);
+    release(key_val);
+    error("Dict key must be convertible to a string.\n");
+  }
+  
   dict_set_val(dict, key, value);
   free_safe(key);
   release(key_val);
@@ -206,8 +237,8 @@ RuntimeVal *eval_call_expr(CallExpr *call_expr, Environment *env) {
 
   Environment *func_env = create_environment(func->env, "func_env");
   RuntimeVal **args = eval_call_args(call_expr, env);
-  bind_call_args(func_env, func->params, args, func->param_count, 0);
-  free_safe(args);
+  bind_call_args(func_env, func->params, args, func->param_count, 1);
+  release_call_args(args, call_expr->arg_count);
   release(callee);
 
   RuntimeVal *lastEvaluated = eval_function_body(func, func_env);
@@ -236,26 +267,3 @@ RuntimeVal *zox_call_function(FunctionVal *func, Environment *env,
   return result;
 }
 
-RuntimeVal *eval_assign_member_expr(AssignMemberExpr *node, Environment *env) {
-  RuntimeVal *value = evaluate(&(node->value->stmt), env);
-  RuntimeVal *obj_val = evaluate(&(node->object->stmt), env);
-  
-  if (obj_val->type != STRUCT_T) error("Attempted to assign to member of a non-struct value.");
-  
-  StructVal *sv = (StructVal *)obj_val;
-  for (size_t i = 0; i < sv->type_def->field_count; i++) {
-    if (strcmp(sv->type_def->fields[i], node->member) == 0) {
-      retain(value);
-      release(sv->values[i]);
-      sv->values[i] = value;
-      release(obj_val);
-      return value;
-    }
-  }
-  
-  char error_msg[100];
-  snprintf(error_msg, sizeof(error_msg), "Struct 'type<%s>' has no field '%s'.", 
-           sv->type_def->name, node->member);
-  error(error_msg);
-  return (RuntimeVal *)MK_NIL();
-}

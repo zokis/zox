@@ -233,29 +233,54 @@ static RuntimeVal *promote_struct_val(StructVal *old_struct) {
   return (RuntimeVal *)MK_STRUCT(old_struct->type_def, new_values);
 }
 
+static RuntimeVal *promote_type_val(TypeVal *old_type) {
+  /* Type definitions are usually permanent, but if declared in arena: */
+  char **new_fields = malloc_safe(sizeof(char *) * old_type->field_count, "promote_type_val fields");
+  for (size_t i = 0; i < old_type->field_count; i++) {
+    new_fields[i] = strdup(old_type->fields[i]);
+  }
+  return (RuntimeVal *)MK_TYPE(old_type->name, new_fields, old_type->field_count);
+}
+
 RuntimeVal *promote_val(RuntimeVal *val) {
   RuntimeVal *promoted = val;
 
-  if (val && val->ref_count != STATIC_REF && zox_arena_owns(val)) {
-    switch (val->type) {
-      case STRING_T:
+  if (!val || val->ref_count == STATIC_REF) {
+    return promoted;
+  }
+
+  switch (val->type) {
+    case NUMBER_T:
+      if (zox_arena_owns(val)) {
+        promoted = (RuntimeVal *)MK_NUMBER(((NumberVal *)val)->value);
+      }
+      break;
+    case STRING_T:
+      if (zox_arena_owns(val)) {
         promoted = (RuntimeVal *)MK_STRING(((StringVal *)val)->value);
-        break;
-      case LIST_T:
-        promoted = promote_list_val((ListVal *)val);
-        break;
-      case DICT_T:
-        promoted = promote_dict_val((DictVal *)val);
-        break;
-      case FUNCTION_T:
+      }
+      break;
+    case LIST_T:
+      promoted = promote_list_val((ListVal *)val);
+      break;
+    case DICT_T:
+      promoted = promote_dict_val((DictVal *)val);
+      break;
+    case FUNCTION_T:
+      if (zox_arena_owns(val)) {
         promoted = promote_function_val((FunctionVal *)val);
-        break;
-      case STRUCT_T:
-        promoted = promote_struct_val((StructVal *)val);
-        break;
-      default:
-        break;
-    }
+      }
+      break;
+    case STRUCT_T:
+      promoted = promote_struct_val((StructVal *)val);
+      break;
+    case TYPE_T:
+      if (zox_arena_owns(val)) {
+        promoted = promote_type_val((TypeVal *)val);
+      }
+      break;
+    default:
+      break;
   }
 
   return promoted;

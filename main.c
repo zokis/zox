@@ -143,6 +143,7 @@ int main(int argc, char **argv) {
     return 1;
   }
   Environment *env = create_environment(NULL, "global");
+  builtins_env = env;
   register_builtins(env);
   declare_const(env, "nil",   (RuntimeVal *)MK_NIL());
   declare_const(env, "true",  (RuntimeVal *)MK_BOOL(1));

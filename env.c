@@ -22,6 +22,8 @@ static Environment *alloc_environment(void) {
   return (Environment *)zox_alloc_obj(ZOX_ALLOC_ENV, sizeof(Environment), "Environment");
 }
 
+Environment *builtins_env = NULL;
+
 static Environment **all_envs = NULL;
 static size_t all_envs_count = 0;
 static size_t all_envs_cap = 0;
@@ -36,19 +38,28 @@ static void cleanup_full_env(Environment *env) {
       release(env->entries[i].value);
     }
   }
-  free_safe(env->entries);
+  if (env->entries) {
+    free_safe(env->entries);
+    env->entries = NULL;
+  }
   
   if (env->owned_program) {
     free_program((Program *)env->owned_program);
+    env->owned_program = NULL;
   }
   if (env->scope_name) {
     free_safe(env->scope_name);
+    env->scope_name = NULL;
   }
 #ifndef _WIN32
   for (size_t i = 0; i < env->so_handle_count; i++) {
     dlclose(env->so_handles[i]);
   }
-  if (env->so_handles) free_safe(env->so_handles);
+  if (env->so_handles) {
+    free_safe(env->so_handles);
+    env->so_handles = NULL;
+  }
+  env->so_handle_count = 0;
 #endif
 }
 
@@ -71,7 +82,21 @@ static void unregister_env(Environment *env) {
   }
 }
 
+static void env_pool_cleanup(void *ptr) {
+  Environment *env = (Environment *)ptr;
+  if (env->entries) {
+    free_safe(env->entries);
+    env->entries = NULL;
+  }
+}
+
 Environment *create_environment(Environment *parent, char *scope_name) {
+  static int cleanup_registered = 0;
+  if (!cleanup_registered) {
+    zox_alloc_set_cleanup_fn(ZOX_ALLOC_ENV, env_pool_cleanup);
+    cleanup_registered = 1;
+  }
+
   Environment *env = alloc_environment();
   env->parent      = parent;
 
@@ -79,8 +104,8 @@ Environment *create_environment(Environment *parent, char *scope_name) {
     env->capacity = INITIAL_CAPACITY;
     env->entries  = (HashEntry *)calloc(env->capacity, sizeof(HashEntry));
   } else {
-    /* Entries buffer is reused and already cleared by destroy_environment. */
     env->size = 0;
+    memset(env->entries, 0, env->capacity * sizeof(HashEntry));
   }
   
   env->scope_name = scope_name ? strdup(scope_name) : NULL;
@@ -88,6 +113,7 @@ Environment *create_environment(Environment *parent, char *scope_name) {
   env->owned_program = NULL;
   env->so_handles      = NULL;
   env->so_handle_count = 0;
+  env->registry_index  = 0;
   
   if (parent) retain_env(parent);
   register_env(env);
@@ -99,7 +125,9 @@ void retain_env(Environment *env) {
 }
 
 static void destroy_environment(Environment *env) {
-  /* Clear entries but keep the buffer for reuse. */
+  /* Step 1: Unregister BEFORE any cleanup or pooling. */
+  unregister_env(env);
+
   for (size_t i = 0; i < env->capacity; i++) {
     if (env->entries[i].key != NULL) {
       free_safe(env->entries[i].key);
@@ -129,7 +157,6 @@ static void destroy_environment(Environment *env) {
 #endif
 
   Environment *parent = env->parent;
-  unregister_env(env);
   zox_free_obj(ZOX_ALLOC_ENV, env);
   if (parent) release_env(parent);
 }
@@ -147,7 +174,6 @@ static void break_env_internal(Environment *env) {
     detach_val_env(env->entries[i].value);
   }
 }
-
 
 static void detach_val_env(RuntimeVal *val) {
   if (!val) return;
@@ -187,12 +213,10 @@ void break_env_cycles(Environment *env) {
   (void)env;
   if (all_envs_count == 0) return;
 
-  /* Shutdown Pass 1: Break all closure links. */
   for (size_t i = 0; i < all_envs_count; i++) {
     break_env_internal(all_envs[i]);
   }
 
-  /* Shutdown Pass 2: Manually free all environments in the registry. */
   while (all_envs_count > 0) {
     Environment *e = all_envs[all_envs_count - 1];
     cleanup_full_env(e);
@@ -212,10 +236,11 @@ void free_environment(Environment *env) {
 }
 
 static void resize_hash_table(Environment *env) {
-  size_t new_capacity = env->capacity * 2;
+  size_t old_capacity = env->capacity;
+  size_t new_capacity = old_capacity * 2;
   HashEntry *new_entries = (HashEntry *)calloc(new_capacity, sizeof(HashEntry));
 
-  for (size_t i = 0; i < env->capacity; i++) {
+  for (size_t i = 0; i < old_capacity; i++) {
     if (env->entries[i].key != NULL) {
       size_t index = hash(env->entries[i].key, new_capacity);
       while (new_entries[index].key != NULL)
@@ -259,7 +284,7 @@ void assign_var(Environment *env, const char *varname, RuntimeVal *value) {
 
   while (current != NULL) {
     if (find_entry_index(current, varname, &index)) {
-      if (current->entries[index].value == value) return; /* self-assign */
+      if (current->entries[index].value == value) return;
       release(current->entries[index].value);
       current->entries[index].value = value;
       retain(value);

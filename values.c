@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "malloc_safe.h"
 #include "zox_alloc.h"
 
 static NilVal _nil_singleton = { .base = { NIL_T,     STATIC_REF } };
@@ -26,7 +25,7 @@ static void free_runtime_val(RuntimeVal *val) {
     case MODULE_T: {
       ModuleVal *mv = (ModuleVal *)val;
       if (mv->env) release_env(mv->env);
-      free_safe(mv);
+      zox_free_buf(ZOX_BUF_MISC, mv);
       break;
     }
     case NUMBER_T:
@@ -34,7 +33,7 @@ static void free_runtime_val(RuntimeVal *val) {
       break;
     case STRING_T: {
       StringVal *sv = (StringVal *)val;
-      free_safe(sv->value);
+      zox_free_buf(ZOX_BUF_STRING, sv->value);
       sv->value = NULL;
       zox_free_obj(ZOX_ALLOC_STRING, sv);
       break;
@@ -42,7 +41,7 @@ static void free_runtime_val(RuntimeVal *val) {
     case LIST_T: {
       ListVal *lv = (ListVal *)val;
       for (size_t i = 0; i < lv->size; i++) release(lv->items[i]);
-      free_safe(lv->items);
+      zox_free_buf(ZOX_BUF_LIST_ITEMS, lv->items);
       lv->items = NULL;
       zox_free_obj(ZOX_ALLOC_LIST, lv);
       break;
@@ -52,11 +51,11 @@ static void free_runtime_val(RuntimeVal *val) {
       if (d->entries) {
         for (size_t i = 0; i < d->capacity; i++) {
           if (d->entries[i].key) {
-            free_safe(d->entries[i].key);
+            zox_free_buf(ZOX_BUF_DICT_KEY, d->entries[i].key);
             release(d->entries[i].value);
           }
         }
-        free_safe(d->entries);
+        zox_free_buf(ZOX_BUF_DICT_ENTRIES, d->entries);
         d->entries = NULL;
       }
       zox_free_obj(ZOX_ALLOC_DICT, d);
@@ -64,10 +63,12 @@ static void free_runtime_val(RuntimeVal *val) {
     }
     case TYPE_T: {
       TypeVal *tv = (TypeVal *)val;
-      free_safe(tv->name);
+      zox_free_buf(ZOX_BUF_STRING, tv->name);
       tv->name = NULL;
-      for (size_t i = 0; i < tv->field_count; i++) free_safe(tv->fields[i]);
-      free_safe(tv->fields);
+      for (size_t i = 0; i < tv->field_count; i++) {
+        zox_free_buf(ZOX_BUF_STRING, tv->fields[i]);
+      }
+      zox_free_buf(ZOX_BUF_TYPE_FIELDS, tv->fields);
       tv->fields = NULL;
       zox_free_obj(ZOX_ALLOC_TYPE, tv);
       break;
@@ -78,7 +79,7 @@ static void free_runtime_val(RuntimeVal *val) {
       for (size_t i = 0; i < field_count; i++) {
         release(sv->values[i]);
       }
-      free_safe(sv->values);
+      zox_free_buf(ZOX_BUF_STRUCT_VALUES, sv->values);
       sv->values = NULL;
       release((RuntimeVal *)sv->type_def);
       zox_free_obj(ZOX_ALLOC_STRUCT, sv);
@@ -128,12 +129,12 @@ StringVal *MK_STRING(const char *str) {
   StringVal *val = (StringVal *)zox_alloc_obj(ZOX_ALLOC_STRING, sizeof(StringVal), "StringVal");
   val->base.type      = STRING_T;
   val->base.ref_count = 1;
-  val->value          = strdup(str);
+  val->value          = zox_strdup_buf(ZOX_BUF_STRING, str);
   return val;
 }
 
 ModuleVal *MK_MODULE(Environment *env) {
-  ModuleVal *val = (ModuleVal *)malloc_safe(sizeof(ModuleVal), "ModuleVal");
+  ModuleVal *val = (ModuleVal *)zox_alloc_buf(ZOX_BUF_MISC, sizeof(ModuleVal), "ModuleVal");
   val->base.type      = MODULE_T;
   val->base.ref_count = 1;
   val->env            = env;
@@ -168,7 +169,7 @@ RuntimeVal *create_native_fn(char **params, size_t param_count,
 
 static void list_pool_cleanup(void *ptr) {
   ListVal *lv = (ListVal *)ptr;
-  if (lv->items) free_safe(lv->items);
+  if (lv->items) zox_free_buf(ZOX_BUF_LIST_ITEMS, lv->items);
 }
 
 ListVal *MK_LIST(size_t capacity) {
@@ -181,7 +182,8 @@ ListVal *MK_LIST(size_t capacity) {
   ListVal *list = (ListVal *)zox_alloc_obj(ZOX_ALLOC_LIST, sizeof(ListVal), "ListVal");
   list->base.type      = LIST_T;
   list->base.ref_count = 1;
-  list->items          = (RuntimeVal **)calloc_safe(capacity, sizeof(RuntimeVal *), "ListVal items");
+  list->items          = (RuntimeVal **)zox_calloc_buf(
+      ZOX_BUF_LIST_ITEMS, capacity, sizeof(RuntimeVal *), "ListVal items");
   list->size           = 0;
   list->capacity       = capacity;
   return list;
@@ -189,7 +191,7 @@ ListVal *MK_LIST(size_t capacity) {
 
 static void dict_pool_cleanup(void *ptr) {
   DictVal *dv = (DictVal *)ptr;
-  if (dv->entries) free_safe(dv->entries);
+  if (dv->entries) zox_free_buf(ZOX_BUF_DICT_ENTRIES, dv->entries);
 }
 
 DictVal *MK_DICT(size_t capacity) {
@@ -202,7 +204,8 @@ DictVal *MK_DICT(size_t capacity) {
   DictVal *dict = zox_alloc_obj(ZOX_ALLOC_DICT, sizeof(DictVal), "DictVal");
   dict->base.type      = DICT_T;
   dict->base.ref_count = 1;
-  dict->entries = (Entry *)calloc_safe(capacity, sizeof(Entry), "DictVal items");
+  dict->entries = (Entry *)zox_calloc_buf(
+      ZOX_BUF_DICT_ENTRIES, capacity, sizeof(Entry), "DictVal items");
   dict->size     = 0;
   dict->capacity = capacity;
   return dict;
@@ -228,7 +231,7 @@ const char *type_to_string(ValueType type) {
 
 static void type_pool_cleanup(void *ptr) {
   TypeVal *tv = (TypeVal *)ptr;
-  if (tv->fields) free_safe(tv->fields);
+  if (tv->fields) zox_free_buf(ZOX_BUF_TYPE_FIELDS, tv->fields);
 }
 
 TypeVal *MK_TYPE(const char *name, char **fields, size_t field_count) {
@@ -240,7 +243,7 @@ TypeVal *MK_TYPE(const char *name, char **fields, size_t field_count) {
   TypeVal *tv = (TypeVal *)zox_alloc_obj(ZOX_ALLOC_TYPE, sizeof(TypeVal), "TypeVal");
   tv->base.type = TYPE_T;
   tv->base.ref_count = 1;
-  tv->name = strdup(name);
+  tv->name = zox_strdup_buf(ZOX_BUF_STRING, name);
   tv->fields = fields;
   tv->field_count = field_count;
   return tv;
@@ -248,7 +251,7 @@ TypeVal *MK_TYPE(const char *name, char **fields, size_t field_count) {
 
 static void struct_pool_cleanup(void *ptr) {
   StructVal *sv = (StructVal *)ptr;
-  if (sv->values) free_safe(sv->values);
+  if (sv->values) zox_free_buf(ZOX_BUF_STRUCT_VALUES, sv->values);
 }
 
 StructVal *MK_STRUCT(TypeVal *type_def, RuntimeVal **values) {

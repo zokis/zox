@@ -70,6 +70,10 @@ static void *arena_bump(size_t size) {
   return ptr;
 }
 
+static void ignore_buf_kind(ZoxBufKind kind) {
+  (void)kind;
+}
+
 void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label) {
   if (kind >= ZOX_ALLOC_KIND_COUNT) return calloc_safe(1, size, label);
 
@@ -98,6 +102,34 @@ void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label) {
   
   ZOX_STATS_INC(kind, heap);
   return calloc_safe(1, size, label);
+}
+
+void *zox_alloc_buf(ZoxBufKind kind, size_t size, const char *label) {
+  ignore_buf_kind(kind);
+  return malloc_safe(size, label);
+}
+
+void *zox_calloc_buf(ZoxBufKind kind, size_t count, size_t size, const char *label) {
+  ignore_buf_kind(kind);
+  return calloc_safe(count, size, label);
+}
+
+void *zox_realloc_buf(ZoxBufKind kind, void *ptr, size_t size, const char *label) {
+  ignore_buf_kind(kind);
+  return realloc_safe(ptr, size, label);
+}
+
+char *zox_strdup_buf(ZoxBufKind kind, const char *str) {
+  ignore_buf_kind(kind);
+  size_t len = strlen(str) + 1;
+  char *copy = malloc_safe(len, "zox_strdup_buf");
+  memcpy(copy, str, len);
+  return copy;
+}
+
+void zox_free_buf(ZoxBufKind kind, void *ptr) {
+  ignore_buf_kind(kind);
+  free_safe(ptr);
 }
 
 void zox_free_obj(ZoxAllocKind kind, void *ptr) {

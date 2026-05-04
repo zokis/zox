@@ -11,7 +11,6 @@
 
 #include "global.h"
 #include "hash.h"
-#include "malloc_safe.h"
 #include "values.h"
 #include "zox_alloc.h"
 
@@ -34,12 +33,12 @@ static int find_entry_index(Environment *env, const char *varname, size_t *index
 static void cleanup_full_env(Environment *env) {
   for (size_t i = 0; i < env->capacity; i++) {
     if (env->entries[i].key != NULL) {
-      free_safe(env->entries[i].key);
+      zox_free_buf(ZOX_BUF_STRING, env->entries[i].key);
       release(env->entries[i].value);
     }
   }
   if (env->entries) {
-    free_safe(env->entries);
+    zox_free_buf(ZOX_BUF_ENV_ENTRIES, env->entries);
     env->entries = NULL;
   }
   
@@ -48,7 +47,7 @@ static void cleanup_full_env(Environment *env) {
     env->owned_program = NULL;
   }
   if (env->scope_name) {
-    free_safe(env->scope_name);
+    zox_free_buf(ZOX_BUF_SCOPE_NAME, env->scope_name);
     env->scope_name = NULL;
   }
 #ifndef _WIN32
@@ -56,7 +55,7 @@ static void cleanup_full_env(Environment *env) {
     dlclose(env->so_handles[i]);
   }
   if (env->so_handles) {
-    free_safe(env->so_handles);
+    zox_free_buf(ZOX_BUF_MISC, env->so_handles);
     env->so_handles = NULL;
   }
   env->so_handle_count = 0;
@@ -66,7 +65,8 @@ static void cleanup_full_env(Environment *env) {
 static void register_env(Environment *env) {
   if (all_envs_count >= all_envs_cap) {
     all_envs_cap = all_envs_cap ? all_envs_cap * 2 : 64;
-    all_envs = (Environment **)realloc(all_envs, all_envs_cap * sizeof(Environment *));
+    all_envs = (Environment **)zox_realloc_buf(
+        ZOX_BUF_MISC, all_envs, all_envs_cap * sizeof(Environment *), "env registry");
   }
   env->registry_index = all_envs_count;
   all_envs[all_envs_count++] = env;
@@ -85,7 +85,7 @@ static void unregister_env(Environment *env) {
 static void env_pool_cleanup(void *ptr) {
   Environment *env = (Environment *)ptr;
   if (env->entries) {
-    free_safe(env->entries);
+    zox_free_buf(ZOX_BUF_ENV_ENTRIES, env->entries);
     env->entries = NULL;
   }
 }
@@ -102,13 +102,14 @@ Environment *create_environment(Environment *parent, char *scope_name) {
 
   if (!env->entries) {
     env->capacity = INITIAL_CAPACITY;
-    env->entries  = (HashEntry *)calloc(env->capacity, sizeof(HashEntry));
+    env->entries  = (HashEntry *)zox_calloc_buf(
+        ZOX_BUF_ENV_ENTRIES, env->capacity, sizeof(HashEntry), "env entries");
   } else {
     env->size = 0;
     memset(env->entries, 0, env->capacity * sizeof(HashEntry));
   }
   
-  env->scope_name = scope_name ? strdup(scope_name) : NULL;
+  env->scope_name = scope_name ? zox_strdup_buf(ZOX_BUF_SCOPE_NAME, scope_name) : NULL;
   env->ref_count  = 1;
   env->owned_program = NULL;
   env->so_handles      = NULL;
@@ -130,7 +131,7 @@ static void destroy_environment(Environment *env) {
 
   for (size_t i = 0; i < env->capacity; i++) {
     if (env->entries[i].key != NULL) {
-      free_safe(env->entries[i].key);
+      zox_free_buf(ZOX_BUF_STRING, env->entries[i].key);
       release(env->entries[i].value);
       env->entries[i].key = NULL;
       env->entries[i].value = NULL;
@@ -142,7 +143,7 @@ static void destroy_environment(Environment *env) {
     env->owned_program = NULL;
   }
   if (env->scope_name) {
-    free_safe(env->scope_name);
+    zox_free_buf(ZOX_BUF_SCOPE_NAME, env->scope_name);
     env->scope_name = NULL;
   }
 #ifndef _WIN32
@@ -150,7 +151,7 @@ static void destroy_environment(Environment *env) {
     dlclose(env->so_handles[i]);
   }
   if (env->so_handles) {
-    free_safe(env->so_handles);
+    zox_free_buf(ZOX_BUF_MISC, env->so_handles);
     env->so_handles = NULL;
   }
   env->so_handle_count = 0;
@@ -225,7 +226,7 @@ void break_env_cycles(Environment *env) {
   }
 
   if (all_envs) {
-    free(all_envs);
+    zox_free_buf(ZOX_BUF_MISC, all_envs);
     all_envs = NULL;
     all_envs_cap = 0;
   }
@@ -238,7 +239,8 @@ void free_environment(Environment *env) {
 static void resize_hash_table(Environment *env) {
   size_t old_capacity = env->capacity;
   size_t new_capacity = old_capacity * 2;
-  HashEntry *new_entries = (HashEntry *)calloc(new_capacity, sizeof(HashEntry));
+  HashEntry *new_entries = (HashEntry *)zox_calloc_buf(
+      ZOX_BUF_ENV_ENTRIES, new_capacity, sizeof(HashEntry), "resize_hash_table");
 
   for (size_t i = 0; i < old_capacity; i++) {
     if (env->entries[i].key != NULL) {
@@ -249,7 +251,7 @@ static void resize_hash_table(Environment *env) {
     }
   }
 
-  free_safe(env->entries);
+  zox_free_buf(ZOX_BUF_ENV_ENTRIES, env->entries);
   env->entries  = new_entries;
   env->capacity = new_capacity;
 }
@@ -267,7 +269,7 @@ void declare_var(Environment *env, const char *varname, RuntimeVal *value) {
     error(error_message);
   }
 
-  env->entries[index].key   = strdup(varname);
+  env->entries[index].key   = zox_strdup_buf(ZOX_BUF_STRING, varname);
   env->entries[index].value = value;
   retain(value);
   env->size++;

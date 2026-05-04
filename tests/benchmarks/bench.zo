@@ -1,240 +1,130 @@
--# benchmark: recursive fib, sorting, dicts, closures, strings
+-# Zox Speed Benchmark - Full Language Coverage
 
--# recursive Fibonacci (500x fib(14))
-$ fib(n) {
-    ?(n <= 1) { n } : { fib(n-1) + fib(n-2) }
+~> string { toString };
+~> "./lib/collections.so" { range, flatten, unique, group_by };
+~> "./lib/date.zo" { parse, format };
+
+$ map(lst, f) {
+    let result = {};
+    @(let i = 0; i < len(lst); i = i + 1) { result << f(lst[i]) }
+    result
+}
+$ filter(lst, pred) {
+    let result = {};
+    @(let i = 0; i < len(lst); i = i + 1) { ?(pred(lst[i])) { result << lst[i] } }
+    result
 }
 
+-# 1. Recursion and Function Stress
+$ fib(n) { ?(n <= 1) { n } : { fib(n-1) + fib(n-2) } }
 let fib_total = 0;
-let i = 0;
-@(i = 0; i < 500; i = i + 1) {
-    fib_total = fib_total + fib(14)
-}
+@(let i = 0; i < 300; i = i + 1) { fib_total = fib_total + fib(14) }
 println(fib_total)
 
--# bubble sort on 200-item list
-$ make_list(n) {
+-# 2. List and Sorting Stress
+$ make_random_list(n) {
     let acc = {};
-    let k = 0;
-    @(k = 0; k < n; k = k + 1) {
-        acc << (n - k) * 3 % 97
-    }
+    @(let k = 0; k < n; k = k + 1) { acc << (n - k) * 123 % 97 }
     acc
 }
-
 $ bubble_sort(lst) {
     let n = len(lst);
-    let i = 0;
-    @(i = 0; i < n - 1; i = i + 1) {
-        let j = 0;
-        @(j = 0; j < n - i - 1; j = j + 1) {
+    @(let i = 0; i < n - 1; i = i + 1) {
+        @(let j = 0; j < n - i - 1; j = j + 1) {
             ?(lst[j] > lst[j+1]) {
-                let tmp = lst[j];
-                lst[j] = lst[j+1];
-                lst[j+1] = tmp
+                let tmp = lst[j]; lst[j] = lst[j+1]; lst[j+1] = tmp
             }
         }
     }
     lst
 }
-
-let unsorted = make_list(200);
-let sorted   = bubble_sort(unsorted);
+let sorted = bubble_sort(make_random_list(200));
 println(sorted[0])
 println(sorted[199])
 
--# frequency count in dict (300 items)
-~> string { toString };
+-# 3. Operators - Bitwise & Logical
+let bit_val = 0;
+@(let b = 0; b < 1000; b = b + 1) {
+    bit_val = (bit_val | b) & 255;
+    bit_val = (bit_val ^ 170) << 1 >> 1;
+    ?(b % 2 == 0 && b % 3 == 0 || b % 5 == 0) { bit_val = bit_val + 1 }
+}
+println(bit_val)
 
-$ freq_count(lst) {
-    let counts = [];
-    let i = 0;
-    @(i = 0; i < len(lst); i = i + 1) {
-        let k = toString(lst[i]);
-        ?(has_key(counts, k)) {
-            counts{k} = counts{k} + 1
-        } : {
-            counts{k} = 1
-        }
+-# 4. List Operations - Sets & Mapped Operators
+let l1 = {1, 2, 3, 4, 5, 6, 7, 8};
+let l2 = {5, 6, 7, 8, 9, 10, 11, 12};
+let l_union = l1 | l2;
+let l_inter = l1 & l2;
+let l_diff  = l1 - l2;
+let l_sym   = l1 ^ l2;
+println(len(l_union) + len(l_inter) + len(l_diff) + len(l_sym))
+
+-# Mapped operators (e.g., list &+ number)
+let l_mapped = (l1 &+ 10) &* 2;
+println(l_mapped[0])
+
+-# 5. Dict Stress
+let d_merged = ["a" -> 1; "b" -> 2] + ["b" -> 3; "c" -> 4];
+println(d_merged{"b"})
+println(len(d_merged))
+
+-# 6. Custom Types & Pattern Matching
+type Node { val, left, right };
+$ build_tree(d) {
+    ?(d == 0) { _>> nil }
+    _>> Node(d, build_tree(d-1), build_tree(d-1))
+}
+$ sum_tree(n) {
+    ?? (n) {
+        n == nil => 0,
+        _        => n.val + sum_tree(n.left) + sum_tree(n.right)
     }
-    counts
 }
+let tree = build_tree(7);
+println(sum_tree(tree))
 
-let data = make_list(300);
-let freq = freq_count(data);
-println(len(freq))
-
--# map + filter + reduce with closures (400 items)
-$ map(lst, f) {
-    let result = {};
-    let i = 0;
-    @(i = 0; i < len(lst); i = i + 1) {
-        result << f(lst[i])
-    }
-    result
-}
-
-$ filter(lst, pred) {
-    let result = {};
-    let i = 0;
-    @(i = 0; i < len(lst); i = i + 1) {
-        ?(pred(lst[i])) {
-            result << lst[i]
-        }
-    }
-    result
-}
-
-$ reduce(lst, f, init) {
-    let acc = init;
-    let i = 0;
-    @(i = 0; i < len(lst); i = i + 1) {
-        acc = f(acc, lst[i])
-    }
-    acc
-}
-
-$ make_adder(x) {
-    $ adder(n) { n + x }
-    adder
-}
-
-$ is_even_pred(x) { x % 2 == 0 }
-$ add_two(a, b) { a + b }
-
-let base    = make_list(400);
-let shifted = map(base, make_adder(0));
-let evens   = filter(shifted, is_even_pred);
-let total   = reduce(evens, add_two, 0);
-println(total)
-
--# string concatenation loop (1000 iterations)
-$ build_string(n) {
-    let s = "";
-    let i = 0;
-    @(i = 0; i < n; i = i + 1) {
-        s = s + toString(i % 100)
+-# 7. String Operations
+$ string_stress(n) {
+    let s = "base";
+    @(let i = 0; i < n; i = i + 1) {
+        s = (s + toString(i % 10)) - "1" - "2";
+        ?(len(s) > 20) { s = s * 0 } -# clear string if too long
     }
     len(s)
 }
+println(string_stress(500))
 
-println(build_string(1000))
-
--# Cartesian product of two 30-item lists
-$ cartesian(a, b) {
-    let result = {};
-    let i = 0;
-    @(i = 0; i < len(a); i = i + 1) {
-        let j = 0;
-        @(j = 0; j < len(b); j = j + 1) {
-            result << {a[i], b[j]}
-        }
-    }
-    result
+-# 8. Results & While Loops
+$ risky_op(x) {
+    ?(x % 13 == 0) { _>>! "bad" } : { _>>@ x / 2 }
 }
-
-let xs    = make_list(30);
-let ys    = make_list(30);
-let pairs = cartesian(xs, ys);
-println(len(pairs))
-
--# mutual recursion is_even/is_odd up to 200
-$ is_even(n) { ?(n == 0) { true } : { is_odd(n - 1) } }
-$ is_odd(n)  { ?(n == 0) { false } : { is_even(n - 1) } }
-
-let even_count = 0;
-let m = 0;
-@(m = 0; m < 200; m = m + 1) {
-    ?(is_even(m)) { even_count = even_count + 1 }
-}
-println(even_count)
-
--# Custom types and pattern matching (1000 iterations)
-type Point3D { x, y, z };
-
-$ classify_point(p) {
-    let s_val = p.x + p.y + p.z;
-    ?? (s_val) {
-        s_val > 60 => "far",
-        s_val > 30 => "mid",
-        _          => "near"
-    }
-}
-
-let points_near = 0;
-let p_idx = 0;
-#(p_idx < 1000) {
-    let p = Point3D(p_idx % 20, p_idx % 30, p_idx % 40);
-    ?(classify_point(p) == "near") {
-        points_near = points_near + 1
-    }
-    p_idx = p_idx + 1
-}
-println(points_near)
-
--# Result propagation and while loop (500 iterations)
-$ safe_div(a, b) {
-    ?(b == 0) { _>>! "div0" } : { _>>@ a / b }
-}
-
-let ok_count = 0;
-let d_idx = 0;
-#(d_idx < 500) {
-    let res = safe_div(d_idx, d_idx % 5);
+let ok_sum = 0;
+let k = 0;
+#(k < 500) {
+    let res = risky_op(k);
     ?? (res) {
-        is_ok(res) => { ok_count = ok_count + 1 },
+        is_ok(res) => { ok_sum = ok_sum + get_ok(res) },
         _          => { nil }
     }
-    d_idx = d_idx + 1
+    k = k + 1
 }
-println(ok_count)
+println(ok_sum)
 
--# Collections library Stress
-~> "./lib/collections.so" { range, flatten, unique, group_by };
+-# 9. Collections & Date Lib
+let r = range(0, 50, 1);
+$ is_odd(x) { x % 2 != 0 }
+$ dbl_pair(x) { {x, x} }
+let g = group_by(unique(flatten(map(r, dbl_pair))), is_odd);
+println(len(g{"true"}))
 
-let r = range(0, 100, 1);
-$ dbl(x) { {x, x} }
-let doubled = map(r, dbl);
-let flat = flatten(doubled);
-let uniq = unique(flat);
-println(len(uniq))
-
-$ parity(x) {
-    ?(x % 2 == 0) { "even" } : { "odd" }
-}
-
-let groups = group_by(uniq, parity);
-println(len(groups{"even"}))
-
--# Control flow with break/continue and string operators (200 iterations)
-$ control_flow_stress(n) {
-    let res_str = "";
-    @(let i = 0; i < n; i = i + 1) {
-        ?(i % 10 == 0) { __> }  -# continue
-        ?(i > 150) { ~!! }      -# break
-        res_str = res_str + toString(i % 5);
-        ?(len(res_str) > 50) {
-            res_str = res_str - "01" - "2"  -# string removal
-        }
-    }
-    res_str
-}
-println(len(control_flow_stress(200)))
-
--# Power operator and complex arithmetic
-let p_sum = 0;
-@(let k = 1; k <= 10; k = k + 1) {
-    p_sum = p_sum + (k ** 2)
-}
-println(p_sum)
-
--# Type mutation and deep access
-type Container { val, inner };
-let c = Container(10, Container(20, nil));
-c.inner.val = 30;
-println(c.inner.val)
-
--# Date library (Zox-implemented module)
-~> "./lib/date.zo" { parse, format };
 let dt = parse("2026-05-03 15:00:00");
 println(format(dt, "YYYY"))
+
+-# 10. Arena Stress
+let arena_result = |{
+    let huge_list = {};
+    @(let h = 0; h < 1000; h = h + 1) { huge_list << h }
+    _>> len(huge_list)
+}|;
+println(arena_result)

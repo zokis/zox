@@ -1,4 +1,4 @@
--# benchmark: retain many nested values to stress memory usage
+-# Zox Memory Stress Benchmark - Full Language Coverage
 
 ~> string { toString };
 
@@ -10,102 +10,76 @@ $ status_for(i) {
     ?(i % 17 == 0) { 500 } :? (i % 13 == 0) { 404 } :? (i % 11 == 0) { 401 } : { 200 }
 }
 
-type LogEntry { method, path, status, ms, tag, metadata };
-type Metadata { bucket, region, priority };
+type LogEntry { method, path, status, ms, tag, metadata, trace };
+type Metadata { bucket, region, priority, tags };
+type Trace { id, parent_id, depth };
 
 $ make_log(i) {
-    let path = "/api/resource/" + toString(i % 1000);
-    let tag  = "request-" + toString(i);
+    -# Nesting structures to stress promotion and depth
+    let trace = Trace(toString(i), toString(i-1), i % 10);
     let meta = Metadata(
         "bucket-" + toString(i % 64),
         ?(i % 2 == 0) { "us-east" } : { "eu-west" },
-        i % 5
+        i % 5,
+        [ "env" -> "prod"; "tier" -> "api" ]
     );
     
     LogEntry(
         method_for(i),
-        path,
+        "/api/resource/" + toString(i % 1000),
         status_for(i),
         (i * 37) % 1000,
-        tag,
-        meta
+        "request-" + toString(i),
+        meta,
+        trace
     )
 }
 
 $ build_logs(n) {
     let logs = {};
     let i = 0;
-    @(i = 0; i < n; i = i + 1) {
-        logs << make_log(i)
+    #(i < n) {
+        -# Periodically use an arena to create short-lived pressure
+        ?(i % 100 == 0) {
+            let temp = |{
+                let batch = {};
+                @(let j = 0; j < 10; j = j + 1) { batch << make_log(i + j) }
+                _>> batch
+            }|;
+            @(let k = 0; k < len(temp); k = k + 1) { logs << temp[k] };
+            i = i + 10
+        } : {
+            logs << make_log(i);
+            i = i + 1
+        }
     }
     logs
 }
 
-
-$ count_errors(logs) {
+$ process_logs(logs) {
+    let total_ms = 0;
     let errors = 0;
-    let i = 0;
-    @(i = 0; i < len(logs); i = i + 1) {
-        ?(logs[i].status >= 400) {
-            errors = errors + 1
-        }
-    }
-    errors
-}
-
-$ sum_latency(logs) {
-    let total = 0;
-    let i = 0;
-    @(i = 0; i < len(logs); i = i + 1) {
-        total = total + logs[i].ms
-    }
-    total
-}
-
-$ collect_error_paths(logs) {
     let paths = {};
-    let i = 0;
-    @(i = 0; i < len(logs); i = i + 1) {
-        ?(logs[i].status >= 400) {
-            paths << logs[i].path
+    @(let i = 0; i < len(logs); i = i + 1) {
+        let entry = logs[i];
+        total_ms = total_ms + entry.ms;
+        ?(entry.status >= 400) {
+            errors = errors + 1;
+            paths << entry.path
         }
     }
-    paths
+    {total_ms, errors, len(paths)}
 }
 
+-# Main Execution
+let start_logs = build_logs(30000);
+let stats = process_logs(start_logs);
 
-let x = |{
-    let nested = { {1}, {2} };
-    _>> nested
-}|;
+println(len(start_logs))
+println(stats[0])
+println(stats[1])
+println(stats[2])
 
-$ control_flow_stress(n) {
-    let res_str = "";
-    @(let i = 0; i < n; i = i + 1) {
-        ?(i % 10 == 0) { __> }  -# continue
-        ?(i > 150) { ~!! }      -# break
-        res_str = res_str + toString(i % 5);
-        ?(len(res_str) > 50) {
-            res_str = res_str - "01" - "2"  -# string removal
-        }
-    }
-    res_str
-}
-println(len(control_flow_stress(200)))
-
-type Container { val, inner };
-let c = Container(10, Container(20, nil));
-c.inner.val = 30;
-println(c.inner.val)
-
-let logs = build_logs(25000);
-let errors = count_errors(logs);
-let total_ms = sum_latency(logs);
-let error_paths = collect_error_paths(logs);
-
-println(len(logs))
-println(errors)
-println(total_ms)
-println(len(error_paths))
-println(logs[0].path)
-println(logs[24999].tag)
+-# Verify promotion and deep access
+println(start_logs[0].metadata.tags{"env"})
+println(start_logs[29999].trace.id)

@@ -10,8 +10,8 @@
 #include "env.h"
 #include "eval.h"
 #include "global.h"
-#include "malloc_safe.h"
 #include "values.h"
+#include "zox_alloc.h"
 
 extern char *runtime_value_to_string(RuntimeVal *val);
 
@@ -116,7 +116,7 @@ RuntimeVal *builtin_has_key(Environment *env, RuntimeVal **args, size_t arg_coun
   int should_free;
   char *key = builtin_key_arg(args[1], &should_free);
   RuntimeVal *result = (RuntimeVal *)MK_BOOL(dict_find_entry((DictVal *)args[0], key) != NULL);
-  if (should_free) free_safe(key);
+  if (should_free) zox_free_buf(ZOX_BUF_TEMP, key);
   return result;
 }
 
@@ -128,7 +128,7 @@ RuntimeVal *builtin_get(Environment *env, RuntimeVal **args, size_t arg_count) {
   int should_free;
   char *key = builtin_key_arg(args[1], &should_free);
   RuntimeVal *val = dict_get_val((DictVal *)args[0], key);
-  if (should_free) free_safe(key);
+  if (should_free) zox_free_buf(ZOX_BUF_TEMP, key);
   return val ? val : (RuntimeVal *)MK_NIL();
 }
 
@@ -146,7 +146,7 @@ RuntimeVal *builtin_setdefault(Environment *env, RuntimeVal **args, size_t arg_c
     val = args[2];
     retain(val);
   }
-  if (should_free) free_safe(key);
+  if (should_free) zox_free_buf(ZOX_BUF_TEMP, key);
   return val;
 }
 
@@ -168,7 +168,7 @@ void _builtin_print_value(Environment *env, RuntimeVal **args, size_t arg_count,
     char *str = runtime_value_to_string(args[i]);
     if (str) {
       printf("%s", str);
-      free_safe(str);
+      zox_free_buf(ZOX_BUF_TEMP, str);
     } else {
       printf("nil");
     }
@@ -214,7 +214,9 @@ static RuntimeVal *copy_dict(DictVal *old) {
 }
 
 static RuntimeVal *copy_struct(StructVal *old) {
-  RuntimeVal **values = malloc_safe(sizeof(RuntimeVal *) * old->type_def->field_count, "struct copy values");
+  RuntimeVal **values = zox_alloc_buf(
+      ZOX_BUF_STRUCT_VALUES, sizeof(RuntimeVal *) * old->type_def->field_count,
+      "struct copy values");
   for (size_t i = 0; i < old->type_def->field_count; i++) {
     values[i] = old->values[i];
     retain(values[i]);

@@ -12,7 +12,6 @@
 #include "eval.h"
 #include "global.h"
 #include "lexer.h"
-#include "malloc_safe.h"
 #include "parser.h"
 #include "values.h"
 #include "zox_alloc.h"
@@ -47,7 +46,7 @@ static void save_cache(Program *program, const char *cache_path, uint64_t mtime)
 
 static char *make_cache_path(const char *zo_path) {
   size_t len = strlen(zo_path);
-  char *cache = malloc_safe(len + 6, "cache_path");
+  char *cache = zox_alloc_buf(ZOX_BUF_IO, len + 6, "cache_path");
   memcpy(cache, zo_path, len);
   cache[len] = '\0';
   if (len >= 3 && strcmp(cache + len - 3, ".zo") == 0) {
@@ -90,10 +89,10 @@ void run_repl(Environment *env) {
       release(result);
       free_program(program);
       free_tokens(tokens, token_count);
-      free_safe(parser);
+      zox_free_buf(ZOX_BUF_MISC, parser);
     }
   }
-  free_safe(line);
+  zox_free_buf(ZOX_BUF_IO, line);
 }
 
 static void declare_const(Environment *env, const char *name, RuntimeVal *val) {
@@ -170,7 +169,7 @@ int main(int argc, char **argv) {
     if (!program) {
       char *source_code = read_file(filename);
       if (!source_code) {
-        free_safe(cache_path);
+        zox_free_buf(ZOX_BUF_IO, cache_path);
         free_environment(env);
         zox_alloc_cleanup();
         return 1;
@@ -178,15 +177,15 @@ int main(int argc, char **argv) {
       tokens  = tokenize(source_code, &token_count);
       parser  = create_parser(tokens, token_count);
       program = produce_ast(parser, source_code);
-      free_safe(source_code);
+      zox_free_buf(ZOX_BUF_IO, source_code);
       if (mtime > 0) save_cache(program, cache_path, mtime);
     }
 
     run_program(program, env);
     free_program(program);
     if (tokens) free_tokens(tokens, (int)token_count);
-    if (parser) free_safe(parser);
-    free_safe(cache_path);
+    if (parser) zox_free_buf(ZOX_BUF_MISC, parser);
+    zox_free_buf(ZOX_BUF_IO, cache_path);
   }
 
   break_env_cycles(env);

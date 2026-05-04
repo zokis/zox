@@ -31,7 +31,7 @@ static int file_exists(const char *path) {
 
 static char *dup_existing_path(const char *path) {
   if (file_exists(path)) {
-    return strdup(path);
+    return zox_strdup_buf(ZOX_BUF_IO, path);
   }
   return NULL;
 }
@@ -55,7 +55,7 @@ static char *find_in_search_paths(const char *module_path) {
       snprintf(full_path, sizeof(full_path), "%s%c%s%s", search_paths[i],
                PATH_SEP, module_path, extensions[j]);
       if (file_exists(full_path)) {
-        return strdup(full_path);
+        return zox_strdup_buf(ZOX_BUF_IO, full_path);
       }
     }
   }
@@ -157,9 +157,9 @@ static RuntimeVal *eval_import_dynamic(const char *so_path,
   }
 
   /* parent env owns dlopen handle */
-  env->so_handles = realloc_safe(env->so_handles,
-                                 sizeof(void *) * (env->so_handle_count + 1),
-                                 "so_handles");
+  env->so_handles = zox_realloc_buf(
+      ZOX_BUF_MISC, env->so_handles,
+      sizeof(void *) * (env->so_handle_count + 1), "so_handles");
   env->so_handles[env->so_handle_count++] = handle;
   free_environment(module_env);
   return result;
@@ -193,7 +193,7 @@ RuntimeVal *eval_import_stmt(ImportStmt *import_stmt, Environment *env) {
 
   if (is_dynamic_lib(full_path)) {
     res = eval_import_dynamic(full_path, import_stmt, env);
-    free(full_path);
+    zox_free_buf(ZOX_BUF_IO, full_path);
     return res;
   }
 
@@ -203,11 +203,11 @@ RuntimeVal *eval_import_stmt(ImportStmt *import_stmt, Environment *env) {
     fseek(file, 0, SEEK_END);
     long length = ftell(file);
     fseek(file, 0, SEEK_SET);
-    char *source = malloc_safe(length + 1, "module source");
+    char *source = zox_alloc_buf(ZOX_BUF_IO, length + 1, "module source");
     size_t read_bytes = fread(source, 1, length, file);
     if (read_bytes != (size_t)length) {
       fclose(file);
-      free_safe(source);
+      zox_free_buf(ZOX_BUF_IO, source);
       error("Failed to read module file content.");
     }
     source[length] = '\0';
@@ -218,8 +218,8 @@ RuntimeVal *eval_import_stmt(ImportStmt *import_stmt, Environment *env) {
     Parser *parser = create_parser(tokens, token_count);
     Program *program = produce_ast(parser, source);
     
-    free(source);
-    if (parser) free_safe(parser);
+    zox_free_buf(ZOX_BUF_IO, source);
+    if (parser) zox_free_buf(ZOX_BUF_MISC, parser);
     if (tokens) free_tokens(tokens, (int)token_count);
 
     Environment *module_env = create_environment(builtins_env, import_stmt->module_name);
@@ -234,10 +234,10 @@ RuntimeVal *eval_import_stmt(ImportStmt *import_stmt, Environment *env) {
     }
 
     free_environment(module_env);
-    free(full_path);
+    zox_free_buf(ZOX_BUF_IO, full_path);
     return result;
   }
 
-  free(full_path);
+  zox_free_buf(ZOX_BUF_IO, full_path);
   return (RuntimeVal *)MK_NIL();
 }

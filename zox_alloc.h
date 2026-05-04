@@ -28,7 +28,6 @@ typedef struct {
 
 void  zox_arena_init(size_t bytes);
 void  zox_arena_destroy(void);
-void *zox_arena_get_base(void);
 size_t zox_arena_get_offset(void);
 void   zox_arena_set_offset(size_t offset);
 int    zox_arena_owns(void *ptr);

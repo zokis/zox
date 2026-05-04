@@ -199,6 +199,7 @@ static RuntimeVal *promote_list_val(ListVal *old_list) {
     RuntimeVal *promoted_item = promote_val(old_list->items[i]);
     new_list->items[i] = promoted_item;
     retain(promoted_item);
+    if (promoted_item != old_list->items[i]) release(promoted_item);
   }
   new_list->size = old_list->size;
   return (RuntimeVal *)new_list;
@@ -210,6 +211,7 @@ static RuntimeVal *promote_dict_val(DictVal *old_dict) {
     if (old_dict->entries[i].key) {
       RuntimeVal *promoted_val = promote_val(old_dict->entries[i].value);
       dict_set_val(new_dict, old_dict->entries[i].key, promoted_val);
+      if (promoted_val != old_dict->entries[i].value) release(promoted_val);
     }
   }
   return (RuntimeVal *)new_dict;
@@ -226,6 +228,7 @@ static RuntimeVal *promote_struct_val(StructVal *old_struct) {
   for (size_t i = 0; i < count; i++) {
     new_values[i] = promote_val(old_struct->values[i]);
     retain(new_values[i]);
+    if (new_values[i] != old_struct->values[i]) release(new_values[i]);
   }
   return (RuntimeVal *)MK_STRUCT(old_struct->type_def, new_values);
 }

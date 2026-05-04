@@ -9,6 +9,7 @@ set -euo pipefail
 
 BASELINE="tests/benchmarks/perf_baseline.txt"
 BENCH="tests/benchmarks/bench.zo"
+MEM_BENCH="tests/benchmarks/bench_memory.zo"
 RUNS=15
 THRESHOLD_PCT=9   # fail if median is >10% slower than baseline
 ARENA_SIZE="16MB"
@@ -20,6 +21,7 @@ if [[ ! -x ./zox ]]; then
 fi
 
 echo "bench:      $BENCH"
+echo "mem bench:  $MEM_BENCH"
 echo "runs:       $RUNS"
 echo "threshold:  ${THRESHOLD_PCT}%"
 echo "arena size: $ARENA_SIZE"
@@ -29,12 +31,13 @@ echo
 measure_median() {
   local label="$1"
   local flags="$2"
+  local bench="$3"
   local times=()
 
-  echo "Measuring $label..." >&2
+  echo "Measuring $label ($bench)..." >&2
   for i in $(seq 1 $RUNS); do
     start=$(date +%s%N)
-    ./zox $flags "$BENCH" > /dev/null
+    ./zox $flags "$bench" > /dev/null
     end=$(date +%s%N)
     ms=$(( (end - start) / 1000000 ))
     times+=($ms)
@@ -48,17 +51,23 @@ measure_median() {
   echo "$median"
 }
 
-# Run both modes
-median_std=$(measure_median "Standard" "")
-median_arena=$(measure_median "Arena" "--arena=$ARENA_SIZE")
+# Run both benchmarks in both modes
+median_std=$(measure_median "Standard" "" "$BENCH")
+median_arena=$(measure_median "Arena" "--arena=$ARENA_SIZE" "$BENCH")
+median_mem_std=$(measure_median "Memory Standard" "" "$MEM_BENCH")
+median_mem_arena=$(measure_median "Memory Arena" "--arena=$ARENA_SIZE" "$MEM_BENCH")
 
 # --update: save new baseline and exit
 if [[ "${1:-}" == "--update" ]]; then
   echo "$median_std" > "$BASELINE"
   echo "$median_arena" >> "$BASELINE"
+  echo "$median_mem_std" >> "$BASELINE"
+  echo "$median_mem_arena" >> "$BASELINE"
   echo "Baseline updated:"
   echo "  Standard: ${median_std}ms"
   echo "  Arena:    ${median_arena}ms"
+  echo "  Mem Std:  ${median_mem_std}ms"
+  echo "  Mem Arena:${median_mem_arena}ms"
   exit 0
 fi
 
@@ -69,10 +78,18 @@ if [[ ! -f "$BASELINE" ]]; then
   exit 1
 fi
 
-# Read baseline (handle legacy format with only 1 line)
+# Read baseline.
+# Legacy format:
+#   line 1 -> bench standard
+#   line 2 -> bench arena
+# New format:
+#   line 3 -> bench_memory standard
+#   line 4 -> bench_memory arena
 mapfile -t baselines < "$BASELINE"
 base_std=${baselines[0]:-0}
 base_arena=${baselines[1]:-0}
+base_mem_std=${baselines[2]:-0}
+base_mem_arena=${baselines[3]:-0}
 
 check_perf() {
   local label="$1"
@@ -104,5 +121,7 @@ echo "Results:"
 exit_code=0
 check_perf "Standard" "$median_std" "$base_std" || exit_code=1
 check_perf "Arena   " "$median_arena" "$base_arena" || exit_code=1
+check_perf "Mem Std " "$median_mem_std" "$base_mem_std" || exit_code=1
+check_perf "Mem Arena" "$median_mem_arena" "$base_mem_arena" || exit_code=1
 
 exit $exit_code

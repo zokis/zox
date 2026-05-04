@@ -59,12 +59,12 @@ testlib: all libs
 testlibs: all libs
 	./$(BIN) tests/run_libs_unit_tests.zo
 
-## Performance regression test (requires tests/perf_baseline.txt — run perf-update first).
-perf:
+## Performance regression tests for bench.zo and bench_memory.zo.
+perf: all
 	@bash scripts/perf_test.sh
 
-## Save current performance as the new baseline.
-perf-update:
+## Save current performance baselines for bench.zo and bench_memory.zo.
+perf-update: all
 	@bash scripts/perf_test.sh --update
 
 ## Run benchmarks in dev mode to detect memory leaks.
@@ -104,7 +104,7 @@ help:
 	@echo "  make test     - build and run test suite"
 	@echo "  make testlibs - run all library unit tests"
 	@echo "  make perf     - run performance regression tests"
-	@echo "  make perf-update - update performance baseline"
+	@echo "  make perf-update - update performance baselines"
 	@echo "  make bench-leak - run benchmarks with leak detection"
 	@echo "  make listlibs - list available libs"
 	@echo "  make clean    - remove binary and compiled .so files"

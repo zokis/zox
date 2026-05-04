@@ -242,23 +242,57 @@ static RuntimeVal *promote_type_val(TypeVal *old_type) {
   return (RuntimeVal *)MK_TYPE(old_type->name, new_fields, old_type->field_count);
 }
 
+static int val_needs_promotion(RuntimeVal *val) {
+  if (!val || val->ref_count == STATIC_REF) return 0;
+  if (zox_arena_owns(val)) return 1;
+
+  switch (val->type) {
+    case LIST_T: {
+      ListVal *list = (ListVal *)val;
+      for (size_t i = 0; i < list->size; i++) {
+        if (val_needs_promotion(list->items[i])) return 1;
+      }
+      return 0;
+    }
+    case DICT_T: {
+      DictVal *dict = (DictVal *)val;
+      for (size_t i = 0; i < dict->capacity; i++) {
+        if (dict->entries[i].key != NULL &&
+            val_needs_promotion(dict->entries[i].value)) {
+          return 1;
+        }
+      }
+      return 0;
+    }
+    case STRUCT_T: {
+      StructVal *sv = (StructVal *)val;
+      if (val_needs_promotion((RuntimeVal *)sv->type_def)) return 1;
+      for (size_t i = 0; i < sv->type_def->field_count; i++) {
+        if (val_needs_promotion(sv->values[i])) return 1;
+      }
+      return 0;
+    }
+    default:
+      return 0;
+  }
+}
+
 RuntimeVal *promote_val(RuntimeVal *val) {
   RuntimeVal *promoted = val;
 
   if (!val || val->ref_count == STATIC_REF) {
     return promoted;
   }
+  if (!val_needs_promotion(val)) {
+    return promoted;
+  }
 
   switch (val->type) {
     case NUMBER_T:
-      if (zox_arena_owns(val)) {
-        promoted = (RuntimeVal *)MK_NUMBER(((NumberVal *)val)->value);
-      }
+      promoted = (RuntimeVal *)MK_NUMBER(((NumberVal *)val)->value);
       break;
     case STRING_T:
-      if (zox_arena_owns(val)) {
-        promoted = (RuntimeVal *)MK_STRING(((StringVal *)val)->value);
-      }
+      promoted = (RuntimeVal *)MK_STRING(((StringVal *)val)->value);
       break;
     case LIST_T:
       promoted = promote_list_val((ListVal *)val);
@@ -267,17 +301,13 @@ RuntimeVal *promote_val(RuntimeVal *val) {
       promoted = promote_dict_val((DictVal *)val);
       break;
     case FUNCTION_T:
-      if (zox_arena_owns(val)) {
-        promoted = promote_function_val((FunctionVal *)val);
-      }
+      promoted = promote_function_val((FunctionVal *)val);
       break;
     case STRUCT_T:
       promoted = promote_struct_val((StructVal *)val);
       break;
     case TYPE_T:
-      if (zox_arena_owns(val)) {
-        promoted = promote_type_val((TypeVal *)val);
-      }
+      promoted = promote_type_val((TypeVal *)val);
       break;
     default:
       break;

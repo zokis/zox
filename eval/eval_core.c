@@ -220,6 +220,16 @@ static RuntimeVal *promote_function_val(FunctionVal *fv) {
       fv->params, fv->param_count, fv->body, fv->body_count, fv->env, fv->builtin_func);
 }
 
+static RuntimeVal *promote_struct_val(StructVal *old_struct) {
+  size_t count = old_struct->type_def->field_count;
+  RuntimeVal **new_values = malloc_safe(sizeof(RuntimeVal *) * count, "promote_struct_val");
+  for (size_t i = 0; i < count; i++) {
+    new_values[i] = promote_val(old_struct->values[i]);
+    retain(new_values[i]);
+  }
+  return (RuntimeVal *)MK_STRUCT(old_struct->type_def, new_values);
+}
+
 RuntimeVal *promote_val(RuntimeVal *val) {
   RuntimeVal *promoted = val;
 
@@ -236,6 +246,9 @@ RuntimeVal *promote_val(RuntimeVal *val) {
         break;
       case FUNCTION_T:
         promoted = promote_function_val((FunctionVal *)val);
+        break;
+      case STRUCT_T:
+        promoted = promote_struct_val((StructVal *)val);
         break;
       default:
         break;

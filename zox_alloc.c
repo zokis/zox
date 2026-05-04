@@ -12,8 +12,16 @@ typedef struct PoolNode {
 } PoolNode;
 
 static PoolNode      *free_lists[ZOX_ALLOC_KIND_COUNT];
+static size_t         free_list_depth[ZOX_ALLOC_KIND_COUNT];
 static void         (*cleanup_fns[ZOX_ALLOC_KIND_COUNT])(void *ptr);
+#if ZOX_ALLOC_STATS
 static ZoxAllocStats  stats[ZOX_ALLOC_KIND_COUNT];
+#define ZOX_STATS_INC(kind, field) (stats[(kind)].field++)
+#define ZOX_STATS_DEC(kind, field) (stats[(kind)].field--)
+#else
+#define ZOX_STATS_INC(kind, field) ((void)0)
+#define ZOX_STATS_DEC(kind, field) ((void)0)
+#endif
 
 static unsigned char *arena_base   = NULL;
 static size_t         arena_size   = 0;
@@ -69,25 +77,26 @@ void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label) {
   PoolNode *node = free_lists[kind];
   if (node) {
     free_lists[kind] = node->next;
-    stats[kind].reuse++;
-    stats[kind].depth--;
+    free_list_depth[kind]--;
+    ZOX_STATS_INC(kind, reuse);
+    ZOX_STATS_DEC(kind, depth);
     return node;
   }
 
   if (kind == ZOX_ALLOC_ENV || force_heap) {
-    stats[kind].heap++;
+    ZOX_STATS_INC(kind, heap);
     return calloc_safe(1, size, label);
   }
 
-  stats[kind].alloc++;
+  ZOX_STATS_INC(kind, alloc);
   void *ptr = arena_bump(size);
   if (ptr) {
     memset(ptr, 0, size);
-    stats[kind].arena++;
+    ZOX_STATS_INC(kind, arena);
     return ptr;
   }
   
-  stats[kind].heap++;
+  ZOX_STATS_INC(kind, heap);
   return calloc_safe(1, size, label);
 }
 
@@ -97,13 +106,14 @@ void zox_free_obj(ZoxAllocKind kind, void *ptr) {
     if (!ARENA_OWNS(ptr)) free_safe(ptr);
     return;
   }
-  stats[kind].freed++;
+  ZOX_STATS_INC(kind, freed);
 
   if (ARENA_OWNS(ptr)) return;
 
-  if (stats[kind].depth < POOL_CAP) {
-    stats[kind].pooled++;
-    stats[kind].depth++;
+  if (free_list_depth[kind] < POOL_CAP) {
+    free_list_depth[kind]++;
+    ZOX_STATS_INC(kind, pooled);
+    ZOX_STATS_INC(kind, depth);
     PoolNode *node = (PoolNode *)ptr;
     node->next = free_lists[kind];
     free_lists[kind] = node;
@@ -127,7 +137,10 @@ void zox_alloc_cleanup(void) {
       node = next;
     }
     free_lists[i] = NULL;
+    free_list_depth[i] = 0;
+#if ZOX_ALLOC_STATS
     stats[i].depth = 0;
+#endif
   }
 }
 
@@ -137,6 +150,14 @@ static const char *kind_names[ZOX_ALLOC_KIND_COUNT] = {
 };
 
 void zox_alloc_report(FILE *out) {
+#if !ZOX_ALLOC_STATS
+  fprintf(out, "alloc stats disabled; rebuild with ZOX_ALLOC_STATS=1\n");
+  if (arena_base) {
+    fprintf(out, "arena used=%zukB / total=%zukB\n",
+            arena_offset / 1024, arena_size / 1024);
+  }
+  return;
+#else
   fprintf(out, "pool  %-12s  %8s  %8s  %8s  %8s  %8s  %8s  %6s\n",
           "kind", "alloc", "reuse", "arena", "heap", "freed", "pooled", "depth");
   for (size_t i = 0; i < ZOX_ALLOC_KIND_COUNT; i++) {
@@ -150,4 +171,5 @@ void zox_alloc_report(FILE *out) {
     fprintf(out, "arena used=%zukB / total=%zukB\n",
             arena_offset / 1024, arena_size / 1024);
   }
+#endif
 }

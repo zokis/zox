@@ -1,6 +1,10 @@
 #ifndef ZOX_ALLOC_H
 #define ZOX_ALLOC_H
 
+#ifndef ZOX_ALLOC_STATS
+#define ZOX_ALLOC_STATS 0
+#endif
+
 #include <stddef.h>
 #include <stdio.h>
 

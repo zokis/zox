@@ -1,10 +1,12 @@
-# Zox
+# Zox v1.0.0
 
 Zox is a small interpreted, expression-based language written in C.
 
 It exists as an educational interpreter: lexer, parser, AST, evaluator,
 scopes, native modules, dynamic modules, and manual memory management are kept
 visible and hackable.
+
+This repository is now treated as the stable `v1.0.0` baseline.
 
 ## Build
 
@@ -15,6 +17,8 @@ make libs     # build lib/*.so dynamic modules
 make full     # core + dynamic modules
 make test     # legacy regression tests
 make testlibs # legacy library tests
+make perf     # perf regression tests
+make perf-update # refresh perf baselines
 make clean
 ```
 

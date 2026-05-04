@@ -2,7 +2,7 @@
   "name": "zox-language",
   "displayName": "Zox",
   "description": "Syntax highlighting for the Zox programming language",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "engines": { "vscode": "^1.60.0" },
   "categories": ["Programming Languages"],
   "contributes": {

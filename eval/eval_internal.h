@@ -8,7 +8,6 @@
 #include "../env.h"
 #include "../global.h"
 #include "../hash.h"
-#include "../malloc_safe.h"
 #include "../native_modules.h"
 #include "../parser.h"
 #include "../zox_alloc.h"

@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#include "../malloc_safe.h"
+#include "../zox_alloc.h"
 
 extern NilLiteral     *get_preallocated_nil(void);
 extern BooleanLiteral *get_preallocated_true(void);
@@ -19,7 +19,7 @@ static void free_stmt_array(Stmt **nodes, size_t count) {
   for (size_t i = 0; i < count; i++) {
     free_node(nodes[i]);
   }
-  free_safe(nodes);
+  zox_free_buf(ZOX_BUF_AST, nodes);
 }
 
 static int is_preallocated_node(Stmt *node) {
@@ -41,16 +41,16 @@ static void free_program_node(Stmt *node) {
 }
 
 static void free_string_literal_node(Stmt *node) {
-  free_safe(((StringLiteral *)node)->value);
+  zox_free_buf(ZOX_BUF_STRING, ((StringLiteral *)node)->value);
 }
 
 static void free_identifier_node(Stmt *node) {
-  free_safe(((Identifier *)node)->symbol);
+  zox_free_buf(ZOX_BUF_STRING, ((Identifier *)node)->symbol);
 }
 
 static void free_unary_expr_node(Stmt *node) {
   UnaryExpr *u = (UnaryExpr *)node;
-  free_safe((void *)u->operator);
+  zox_free_buf(ZOX_BUF_STRING, (void *)u->operator);
   free_node((Stmt *)u->expr);
 }
 
@@ -58,31 +58,31 @@ static void free_binary_expr_node(Stmt *node) {
   BinaryExpr *b = (BinaryExpr *)node;
   free_node((Stmt *)b->left);
   free_node((Stmt *)b->right);
-  free_safe((void *)b->operator);
+  zox_free_buf(ZOX_BUF_STRING, (void *)b->operator);
 }
 
 static void free_var_declaration_node(Stmt *node) {
   VarDeclaration *v = (VarDeclaration *)node;
-  free_safe(v->varname);
+  zox_free_buf(ZOX_BUF_STRING, v->varname);
   free_node((Stmt *)v->value);
 }
 
 static void free_assign_var_node(Stmt *node) {
   AssignVar *a = (AssignVar *)node;
-  free_safe(a->varname);
+  zox_free_buf(ZOX_BUF_STRING, a->varname);
   free_node((Stmt *)a->value);
 }
 
 static void free_assign_list_var_node(Stmt *node) {
   AssignListVar *a = (AssignListVar *)node;
-  free_safe(a->varname);
+  zox_free_buf(ZOX_BUF_STRING, a->varname);
   free_node((Stmt *)a->value);
   free_node((Stmt *)a->index);
 }
 
 static void free_assign_dict_var_node(Stmt *node) {
   AssignDictVar *a = (AssignDictVar *)node;
-  free_safe(a->varname);
+  zox_free_buf(ZOX_BUF_STRING, a->varname);
   free_node((Stmt *)a->value);
   free_node((Stmt *)a->key);
 }
@@ -113,11 +113,11 @@ static void free_for_expr_node(Stmt *node) {
 
 static void free_func_def_node(Stmt *node) {
   FuncDef *f = (FuncDef *)node;
-  free_safe(f->name);
+  zox_free_buf(ZOX_BUF_STRING, f->name);
   for (size_t i = 0; i < f->param_count; i++) {
-    free_safe(f->params[i]);
+    zox_free_buf(ZOX_BUF_STRING, f->params[i]);
   }
-  free_safe(f->params);
+  zox_free_buf(ZOX_BUF_AST, f->params);
   free_stmt_array(f->body, f->body_count);
 }
 
@@ -127,7 +127,7 @@ static void free_call_expr_node(Stmt *node) {
   for (size_t i = 0; i < c->arg_count; i++) {
     free_node((Stmt *)c->arguments[i]);
   }
-  free_safe(c->arguments);
+  zox_free_buf(ZOX_BUF_AST, c->arguments);
 }
 
 static void free_list_literal_node(Stmt *node) {
@@ -135,7 +135,7 @@ static void free_list_literal_node(Stmt *node) {
   for (size_t i = 0; i < l->element_count; i++) {
     free_node((Stmt *)l->elements[i]);
   }
-  free_safe(l->elements);
+  zox_free_buf(ZOX_BUF_AST, l->elements);
 }
 
 static void free_dict_literal_node(Stmt *node) {
@@ -144,8 +144,8 @@ static void free_dict_literal_node(Stmt *node) {
     free_node((Stmt *)d->keys[i]);
     free_node((Stmt *)d->values[i]);
   }
-  free_safe(d->keys);
-  free_safe(d->values);
+  zox_free_buf(ZOX_BUF_AST, d->keys);
+  zox_free_buf(ZOX_BUF_AST, d->values);
 }
 
 static void free_list_index_node(Stmt *node) {
@@ -179,13 +179,13 @@ static void free_assign_dict_expr_node(Stmt *node) {
 
 static void free_import_node(Stmt *node) {
   ImportStmt *imp = (ImportStmt *)node;
-  free_safe(imp->module_name);
+  zox_free_buf(ZOX_BUF_STRING, imp->module_name);
   for (size_t i = 0; i < imp->import_count; i++) {
-    free_safe(imp->imports[i]->name);
-    free_safe(imp->imports[i]->alias);
-    free_safe(imp->imports[i]);
+    zox_free_buf(ZOX_BUF_STRING, imp->imports[i]->name);
+    zox_free_buf(ZOX_BUF_STRING, imp->imports[i]->alias);
+    zox_free_buf(ZOX_BUF_AST, imp->imports[i]);
   }
-  free_safe(imp->imports);
+  zox_free_buf(ZOX_BUF_AST, imp->imports);
 }
 
 static void free_return_node(Stmt *node) {
@@ -219,18 +219,18 @@ static void free_match_node(Stmt *node) {
     if (m->cases[i]->branch) {
       free_node((Stmt *)m->cases[i]->branch);
     }
-    free_safe(m->cases[i]);
+    zox_free_buf(ZOX_BUF_AST, m->cases[i]);
   }
-  free_safe(m->cases);
+  zox_free_buf(ZOX_BUF_AST, m->cases);
 }
 
 static void free_type_declaration_node(Stmt *node) {
   TypeDeclaration *td = (TypeDeclaration *)node;
-  free_safe(td->name);
+  zox_free_buf(ZOX_BUF_STRING, td->name);
   for (size_t i = 0; i < td->field_count; i++) {
-    free_safe(td->fields[i]);
+    zox_free_buf(ZOX_BUF_STRING, td->fields[i]);
   }
-  free_safe(td->fields);
+  zox_free_buf(ZOX_BUF_AST, td->fields);
 }
 
 static void free_member_expr_node(Stmt *node) {
@@ -238,7 +238,7 @@ static void free_member_expr_node(Stmt *node) {
   if (m->object) {
     free_node((Stmt *)m->object);
   }
-  free_safe(m->member);
+  zox_free_buf(ZOX_BUF_STRING, m->member);
 }
 
 static void free_assign_member_expr_node(Stmt *node) {
@@ -246,7 +246,7 @@ static void free_assign_member_expr_node(Stmt *node) {
   if (m->object) {
     free_node((Stmt *)m->object);
   }
-  free_safe(m->member);
+  zox_free_buf(ZOX_BUF_STRING, m->member);
   if (m->value) {
     free_node((Stmt *)m->value);
   }
@@ -296,7 +296,7 @@ static void free_node(Stmt *node) {
     node_free_handlers[node->kind](node);
   }
 
-  free_safe(node);
+  zox_free_buf(ZOX_BUF_AST, node);
 }
 
 void free_expr(Expr *expr)       { free_node((Stmt *)expr); }

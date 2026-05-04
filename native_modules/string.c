@@ -4,11 +4,11 @@ static RuntimeVal *str_upper(Environment *env, RuntimeVal **args, size_t argc) {
   (void)env; (void)argc;
   char *src = ((StringVal *)args[0])->value;
   size_t len = strlen(src);
-  char *dst = malloc_safe(len + 1, "str_upper");
+  char *dst = zox_alloc_buf(ZOX_BUF_STRING, len + 1, "str_upper");
   for (size_t i = 0; i < len; i++) dst[i] = (char)toupper((unsigned char)src[i]);
   dst[len] = '\0';
   RuntimeVal *r = (RuntimeVal *)MK_STRING(dst);
-  free_safe(dst);
+  zox_free_buf(ZOX_BUF_STRING, dst);
   return r;
 }
 
@@ -16,11 +16,11 @@ static RuntimeVal *str_lower(Environment *env, RuntimeVal **args, size_t argc) {
   (void)env; (void)argc;
   char *src = ((StringVal *)args[0])->value;
   size_t len = strlen(src);
-  char *dst = malloc_safe(len + 1, "str_lower");
+  char *dst = zox_alloc_buf(ZOX_BUF_STRING, len + 1, "str_lower");
   for (size_t i = 0; i < len; i++) dst[i] = (char)tolower((unsigned char)src[i]);
   dst[len] = '\0';
   RuntimeVal *r = (RuntimeVal *)MK_STRING(dst);
-  free_safe(dst);
+  zox_free_buf(ZOX_BUF_STRING, dst);
   return r;
 }
 
@@ -30,11 +30,11 @@ static RuntimeVal *str_trim(Environment *env, RuntimeVal **args, size_t argc) {
   while (isspace((unsigned char)*s)) s++;
   size_t len = strlen(s);
   while (len > 0 && isspace((unsigned char)s[len - 1])) len--;
-  char *dst = malloc_safe(len + 1, "str_trim");
+  char *dst = zox_alloc_buf(ZOX_BUF_STRING, len + 1, "str_trim");
   memcpy(dst, s, len);
   dst[len] = '\0';
   RuntimeVal *r = (RuntimeVal *)MK_STRING(dst);
-  free_safe(dst);
+  zox_free_buf(ZOX_BUF_STRING, dst);
   return r;
 }
 
@@ -70,7 +70,7 @@ static RuntimeVal *str_replace(Environment *env, RuntimeVal **args, size_t argc)
 
   size_t src_len = strlen(src);
   size_t new_len = src_len + count * (to_len - from_len) + 1;
-  char *dst = malloc_safe(new_len, "str_replace");
+  char *dst = zox_alloc_buf(ZOX_BUF_STRING, new_len, "str_replace");
   char *w = dst;
   p = src;
   char *found;
@@ -82,7 +82,7 @@ static RuntimeVal *str_replace(Environment *env, RuntimeVal **args, size_t argc)
   }
   strcpy(w, p);
   RuntimeVal *r = (RuntimeVal *)MK_STRING(dst);
-  free_safe(dst);
+  zox_free_buf(ZOX_BUF_STRING, dst);
   return r;
 }
 
@@ -108,11 +108,11 @@ static RuntimeVal *str_split(Environment *env, RuntimeVal **args, size_t argc) {
   char *found;
   while ((found = strstr(p, delim)) != NULL) {
     size_t chunk = found - p;
-    char *buf = malloc_safe(chunk + 1, "str_split chunk");
+    char *buf = zox_alloc_buf(ZOX_BUF_STRING, chunk + 1, "str_split chunk");
     memcpy(buf, p, chunk);
     buf[chunk] = '\0';
     RuntimeVal *item = (RuntimeVal *)MK_STRING(buf);
-    free_safe(buf);
+    zox_free_buf(ZOX_BUF_STRING, buf);
     list_append_val(list, item);
     release(item);
     p = found + delim_len;
@@ -135,7 +135,7 @@ static RuntimeVal *str_join(Environment *env, RuntimeVal **args, size_t argc) {
     total += strlen(((StringVal *)list->items[i])->value);
     if (i + 1 < list->size) total += dlen;
   }
-  char *dst = malloc_safe(total, "str_join");
+  char *dst = zox_alloc_buf(ZOX_BUF_STRING, total, "str_join");
   char *w = dst;
   for (size_t i = 0; i < list->size; i++) {
     char *s = ((StringVal *)list->items[i])->value;
@@ -149,7 +149,7 @@ static RuntimeVal *str_join(Environment *env, RuntimeVal **args, size_t argc) {
   }
   *w = '\0';
   RuntimeVal *r = (RuntimeVal *)MK_STRING(dst);
-  free_safe(dst);
+  zox_free_buf(ZOX_BUF_STRING, dst);
   return r;
 }
 

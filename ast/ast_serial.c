@@ -1,6 +1,6 @@
 /* Binary AST cache serialization (.zoxc). */
 #include "../ast.h"
-#include "../malloc_safe.h"
+#include "../zox_alloc.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -27,7 +27,7 @@ static double   read_f64(FILE *f) { double v;   size_t _r = fread(&v, 8, 1, f); 
 static char *read_str(FILE *f) {
   uint32_t len = read_u32(f);
   if (len == 0) return NULL;
-  char *s = malloc_safe(len + 1, "read_str");
+  char *s = zox_alloc_buf(ZOX_BUF_STRING, len + 1, "read_str");
   { size_t _r = fread(s, 1, len, f); (void)_r; }
   s[len] = '\0';
   return s;
@@ -261,7 +261,7 @@ static Stmt **deserialize_body(FILE *f, size_t *count_out) {
   uint32_t count = read_u32(f);
   *count_out = count;
   if (count == 0) return NULL;
-  Stmt **body = malloc_safe(sizeof(Stmt *) * count, "deserialize_body");
+  Stmt **body = zox_alloc_buf(ZOX_BUF_AST, sizeof(Stmt *) * count, "deserialize_body");
   for (uint32_t i = 0; i < count; i++) body[i] = deserialize_node(f);
   return body;
 }
@@ -277,7 +277,7 @@ static Stmt *des_numeric(FILE *f) { return (Stmt *)create_numeric_literal(read_f
 static Stmt *des_string(FILE *f) {
   char *s = read_str(f);
   Stmt *n = (Stmt *)create_string_literal(s ? s : "");
-  free_safe(s);
+  zox_free_buf(ZOX_BUF_STRING, s);
   return n;
 }
 static Stmt *des_boolean(FILE *f) { return (Stmt *)create_boolean_literal(read_u8(f)); }
@@ -285,14 +285,14 @@ static Stmt *des_nil(FILE *f) { (void)f; return (Stmt *)create_nil_literal(); }
 static Stmt *des_identifier(FILE *f) {
   char *sym = read_str(f);
   Stmt *n = (Stmt *)create_identifier(sym ? sym : "");
-  free_safe(sym);
+  zox_free_buf(ZOX_BUF_STRING, sym);
   return n;
 }
 static Stmt *des_unary(FILE *f) {
   char *op = read_str(f);
   Expr *expr = deserialize_expr(f);
   Stmt *n = (Stmt *)create_unary_expr(op ? op : "", expr);
-  free_safe(op);
+  zox_free_buf(ZOX_BUF_STRING, op);
   return n;
 }
 static Stmt *des_binary(FILE *f) {
@@ -300,21 +300,21 @@ static Stmt *des_binary(FILE *f) {
   Expr *right = deserialize_expr(f);
   char *op    = read_str(f);
   Stmt *n = (Stmt *)create_binary_expr(left, right, op ? op : "");
-  free_safe(op);
+  zox_free_buf(ZOX_BUF_STRING, op);
   return n;
 }
 static Stmt *des_var_decl(FILE *f) {
   char *name = read_str(f);
   Expr *val  = deserialize_expr(f);
   Stmt *n = (Stmt *)create_var_expr(name ? name : "", val);
-  free_safe(name);
+  zox_free_buf(ZOX_BUF_STRING, name);
   return n;
 }
 static Stmt *des_assign_var(FILE *f) {
   char *name = read_str(f);
   Expr *val  = deserialize_expr(f);
   Stmt *n = (Stmt *)assign_var_expr(name ? name : "", val);
-  free_safe(name);
+  zox_free_buf(ZOX_BUF_STRING, name);
   return n;
 }
 static Stmt *des_assign_list_var(FILE *f) {
@@ -322,7 +322,7 @@ static Stmt *des_assign_list_var(FILE *f) {
   Expr *idx  = deserialize_expr(f);
   Expr *val  = deserialize_expr(f);
   Stmt *n = (Stmt *)assign_list_expr(name ? name : "", idx, val);
-  free_safe(name);
+  zox_free_buf(ZOX_BUF_STRING, name);
   return n;
 }
 static Stmt *des_assign_dict_var(FILE *f) {
@@ -330,7 +330,7 @@ static Stmt *des_assign_dict_var(FILE *f) {
   Expr *key  = deserialize_expr(f);
   Expr *val  = deserialize_expr(f);
   Stmt *n = (Stmt *)assign_dict_expr(name ? name : "", key, val);
-  free_safe(name);
+  zox_free_buf(ZOX_BUF_STRING, name);
   return n;
 }
 static Stmt *des_assign_list_expr(FILE *f) {
@@ -371,7 +371,7 @@ static Stmt *des_for(FILE *f) {
 static Stmt *des_func_def(FILE *f) {
   char  *name       = read_str(f);
   uint32_t pc       = read_u32(f);
-  char **params     = pc ? malloc_safe(sizeof(char *) * pc, "params") : NULL;
+  char **params     = pc ? zox_alloc_buf(ZOX_BUF_AST, sizeof(char *) * pc, "params") : NULL;
   for (uint32_t i = 0; i < pc; i++) params[i] = read_str(f);
   size_t body_count;
   Stmt **body = deserialize_body(f, &body_count);
@@ -380,20 +380,20 @@ static Stmt *des_func_def(FILE *f) {
 static Stmt *des_call(FILE *f) {
   Expr    *callee   = deserialize_expr(f);
   uint32_t ac       = read_u32(f);
-  Expr   **args     = ac ? malloc_safe(sizeof(Expr *) * ac, "call args") : NULL;
+  Expr   **args     = ac ? zox_alloc_buf(ZOX_BUF_AST, sizeof(Expr *) * ac, "call args") : NULL;
   for (uint32_t i = 0; i < ac; i++) args[i] = deserialize_expr(f);
   return (Stmt *)create_call_expr(callee, args, ac);
 }
 static Stmt *des_list_lit(FILE *f) {
   uint32_t ec = read_u32(f);
-  Expr **elems = ec ? malloc_safe(sizeof(Expr *) * ec, "list elems") : NULL;
+  Expr **elems = ec ? zox_alloc_buf(ZOX_BUF_AST, sizeof(Expr *) * ec, "list elems") : NULL;
   for (uint32_t i = 0; i < ec; i++) elems[i] = deserialize_expr(f);
   return (Stmt *)create_list_literal(elems, ec);
 }
 static Stmt *des_dict_lit(FILE *f) {
   uint32_t ec   = read_u32(f);
-  Expr **keys   = ec ? malloc_safe(sizeof(Expr *) * ec, "dict keys")   : NULL;
-  Expr **values = ec ? malloc_safe(sizeof(Expr *) * ec, "dict values") : NULL;
+  Expr **keys   = ec ? zox_alloc_buf(ZOX_BUF_AST, sizeof(Expr *) * ec, "dict keys")   : NULL;
+  Expr **values = ec ? zox_alloc_buf(ZOX_BUF_AST, sizeof(Expr *) * ec, "dict values") : NULL;
   for (uint32_t i = 0; i < ec; i++) {
     keys[i]   = deserialize_expr(f);
     values[i] = deserialize_expr(f);
@@ -415,13 +415,13 @@ static Stmt *des_dict_key(FILE *f) {
 static Stmt *des_import(FILE *f) {
   char *module = read_str(f);
   uint32_t ic  = read_u32(f);
-  ImportStmt *imp = malloc_safe(sizeof(ImportStmt), "ImportStmt");
+  ImportStmt *imp = zox_alloc_buf(ZOX_BUF_AST, sizeof(ImportStmt), "ImportStmt");
   imp->base.kind    = ImportAst;
   imp->module_name  = module;
   imp->import_count = ic;
-  imp->imports      = ic ? malloc_safe(sizeof(ImportItem *) * ic, "imports") : NULL;
+  imp->imports      = ic ? zox_alloc_buf(ZOX_BUF_AST, sizeof(ImportItem *) * ic, "imports") : NULL;
   for (uint32_t i = 0; i < ic; i++) {
-    ImportItem *item = malloc_safe(sizeof(ImportItem), "ImportItem");
+    ImportItem *item = zox_alloc_buf(ZOX_BUF_AST, sizeof(ImportItem), "ImportItem");
     item->name  = read_str(f);
     item->alias = read_str(f);
     imp->imports[i] = item;
@@ -442,7 +442,7 @@ static Stmt *des_unwrap(FILE *f) { return (Stmt *)create_unwrap_expr(deserialize
 static Stmt *des_match(FILE *f) {
   Expr *target = deserialize_expr(f);
   uint32_t count = read_u32(f);
-  MatchCase **cases = malloc_safe(sizeof(MatchCase *) * count, "deserialize_match cases");
+  MatchCase **cases = zox_alloc_buf(ZOX_BUF_AST, sizeof(MatchCase *) * count, "deserialize_match cases");
   for (uint32_t i = 0; i < count; i++) {
     Expr *cond = deserialize_expr(f);
     Expr *branch = deserialize_expr(f);
@@ -453,7 +453,7 @@ static Stmt *des_match(FILE *f) {
 static Stmt *des_type_decl(FILE *f) {
   char *name = read_str(f);
   uint32_t count = read_u32(f);
-  char **fields = malloc_safe(sizeof(char *) * count, "deserialize_type fields");
+  char **fields = zox_alloc_buf(ZOX_BUF_AST, sizeof(char *) * count, "deserialize_type fields");
   for (uint32_t i = 0; i < count; i++) {
     fields[i] = read_str(f);
   }

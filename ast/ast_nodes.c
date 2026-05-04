@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../malloc_safe.h"
+#include "../zox_alloc.h"
 
 static NilLiteral     preallocated_nil_literal;
 static BooleanLiteral preallocated_true_literal;
@@ -35,7 +35,7 @@ void initialize_preallocated_literals(void) {
 
 Program *create_program(Stmt **body, size_t body_count) {
   initialize_preallocated_literals();
-  Program *program = (Program *)malloc_safe(sizeof(Program), "Program");
+  Program *program = (Program *)zox_alloc_buf(ZOX_BUF_AST, sizeof(Program), "Program");
   program->base.kind = ProgramAst;
   program->body = body;
   program->body_count = body_count;
@@ -43,60 +43,60 @@ Program *create_program(Stmt **body, size_t body_count) {
 }
 
 VarDeclaration *create_var_expr(const char *varname, Expr *value) {
-  VarDeclaration *var_expr = (VarDeclaration *)malloc_safe(sizeof(VarDeclaration), "VarDeclaration");
+  VarDeclaration *var_expr = (VarDeclaration *)zox_alloc_buf(ZOX_BUF_AST, sizeof(VarDeclaration), "VarDeclaration");
   var_expr->base.stmt.kind = VarDeclarationAst;
-  var_expr->varname = strdup(varname);
+  var_expr->varname = zox_strdup_buf(ZOX_BUF_STRING, varname);
   var_expr->value = value;
   return var_expr;
 }
 
 AssignVar *assign_var_expr(const char *varname, Expr *value) {
-  AssignVar *var_expr = (AssignVar *)malloc_safe(sizeof(AssignVar), "AssignVar");
+  AssignVar *var_expr = (AssignVar *)zox_alloc_buf(ZOX_BUF_AST, sizeof(AssignVar), "AssignVar");
   var_expr->base.stmt.kind = AssignVarAst;
-  var_expr->varname = strdup(varname);
+  var_expr->varname = zox_strdup_buf(ZOX_BUF_STRING, varname);
   var_expr->value = value;
   return var_expr;
 }
 
 AssignListVar *assign_list_expr(const char *varname, Expr *index, Expr *value) {
-  AssignListVar *var_expr = (AssignListVar *)malloc_safe(sizeof(AssignListVar), "AssignListVar");
+  AssignListVar *var_expr = (AssignListVar *)zox_alloc_buf(ZOX_BUF_AST, sizeof(AssignListVar), "AssignListVar");
   var_expr->base.stmt.kind = AssignListVarAst;
-  var_expr->varname = strdup(varname);
+  var_expr->varname = zox_strdup_buf(ZOX_BUF_STRING, varname);
   var_expr->index = index;
   var_expr->value = value;
   return var_expr;
 }
 
 AssignDictVar *assign_dict_expr(const char *varname, Expr *key, Expr *value) {
-  AssignDictVar *var_expr = (AssignDictVar *)malloc_safe(sizeof(AssignDictVar), "AssignDictVar");
+  AssignDictVar *var_expr = (AssignDictVar *)zox_alloc_buf(ZOX_BUF_AST, sizeof(AssignDictVar), "AssignDictVar");
   var_expr->base.stmt.kind = AssignDictVarAst;
-  var_expr->varname = strdup(varname);
+  var_expr->varname = zox_strdup_buf(ZOX_BUF_STRING, varname);
   var_expr->key = key;
   var_expr->value = value;
   return var_expr;
 }
 
 UnaryExpr *create_unary_expr(const char *operator, Expr *expr) {
-  UnaryExpr *unary_expr = (UnaryExpr *)malloc_safe(sizeof(UnaryExpr), "UnaryExpr");
+  UnaryExpr *unary_expr = (UnaryExpr *)zox_alloc_buf(ZOX_BUF_AST, sizeof(UnaryExpr), "UnaryExpr");
   unary_expr->base.stmt.kind = UnaryExprAst;
-  unary_expr->operator = strdup(operator);
+  unary_expr->operator = zox_strdup_buf(ZOX_BUF_STRING, operator);
   unary_expr->expr = expr;
   return unary_expr;
 }
 
 BinaryExpr *create_binary_expr(Expr *left, Expr *right, const char *operator) {
-  BinaryExpr *binary_expr = (BinaryExpr *)malloc_safe(sizeof(BinaryExpr), "BinaryExpr");
+  BinaryExpr *binary_expr = (BinaryExpr *)zox_alloc_buf(ZOX_BUF_AST, sizeof(BinaryExpr), "BinaryExpr");
   binary_expr->base.stmt.kind = BinaryExprAst;
   binary_expr->left = left;
   binary_expr->right = right;
-  binary_expr->operator = strdup(operator);
+  binary_expr->operator = zox_strdup_buf(ZOX_BUF_STRING, operator);
   return binary_expr;
 }
 
 Identifier *create_identifier(const char *symbol) {
-  Identifier *identifier = (Identifier *)malloc_safe(sizeof(Identifier), "Identifier");
+  Identifier *identifier = (Identifier *)zox_alloc_buf(ZOX_BUF_AST, sizeof(Identifier), "Identifier");
   identifier->base.stmt.kind = IdentifierAst;
-  identifier->symbol = strdup(symbol);
+  identifier->symbol = zox_strdup_buf(ZOX_BUF_STRING, symbol);
   return identifier;
 }
 
@@ -104,16 +104,16 @@ NumericLiteral *create_numeric_literal(double value) {
   if (value == floor(value) && value >= 0 && value <= 255) {
     return &preallocated_numeric_literals[(int)value];
   }
-  NumericLiteral *numeric_literal = (NumericLiteral *)malloc_safe(sizeof(NumericLiteral), "NumericLiteral");
+  NumericLiteral *numeric_literal = (NumericLiteral *)zox_alloc_buf(ZOX_BUF_AST, sizeof(NumericLiteral), "NumericLiteral");
   numeric_literal->base.stmt.kind = NumericLiteralAst;
   numeric_literal->value = value;
   return numeric_literal;
 }
 
 StringLiteral *create_string_literal(const char *value) {
-  StringLiteral *str_literal = (StringLiteral *)malloc_safe(sizeof(StringLiteral), "StringLiteral");
+  StringLiteral *str_literal = (StringLiteral *)zox_alloc_buf(ZOX_BUF_AST, sizeof(StringLiteral), "StringLiteral");
   str_literal->base.stmt.kind = StringLiteralAst;
-  str_literal->value = strdup(value);
+  str_literal->value = zox_strdup_buf(ZOX_BUF_STRING, value);
   return str_literal;
 }
 
@@ -124,7 +124,7 @@ BooleanLiteral *create_boolean_literal(unsigned short int value) {
 NilLiteral *create_nil_literal(void) { return &preallocated_nil_literal; }
 
 WhileExpr *create_while(Expr *condition, Stmt **body, size_t body_count) {
-  WhileExpr *while_expr = (WhileExpr *)malloc_safe(sizeof(WhileExpr), "WhileExpr");
+  WhileExpr *while_expr = (WhileExpr *)zox_alloc_buf(ZOX_BUF_AST, sizeof(WhileExpr), "WhileExpr");
   while_expr->base.stmt.kind = WhileAst;
   while_expr->condition = condition;
   while_expr->body = body;
@@ -134,7 +134,7 @@ WhileExpr *create_while(Expr *condition, Stmt **body, size_t body_count) {
 
 IfExpr *create_if(Expr *condition, Stmt **body, size_t body_count,
                   IfExpr *else_if, Stmt **else_body, size_t else_body_count) {
-  IfExpr *if_expr = (IfExpr *)malloc_safe(sizeof(IfExpr), "IfExpr");
+  IfExpr *if_expr = (IfExpr *)zox_alloc_buf(ZOX_BUF_AST, sizeof(IfExpr), "IfExpr");
   if_expr->base.stmt.kind = IfAst;
   if_expr->condition = condition;
   if_expr->body = body;
@@ -147,7 +147,7 @@ IfExpr *create_if(Expr *condition, Stmt **body, size_t body_count,
 
 ForExpr *create_for_expr(Expr *initialization, Expr *condition, Expr *increment,
                          Stmt **body, size_t body_count) {
-  ForExpr *for_expr = (ForExpr *)malloc_safe(sizeof(ForExpr), "ForExpr");
+  ForExpr *for_expr = (ForExpr *)zox_alloc_buf(ZOX_BUF_AST, sizeof(ForExpr), "ForExpr");
   for_expr->base.stmt.kind = ForAst;
   for_expr->initialization = initialization;
   for_expr->condition = condition;
@@ -159,7 +159,7 @@ ForExpr *create_for_expr(Expr *initialization, Expr *condition, Expr *increment,
 
 FuncDef *create_func_def(char *name, char **params, size_t param_count,
                          Stmt **body, size_t body_count) {
-  FuncDef *func_def = (FuncDef *)malloc_safe(sizeof(FuncDef), "FuncDef");
+  FuncDef *func_def = (FuncDef *)zox_alloc_buf(ZOX_BUF_AST, sizeof(FuncDef), "FuncDef");
   func_def->base.stmt.kind = FuncDefAst;
   func_def->name = name;
   func_def->params = params;
@@ -170,7 +170,7 @@ FuncDef *create_func_def(char *name, char **params, size_t param_count,
 }
 
 CallExpr *create_call_expr(Expr *callee, Expr **arguments, size_t arg_count) {
-  CallExpr *call_expr = (CallExpr *)malloc_safe(sizeof(CallExpr), "CallExpr");
+  CallExpr *call_expr = (CallExpr *)zox_alloc_buf(ZOX_BUF_AST, sizeof(CallExpr), "CallExpr");
   call_expr->base.stmt.kind = CallExprAst;
   call_expr->callee = callee;
   call_expr->arguments = arguments;
@@ -179,7 +179,7 @@ CallExpr *create_call_expr(Expr *callee, Expr **arguments, size_t arg_count) {
 }
 
 ListLiteral *create_list_literal(Expr **elements, size_t element_count) {
-  ListLiteral *list = (ListLiteral *)malloc_safe(sizeof(ListLiteral), "ListLiteral");
+  ListLiteral *list = (ListLiteral *)zox_alloc_buf(ZOX_BUF_AST, sizeof(ListLiteral), "ListLiteral");
   list->base.stmt.kind = ListLiteralAst;
   list->elements = elements;
   list->element_count = element_count;
@@ -187,7 +187,7 @@ ListLiteral *create_list_literal(Expr **elements, size_t element_count) {
 }
 
 DictKey *create_dict_key(Expr *dict, Expr *key) {
-  DictKey *dict_key = (DictKey *)malloc_safe(sizeof(DictKey), "DictKey");
+  DictKey *dict_key = (DictKey *)zox_alloc_buf(ZOX_BUF_AST, sizeof(DictKey), "DictKey");
   dict_key->base.stmt.kind = DictKeyAst;
   dict_key->dict = dict;
   dict_key->key = key;
@@ -195,7 +195,7 @@ DictKey *create_dict_key(Expr *dict, Expr *key) {
 }
 
 ListIndex *create_list_index(Expr *list, Expr *start, Expr *end, short int is_slice) {
-  ListIndex *list_index = (ListIndex *)malloc_safe(sizeof(ListIndex), "ListIndex");
+  ListIndex *list_index = (ListIndex *)zox_alloc_buf(ZOX_BUF_AST, sizeof(ListIndex), "ListIndex");
   list_index->base.stmt.kind = ListIndexAst;
   list_index->list = list;
   list_index->start = start;
@@ -205,7 +205,7 @@ ListIndex *create_list_index(Expr *list, Expr *start, Expr *end, short int is_sl
 }
 
 DictLiteral *create_dict_literal(Expr **keys, Expr **values, size_t element_count) {
-  DictLiteral *dict = (DictLiteral *)malloc_safe(sizeof(DictLiteral), "DictLiteral");
+  DictLiteral *dict = (DictLiteral *)zox_alloc_buf(ZOX_BUF_AST, sizeof(DictLiteral), "DictLiteral");
   dict->base.stmt.kind = DictLiteralAst;
   dict->keys = keys;
   dict->values = values;
@@ -214,7 +214,7 @@ DictLiteral *create_dict_literal(Expr **keys, Expr **values, size_t element_coun
 }
 
 AssignListExpr *assign_list_expr_node(Expr *target, Expr *index, Expr *value) {
-  AssignListExpr *n = malloc_safe(sizeof(AssignListExpr), "AssignListExpr");
+  AssignListExpr *n = zox_alloc_buf(ZOX_BUF_AST, sizeof(AssignListExpr), "AssignListExpr");
   n->base.stmt.kind = AssignListExprAst;
   n->target = target;
   n->index  = index;
@@ -223,7 +223,7 @@ AssignListExpr *assign_list_expr_node(Expr *target, Expr *index, Expr *value) {
 }
 
 AssignDictExpr *assign_dict_expr_node(Expr *target, Expr *key, Expr *value) {
-  AssignDictExpr *n = malloc_safe(sizeof(AssignDictExpr), "AssignDictExpr");
+  AssignDictExpr *n = zox_alloc_buf(ZOX_BUF_AST, sizeof(AssignDictExpr), "AssignDictExpr");
   n->base.stmt.kind = AssignDictExprAst;
   n->target = target;
   n->key    = key;
@@ -232,7 +232,7 @@ AssignDictExpr *assign_dict_expr_node(Expr *target, Expr *key, Expr *value) {
 }
 
 ArenaBlockExpr *create_arena_block(Stmt **body, size_t body_count) {
-  ArenaBlockExpr *arena = (ArenaBlockExpr *)malloc_safe(sizeof(ArenaBlockExpr), "ArenaBlockExpr");
+  ArenaBlockExpr *arena = (ArenaBlockExpr *)zox_alloc_buf(ZOX_BUF_AST, sizeof(ArenaBlockExpr), "ArenaBlockExpr");
   arena->base.stmt.kind = ArenaBlockAst;
   arena->body = body;
   arena->body_count = body_count;
@@ -240,47 +240,47 @@ ArenaBlockExpr *create_arena_block(Stmt **body, size_t body_count) {
 }
 
 BreakStmt *create_break(void) {
-  BreakStmt *s = malloc_safe(sizeof(BreakStmt), "BreakStmt");
+  BreakStmt *s = zox_alloc_buf(ZOX_BUF_AST, sizeof(BreakStmt), "BreakStmt");
   s->base.kind = BreakAst;
   return s;
 }
 
 ContinueStmt *create_continue(void) {
-  ContinueStmt *s = malloc_safe(sizeof(ContinueStmt), "ContinueStmt");
+  ContinueStmt *s = zox_alloc_buf(ZOX_BUF_AST, sizeof(ContinueStmt), "ContinueStmt");
   s->base.kind = ContinueAst;
   return s;
 }
 
 ReturnStmt *create_return(Expr *value) {
-  ReturnStmt *s = malloc_safe(sizeof(ReturnStmt), "ReturnStmt");
+  ReturnStmt *s = zox_alloc_buf(ZOX_BUF_AST, sizeof(ReturnStmt), "ReturnStmt");
   s->base.stmt.kind = ReturnAst;
   s->value = value;
   return s;
 }
 
 ReturnStmt *create_return_success(Expr *value) {
-  ReturnStmt *s = malloc_safe(sizeof(ReturnStmt), "ReturnSuccess");
+  ReturnStmt *s = zox_alloc_buf(ZOX_BUF_AST, sizeof(ReturnStmt), "ReturnSuccess");
   s->base.stmt.kind = ReturnSuccessAst;
   s->value = value;
   return s;
 }
 
 ReturnStmt *create_return_error(Expr *value) {
-  ReturnStmt *s = malloc_safe(sizeof(ReturnStmt), "ReturnError");
+  ReturnStmt *s = zox_alloc_buf(ZOX_BUF_AST, sizeof(ReturnStmt), "ReturnError");
   s->base.stmt.kind = ReturnErrorAst;
   s->value = value;
   return s;
 }
 
 UnwrapExpr *create_unwrap_expr(Expr *expr) {
-  UnwrapExpr *u = malloc_safe(sizeof(UnwrapExpr), "UnwrapExpr");
+  UnwrapExpr *u = zox_alloc_buf(ZOX_BUF_AST, sizeof(UnwrapExpr), "UnwrapExpr");
   u->base.stmt.kind = UnwrapAst;
   u->expr = expr;
   return u;
 }
 
 MatchExpr *create_match_expr(Expr *target, MatchCase **cases, size_t case_count) {
-  MatchExpr *m = malloc_safe(sizeof(MatchExpr), "MatchExpr");
+  MatchExpr *m = zox_alloc_buf(ZOX_BUF_AST, sizeof(MatchExpr), "MatchExpr");
   m->base.stmt.kind = MatchAst;
   m->target = target;
   m->cases = cases;
@@ -289,14 +289,14 @@ MatchExpr *create_match_expr(Expr *target, MatchCase **cases, size_t case_count)
 }
 
 MatchCase *create_match_case(Expr *condition, Expr *branch) {
-  MatchCase *c = malloc_safe(sizeof(MatchCase), "MatchCase");
+  MatchCase *c = zox_alloc_buf(ZOX_BUF_AST, sizeof(MatchCase), "MatchCase");
   c->condition = condition;
   c->branch = branch;
   return c;
 }
 
 TypeDeclaration *create_type_declaration(char *name, char **fields, size_t field_count) {
-  TypeDeclaration *td = malloc_safe(sizeof(TypeDeclaration), "TypeDeclaration");
+  TypeDeclaration *td = zox_alloc_buf(ZOX_BUF_AST, sizeof(TypeDeclaration), "TypeDeclaration");
   td->base.kind = TypeDeclarationAst;
   td->name = name;
   td->fields = fields;
@@ -305,7 +305,7 @@ TypeDeclaration *create_type_declaration(char *name, char **fields, size_t field
 }
 
 MemberExpr *create_member_expr(Expr *object, char *member) {
-  MemberExpr *m = malloc_safe(sizeof(MemberExpr), "MemberExpr");
+  MemberExpr *m = zox_alloc_buf(ZOX_BUF_AST, sizeof(MemberExpr), "MemberExpr");
   m->base.stmt.kind = MemberExprAst;
   m->object = object;
   m->member = member;
@@ -313,7 +313,7 @@ MemberExpr *create_member_expr(Expr *object, char *member) {
 }
 
 AssignMemberExpr *create_assign_member_expr(Expr *object, char *member, Expr *value) {
-  AssignMemberExpr *m = malloc_safe(sizeof(AssignMemberExpr), "AssignMemberExpr");
+  AssignMemberExpr *m = zox_alloc_buf(ZOX_BUF_AST, sizeof(AssignMemberExpr), "AssignMemberExpr");
   m->base.stmt.kind = AssignMemberExprAst;
   m->object = object;
   m->member = member;

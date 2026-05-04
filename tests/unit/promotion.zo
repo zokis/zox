@@ -1,0 +1,105 @@
+~> test { suite, test, assert_eq, assert_true, test_summary };
+
+suite("Exhaustive Arena Promotion");
+
+$ t_nil() {
+    let x = |{ _>> nil }|;
+    assert_eq(x, nil)
+}
+test("Promote Nil", t_nil);
+
+$ t_num() {
+    let x = |{ _>> 42.5 }|;
+    assert_eq(x, 42.5)
+}
+test("Promote Number", t_num);
+
+$ t_bool() {
+    let t = |{ _>> true }|;
+    let f = |{ _>> false }|;
+    assert_true(t);
+    assert_eq(f, false)
+}
+test("Promote Boolean", t_bool);
+
+$ t_str() {
+    let x = |{ _>> "hello arena" + " world" }|;
+    assert_eq(x, "hello arena world")
+}
+test("Promote String", t_str);
+
+$ t_list() {
+    let x = |{
+        let l = {1, {2, {3}}};
+        _>> l
+    }|;
+    assert_eq(x[0], 1);
+    assert_eq(x[1][0], 2);
+    assert_eq(x[1][1][0], 3)
+}
+test("Promote List (deep)", t_list);
+
+$ t_dict() {
+    let x = |{
+        let d = ["k" -> ["inner" -> 99]];
+        _>> d
+    }|;
+    assert_eq(x{"k"}{"inner"}, 99)
+}
+test("Promote Dict (deep)", t_dict);
+
+type Person { name, age };
+$ t_struct() {
+    let p = |{
+        _>> Person("Zox", 1)
+    }|;
+    assert_eq(p.name, "Zox");
+    assert_eq(p.age, 1)
+}
+test("Promote Custom Type (Struct)", t_struct);
+
+type Node { val, next };
+$ t_nested_struct() {
+    let n = |{
+        _>> Node(1, Node(2, nil))
+    }|;
+    assert_eq(n.val, 1);
+    assert_eq(n.next.val, 2);
+    assert_eq(n.next.next, nil)
+}
+test("Promote Nested Structs", t_nested_struct);
+
+$ t_closure() {
+    let f = |{
+        let capture = 100;
+        _>> $ inner(x) { x + capture }
+    }|;
+    assert_eq(f(5), 105)
+}
+test("Promote Closure", t_closure);
+
+type Wrapper { data };
+$ t_mixed() {
+    let x = |{
+        let list = { ["a" -> Wrapper(10)], ["b" -> Wrapper(20)] };
+        _>> list
+    }|;
+    assert_eq(x[0]{"a"}.data, 10);
+    assert_eq(x[1]{"b"}.data, 20)
+}
+test("Complex Mixed Promotion", t_mixed);
+
+$ t_growth() {
+    let x = |{
+        let l = {};
+        @(let i = 0; i < 100; i = i + 1) {
+            l << i
+        };
+        _>> l
+    }|;
+    assert_eq(len(x), 100);
+    assert_eq(x[99], 99)
+}
+test("Large List Growth in Arena", t_growth);
+
+test_summary()

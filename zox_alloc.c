@@ -26,30 +26,24 @@ void zox_arena_init(size_t bytes) {
   arena_size   = bytes;
   arena_offset = 0;
 }
-
 void zox_arena_destroy(void) {
-  free_safe(arena_base);
+  if (arena_base) free(arena_base);
   arena_base   = NULL;
   arena_size   = 0;
   arena_offset = 0;
 }
 
+void *zox_arena_get_base(void) { return arena_base; }
+
 size_t zox_arena_get_offset(void) { return arena_offset; }
 
 void zox_arena_set_offset(size_t offset) {
   if (offset > arena_offset) return;
-  /* Purge free list nodes that point into the arena region we're about to "free" */
-  for (int i = 0; i < ZOX_ALLOC_KIND_COUNT; i++) {
-    PoolNode **curr = &free_lists[i];
-    while (*curr) {
-      if (ARENA_OWNS(*curr) && (unsigned char *)*curr >= arena_base + offset) {
-        *curr = (*curr)->next;
-        stats[i].depth--;
-      } else {
-        curr = &((*curr)->next);
-      }
-    }
-  }
+
+  /* Resetting an arena invalidates any pooled arena pointers. 
+     Draining the pools is the only safe way to prevent stale pointers. */
+  zox_alloc_cleanup();
+
   arena_offset = offset;
 }
 

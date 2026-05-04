@@ -25,10 +25,18 @@ void *calloc_safe(size_t num, size_t size, const char *error_message) {
 
 void *realloc_safe(void *ptr, size_t size, const char *error_message) {
   if (ptr && zox_arena_owns(ptr)) {
+    /* Manual realloc for arena memory: move to heap. */
     void *new_ptr = malloc_safe(size, error_message);
-    /* Note: dangerous without old size, but arena buffers are large. 
-       Actually, this only happens during growth where new size > old size. */
-    memcpy(new_ptr, ptr, size); 
+    
+    /* Safe copy: we don't know the exact old size, but it cannot exceed 
+       the current arena offset or the new requested size. */
+    size_t arena_offset = zox_arena_get_offset();
+    unsigned char *base = (unsigned char *)zox_arena_get_base();
+    size_t ptr_offset = (unsigned char *)ptr - base;
+    size_t max_copy = arena_offset - ptr_offset;
+    size_t copy_size = (size < max_copy) ? size : max_copy;
+
+    memcpy(new_ptr, ptr, copy_size); 
     return new_ptr;
   }
   void *new_ptr = realloc(ptr, size);

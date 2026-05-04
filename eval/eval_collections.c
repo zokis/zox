@@ -12,28 +12,31 @@ void list_append_val(ListVal *list, RuntimeVal *item) {
   list->items[list->size++] = item;
 }
 
-char *dict_key_to_string(RuntimeVal *val) {
+static char *value_to_string_with_kind(RuntimeVal *val, ZoxBufKind kind) {
   char *result = NULL;
   switch (val->type) {
-    case NIL_T: result = zox_strdup_buf(ZOX_BUF_DICT_KEY, "nil"); break;
+    case NIL_T: result = zox_strdup_buf(kind, "nil"); break;
     case BOOLEAN_T:
-      result = zox_strdup_buf(ZOX_BUF_DICT_KEY,
-                              ((BooleanVal *)val)->value ? "true" : "false");
+      result = zox_strdup_buf(kind, ((BooleanVal *)val)->value ? "true" : "false");
       break;
     case NUMBER_T: {
       int needed = snprintf(NULL, 0, "%.17g", ((NumberVal *)val)->value);
       if (needed >= 0) {
-        result = zox_alloc_buf(ZOX_BUF_DICT_KEY, (size_t)needed + 1, "dict_key_to_string");
+        result = zox_alloc_buf(kind, (size_t)needed + 1, "value_to_string");
         snprintf(result, (size_t)needed + 1, "%.17g", ((NumberVal *)val)->value);
       }
       break;
     }
     case STRING_T:
-      result = zox_strdup_buf(ZOX_BUF_DICT_KEY, ((StringVal *)val)->value);
+      result = zox_strdup_buf(kind, ((StringVal *)val)->value);
       break;
     default: break;
   }
   return result;
+}
+
+char *dict_key_to_string(RuntimeVal *val) {
+  return value_to_string_with_kind(val, ZOX_BUF_DICT_KEY);
 }
 
 Entry *dict_find_entry(DictVal *dict, const char *key) {
@@ -165,7 +168,7 @@ static void struct_to_repr(StructVal *sv, char **buf, size_t *len, size_t *cap) 
 }
 
 static char *val_to_repr(RuntimeVal *val) {
-  char *prim = dict_key_to_string(val);
+  char *prim = value_to_string_with_kind(val, ZOX_BUF_TEMP);
   if (prim) return prim;
 
   char *buf = NULL;
@@ -209,7 +212,7 @@ RuntimeVal *eval_dict_literal(DictLiteral *dict_lit, Environment *env) {
     char *key_str = runtime_value_to_string(key);
     if (key_str == NULL) error("Dict key must be convertible to a string.\n");
     dict_set_val(dict, key_str, value);
-    zox_free_buf(ZOX_BUF_TEMP, key_str);
+    zox_free_buf(ZOX_BUF_DICT_KEY, key_str);
     release(key);
     release(value);
   }

@@ -67,7 +67,7 @@ RuntimeVal *eval_assign_dict_var_expr(AssignDictVar *var, Environment *env) {
   }
   
   DictVal *dict = (DictVal *)target;
-  char *key = runtime_value_to_string(key_val);
+  char *key = dict_key_to_string(key_val);
   if (key == NULL) {
     release(value);
     release(key_val);
@@ -75,7 +75,7 @@ RuntimeVal *eval_assign_dict_var_expr(AssignDictVar *var, Environment *env) {
   }
   
   dict_set_val(dict, key, value);
-  zox_free_buf(ZOX_BUF_TEMP, key);
+  zox_free_buf(ZOX_BUF_DICT_KEY, key);
   release(key_val);
   return value;
 }
@@ -112,10 +112,10 @@ RuntimeVal *eval_assign_dict_expr(AssignDictExpr *node, Environment *env) {
   RuntimeVal *dict_val = evaluate(&(node->target->stmt), env);
   RuntimeVal *key_val  = evaluate(&(node->key->stmt), env);
   if (dict_val->type != DICT_T) error("Attempted to key-assign a non-dict value.\n");
-  char *key = runtime_value_to_string(key_val);
+  char *key = dict_key_to_string(key_val);
   if (key == NULL) error("Dict key must be convertible to a string.\n");
   dict_set_val((DictVal *)dict_val, key, value);
-  zox_free_buf(ZOX_BUF_TEMP, key);
+  zox_free_buf(ZOX_BUF_DICT_KEY, key);
   release(key_val);
   release(dict_val);
   return value;

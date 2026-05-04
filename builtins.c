@@ -21,7 +21,7 @@ static char *builtin_key_arg(RuntimeVal *arg, int *should_free) {
     return ((StringVal *)arg)->value;
   }
   *should_free = 1;
-  char *key = runtime_value_to_string(arg);
+  char *key = dict_key_to_string(arg);
   if (!key) error("Dict key must be convertible to string.");
   return key;
 }
@@ -116,7 +116,7 @@ RuntimeVal *builtin_has_key(Environment *env, RuntimeVal **args, size_t arg_coun
   int should_free;
   char *key = builtin_key_arg(args[1], &should_free);
   RuntimeVal *result = (RuntimeVal *)MK_BOOL(dict_find_entry((DictVal *)args[0], key) != NULL);
-  if (should_free) zox_free_buf(ZOX_BUF_TEMP, key);
+  if (should_free) zox_free_buf(ZOX_BUF_DICT_KEY, key);
   return result;
 }
 
@@ -128,7 +128,7 @@ RuntimeVal *builtin_get(Environment *env, RuntimeVal **args, size_t arg_count) {
   int should_free;
   char *key = builtin_key_arg(args[1], &should_free);
   RuntimeVal *val = dict_get_val((DictVal *)args[0], key);
-  if (should_free) zox_free_buf(ZOX_BUF_TEMP, key);
+  if (should_free) zox_free_buf(ZOX_BUF_DICT_KEY, key);
   return val ? val : (RuntimeVal *)MK_NIL();
 }
 
@@ -146,7 +146,7 @@ RuntimeVal *builtin_setdefault(Environment *env, RuntimeVal **args, size_t arg_c
     val = args[2];
     retain(val);
   }
-  if (should_free) zox_free_buf(ZOX_BUF_TEMP, key);
+  if (should_free) zox_free_buf(ZOX_BUF_DICT_KEY, key);
   return val;
 }
 

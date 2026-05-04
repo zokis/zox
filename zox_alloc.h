@@ -46,6 +46,15 @@ typedef struct {
   size_t depth;  /* current free list depth */
 } ZoxAllocStats;
 
+typedef struct {
+  size_t alloc;
+  size_t reallocs;
+  size_t freed;
+  size_t live_bytes;
+  size_t peak_bytes;
+  size_t total_bytes;
+} ZoxBufStats;
+
 void  zox_arena_init(size_t bytes);
 void  zox_arena_destroy(void);
 void *zox_arena_get_base(void);

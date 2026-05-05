@@ -64,26 +64,7 @@ RuntimeVal *eval_list_literal(ListLiteral *list_lit, Environment *env) {
 }
 
 void resize_dict(DictVal *dict) {
-  size_t old_capacity = dict->capacity;
-  Entry *old_entries = dict->entries;
-  dict->capacity *= 2;
-  dict->entries = (Entry *)zox_calloc_buf(
-      ZOX_BUF_DICT_ENTRIES, dict->capacity, sizeof(Entry), "resize_dict");
-  for (size_t i = 0; i < dict->capacity; i++) {
-    dict->entries[i].key = NULL;
-    dict->entries[i].value = NULL;
-  }
-  for (size_t i = 0; i < old_capacity; i++) {
-    if (old_entries[i].key != NULL) {
-      size_t index = hash(old_entries[i].key, dict->capacity);
-      while (dict->entries[index].key != NULL) {
-        index = (index + 1) % dict->capacity;
-      }
-      dict->entries[index].key = old_entries[i].key;
-      dict->entries[index].value = old_entries[i].value;
-    }
-  }
-  zox_free_buf(ZOX_BUF_DICT_ENTRIES, old_entries);
+  dict_reserve(dict, dict->capacity * 2);
 }
 
 void dict_set_val(DictVal *dict, const char *key, RuntimeVal *value) {
@@ -206,7 +187,7 @@ RuntimeVal *eval_dict_literal(DictLiteral *dict_lit, Environment *env) {
   for (size_t i = 0; i < dict_lit->element_count; i++) {
     RuntimeVal *key   = evaluate(&(dict_lit->keys[i]->stmt), env);
     RuntimeVal *value = evaluate(&(dict_lit->values[i]->stmt), env);
-    char *key_str = runtime_value_to_string(key);
+    char *key_str = dict_key_to_string(key);
     if (key_str == NULL) error("Dict key must be convertible to a string.\n");
     dict_set_val(dict, key_str, value);
     zox_free_buf(ZOX_BUF_DICT_KEY, key_str);

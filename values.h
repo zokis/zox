@@ -78,6 +78,7 @@ typedef struct {
   Entry *entries;
   size_t size;
   size_t capacity;
+  Entry inline_entries[8];
 } DictVal;
 
 typedef struct {
@@ -121,6 +122,7 @@ TypeVal *MK_TYPE(const char *name, char **fields, size_t field_count);
 StructVal *MK_STRUCT(TypeVal *type_def, RuntimeVal **values);
 ModuleVal *MK_MODULE(Environment *env);
 void list_reserve(ListVal *list, size_t capacity);
+void dict_reserve(DictVal *dict, size_t capacity);
 
 RuntimeVal *promote_val(RuntimeVal *val);
 char *dict_key_to_string(RuntimeVal *val);

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "hash.h"
 #include "zox_alloc.h"
 
 static NilVal _nil_singleton = { .base = { NIL_T,     STATIC_REF } };
@@ -21,6 +22,10 @@ static int string_uses_inline_storage(StringVal *sv) {
 
 static int list_uses_inline_storage(ListVal *lv) {
   return lv->items == lv->inline_items;
+}
+
+static int dict_uses_inline_storage(DictVal *dv) {
+  return dv->entries == dv->inline_entries;
 }
 
 void list_reserve(ListVal *list, size_t capacity) {
@@ -41,6 +46,31 @@ void list_reserve(ListVal *list, size_t capacity) {
 
   list->items = new_items;
   list->capacity = capacity;
+}
+
+void dict_reserve(DictVal *dict, size_t capacity) {
+  if (capacity <= dict->capacity) return;
+
+  Entry *new_entries = (Entry *)zox_calloc_buf(
+      ZOX_BUF_DICT_ENTRIES, capacity, sizeof(Entry), "DictVal grow");
+
+  for (size_t i = 0; i < dict->capacity; i++) {
+    if (dict->entries[i].key != NULL) {
+      size_t index = hash(dict->entries[i].key, capacity);
+      while (new_entries[index].key != NULL) {
+        index = (index + 1) % capacity;
+      }
+      new_entries[index].key = dict->entries[i].key;
+      new_entries[index].value = dict->entries[i].value;
+    }
+  }
+
+  if (dict->entries && !dict_uses_inline_storage(dict)) {
+    zox_free_buf(ZOX_BUF_DICT_ENTRIES, dict->entries);
+  }
+
+  dict->entries = new_entries;
+  dict->capacity = capacity;
 }
 
 static void free_runtime_val(RuntimeVal *val) {
@@ -88,7 +118,9 @@ static void free_runtime_val(RuntimeVal *val) {
             release(d->entries[i].value);
           }
         }
-        zox_free_buf(ZOX_BUF_DICT_ENTRIES, d->entries);
+        if (!dict_uses_inline_storage(d)) {
+          zox_free_buf(ZOX_BUF_DICT_ENTRIES, d->entries);
+        }
         d->entries = NULL;
       }
       zox_free_obj(ZOX_ALLOC_DICT, d);
@@ -238,7 +270,9 @@ ListVal *MK_LIST(size_t capacity) {
 
 static void dict_pool_cleanup(void *ptr) {
   DictVal *dv = (DictVal *)ptr;
-  if (dv->entries) zox_free_buf(ZOX_BUF_DICT_ENTRIES, dv->entries);
+  if (dv->entries && !dict_uses_inline_storage(dv)) {
+    zox_free_buf(ZOX_BUF_DICT_ENTRIES, dv->entries);
+  }
 }
 
 DictVal *MK_DICT(size_t capacity) {
@@ -251,10 +285,15 @@ DictVal *MK_DICT(size_t capacity) {
   DictVal *dict = zox_alloc_obj(ZOX_ALLOC_DICT, sizeof(DictVal), "DictVal");
   dict->base.type      = DICT_T;
   dict->base.ref_count = 1;
-  dict->entries = (Entry *)zox_calloc_buf(
-      ZOX_BUF_DICT_ENTRIES, capacity, sizeof(Entry), "DictVal items");
   dict->size     = 0;
   dict->capacity = capacity;
+  if (capacity <= sizeof(dict->inline_entries) / sizeof(dict->inline_entries[0])) {
+    memset(dict->inline_entries, 0, sizeof(dict->inline_entries));
+    dict->entries = dict->inline_entries;
+  } else {
+    dict->entries = (Entry *)zox_calloc_buf(
+        ZOX_BUF_DICT_ENTRIES, capacity, sizeof(Entry), "DictVal items");
+  }
   return dict;
 }
 

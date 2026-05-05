@@ -4,30 +4,36 @@
 void list_append_val(ListVal *list, RuntimeVal *item) {
   retain(item);
   if (list->size >= list->capacity) {
-    list->capacity = list->capacity * 2 + 1;
-    list->items = realloc_safe(list->items, sizeof(RuntimeVal *) * list->capacity,
-                               "list_append_val realloc");
+    list_reserve(list, list->capacity * 2 + 1);
   }
   list->items[list->size++] = item;
 }
 
-char *dict_key_to_string(RuntimeVal *val) {
+static char *value_to_string_with_kind(RuntimeVal *val, ZoxBufKind kind) {
   char *result = NULL;
   switch (val->type) {
-    case NIL_T: result = strdup("nil"); break;
-    case BOOLEAN_T: result = strdup(((BooleanVal *)val)->value ? "true" : "false"); break;
+    case NIL_T: result = zox_strdup_buf(kind, "nil"); break;
+    case BOOLEAN_T:
+      result = zox_strdup_buf(kind, ((BooleanVal *)val)->value ? "true" : "false");
+      break;
     case NUMBER_T: {
       int needed = snprintf(NULL, 0, "%.17g", ((NumberVal *)val)->value);
       if (needed >= 0) {
-        result = malloc_safe((size_t)needed + 1, "dict_key_to_string");
+        result = zox_alloc_buf(kind, (size_t)needed + 1, "value_to_string");
         snprintf(result, (size_t)needed + 1, "%.17g", ((NumberVal *)val)->value);
       }
       break;
     }
-    case STRING_T: result = strdup(((StringVal *)val)->value); break;
+    case STRING_T:
+      result = zox_strdup_buf(kind, ((StringVal *)val)->value);
+      break;
     default: break;
   }
   return result;
+}
+
+char *dict_key_to_string(RuntimeVal *val) {
+  return value_to_string_with_kind(val, ZOX_BUF_DICT_KEY);
 }
 
 Entry *dict_find_entry(DictVal *dict, const char *key) {
@@ -58,25 +64,7 @@ RuntimeVal *eval_list_literal(ListLiteral *list_lit, Environment *env) {
 }
 
 void resize_dict(DictVal *dict) {
-  size_t old_capacity = dict->capacity;
-  Entry *old_entries = dict->entries;
-  dict->capacity *= 2;
-  dict->entries = (Entry *)malloc_safe(sizeof(Entry) * dict->capacity, "resize_dict");
-  for (size_t i = 0; i < dict->capacity; i++) {
-    dict->entries[i].key = NULL;
-    dict->entries[i].value = NULL;
-  }
-  for (size_t i = 0; i < old_capacity; i++) {
-    if (old_entries[i].key != NULL) {
-      size_t index = hash(old_entries[i].key, dict->capacity);
-      while (dict->entries[index].key != NULL) {
-        index = (index + 1) % dict->capacity;
-      }
-      dict->entries[index].key = old_entries[i].key;
-      dict->entries[index].value = old_entries[i].value;
-    }
-  }
-  free(old_entries);
+  dict_reserve(dict, dict->capacity * 2);
 }
 
 void dict_set_val(DictVal *dict, const char *key, RuntimeVal *value) {
@@ -91,7 +79,7 @@ void dict_set_val(DictVal *dict, const char *key, RuntimeVal *value) {
     }
     index = (index + 1) % dict->capacity;
   }
-  dict->entries[index].key = strdup(key);
+  dict->entries[index].key = zox_strdup_buf(ZOX_BUF_DICT_KEY, key);
   dict->entries[index].value = value;
   retain(value);
   dict->size++;
@@ -101,7 +89,7 @@ static char *append_str(char **buf, size_t *len, size_t *cap, const char *s) {
   size_t slen = strlen(s);
   while (*len + slen + 1 > *cap) {
     *cap = (*cap) * 2 + 64;
-    *buf = realloc_safe(*buf, *cap, "runtime_value_to_string buf");
+    *buf = zox_realloc_buf(ZOX_BUF_TEMP, *buf, *cap, "runtime_value_to_string buf");
   }
   memcpy(*buf + *len, s, slen + 1);
   *len += slen;
@@ -116,7 +104,7 @@ static void list_to_repr(ListVal *list, char **buf, size_t *len, size_t *cap) {
     if (i > 0) append_str(buf, len, cap, ", ");
     char *item = val_to_repr(list->items[i]);
     append_str(buf, len, cap, item ? item : "nil");
-    free_safe(item);
+    zox_free_buf(ZOX_BUF_TEMP, item);
   }
   append_str(buf, len, cap, "}");
 }
@@ -133,14 +121,14 @@ static void dict_to_repr(DictVal *dict, char **buf, size_t *len, size_t *cap) {
     append_str(buf, len, cap, "\" -> ");
     char *v = val_to_repr(dict->entries[i].value);
     append_str(buf, len, cap, v ? v : "nil");
-    free_safe(v);
+    zox_free_buf(ZOX_BUF_TEMP, v);
   }
   append_str(buf, len, cap, "]");
 }
 
 static char *type_to_repr(TypeVal *tv) {
   size_t needed = strlen("type<>") + strlen(tv->name) + 1;
-  char *buf = malloc_safe(needed, "type repr");
+  char *buf = zox_alloc_buf(ZOX_BUF_TEMP, needed, "type repr");
   snprintf(buf, needed, "type<%s>", tv->name);
   return buf;
 }
@@ -152,13 +140,13 @@ static void struct_to_repr(StructVal *sv, char **buf, size_t *len, size_t *cap) 
     if (i > 0) append_str(buf, len, cap, ", ");
     char *v = val_to_repr(sv->values[i]);
     append_str(buf, len, cap, v ? v : "nil");
-    free_safe(v);
+    zox_free_buf(ZOX_BUF_TEMP, v);
   }
   append_str(buf, len, cap, ")");
 }
 
 static char *val_to_repr(RuntimeVal *val) {
-  char *prim = dict_key_to_string(val);
+  char *prim = value_to_string_with_kind(val, ZOX_BUF_TEMP);
   if (prim) return prim;
 
   char *buf = NULL;
@@ -166,12 +154,12 @@ static char *val_to_repr(RuntimeVal *val) {
 
   switch (val->type) {
     case LIST_T:
-      buf = malloc_safe(cap, "list repr");
+      buf = zox_alloc_buf(ZOX_BUF_TEMP, cap, "list repr");
       list_to_repr((ListVal *)val, &buf, &len, &cap);
       break;
 
     case DICT_T:
-      buf = malloc_safe(cap, "dict repr");
+      buf = zox_alloc_buf(ZOX_BUF_TEMP, cap, "dict repr");
       dict_to_repr((DictVal *)val, &buf, &len, &cap);
       break;
 
@@ -179,7 +167,7 @@ static char *val_to_repr(RuntimeVal *val) {
       return type_to_repr((TypeVal *)val);
 
     case STRUCT_T:
-      buf = malloc_safe(cap, "struct repr");
+      buf = zox_alloc_buf(ZOX_BUF_TEMP, cap, "struct repr");
       struct_to_repr((StructVal *)val, &buf, &len, &cap);
       break;
 
@@ -199,10 +187,10 @@ RuntimeVal *eval_dict_literal(DictLiteral *dict_lit, Environment *env) {
   for (size_t i = 0; i < dict_lit->element_count; i++) {
     RuntimeVal *key   = evaluate(&(dict_lit->keys[i]->stmt), env);
     RuntimeVal *value = evaluate(&(dict_lit->values[i]->stmt), env);
-    char *key_str = runtime_value_to_string(key);
+    char *key_str = dict_key_to_string(key);
     if (key_str == NULL) error("Dict key must be convertible to a string.\n");
     dict_set_val(dict, key_str, value);
-    free_safe(key_str);
+    zox_free_buf(ZOX_BUF_DICT_KEY, key_str);
     release(key);
     release(value);
   }
@@ -227,11 +215,11 @@ RuntimeVal *get_string_slice(StringVal *str, int start, int end) {
   if (end   < 0) end   = size + end;
   if (end   < 0 || end > (int)size)   error("String index out of bounds.\n");
   if (start >= end) return (RuntimeVal *)MK_STRING("");
-  char *slice = malloc_safe(end - start + 1, "get_string_slice");
+  char *slice = zox_alloc_buf(ZOX_BUF_TEMP, (size_t)(end - start + 1), "get_string_slice");
   strncpy(slice, str->value + start, end - start);
   slice[end - start] = '\0';
   RuntimeVal *result = (RuntimeVal *)MK_STRING(slice);
-  free_safe(slice);
+  zox_free_buf(ZOX_BUF_TEMP, slice);
   return result;
 }
 
@@ -317,7 +305,7 @@ RuntimeVal *eval_dict_key(DictKey *dict_key, Environment *env) {
 
   release(key_val);
   release(dict_val);
-  free_safe(key);
+  zox_free_buf(ZOX_BUF_DICT_KEY, key);
   if (result == NULL) return (RuntimeVal *)MK_NIL();
   return result;
 }

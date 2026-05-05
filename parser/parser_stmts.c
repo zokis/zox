@@ -37,9 +37,9 @@ Stmt *parse_import_stmt(Parser *parser) {
   }
 
   ImportStmt *import_stmt =
-      malloc_safe(sizeof(ImportStmt), "ImportStmt allocation");
+      zox_alloc_buf(ZOX_BUF_MISC, sizeof(ImportStmt), "ImportStmt allocation");
   import_stmt->base.kind = ImportAst;
-  import_stmt->module_name = strdup(module_name);
+  import_stmt->module_name = zox_strdup_buf(ZOX_BUF_STRING, module_name);
   import_stmt->imports = NULL;
   import_stmt->import_count = 0;
 
@@ -57,13 +57,13 @@ Stmt *parse_import_stmt(Parser *parser) {
                     .value;
       }
       ImportItem *item =
-          malloc_safe(sizeof(ImportItem), "ImportItem allocation");
-      item->name = strdup(name);
-      item->alias = alias ? strdup(alias) : NULL;
+          zox_alloc_buf(ZOX_BUF_MISC, sizeof(ImportItem), "ImportItem allocation");
+      item->name = zox_strdup_buf(ZOX_BUF_STRING, name);
+      item->alias = alias ? zox_strdup_buf(ZOX_BUF_STRING, alias) : NULL;
       import_stmt->imports =
-          realloc_safe(import_stmt->imports,
-                       sizeof(ImportItem *) * (import_stmt->import_count + 1),
-                       "ImportStmt imports realloc");
+          zox_realloc_buf(ZOX_BUF_AST, import_stmt->imports,
+                          sizeof(ImportItem *) * (import_stmt->import_count + 1),
+                          "ImportStmt imports realloc");
       import_stmt->imports[import_stmt->import_count++] = item;
     } while (at(parser).type == CommaTk);
 
@@ -84,8 +84,8 @@ Expr *parse_if_expr(Parser *parser) {
   Stmt **body = NULL;
   size_t body_count = 0;
   while (at(parser).type != CloseBraceTk) {
-    body = realloc_safe(body, sizeof(Stmt *) * (body_count + 1),
-                        "parse_if_expr body");
+    body = zox_realloc_buf(ZOX_BUF_AST, body, sizeof(Stmt *) * (body_count + 1),
+                           "parse_if_expr body");
     body[body_count++] = parse_stmt(parser);
   }
   expect(parser, CloseBraceTk, "Expected '}' to close '?' body.");
@@ -101,8 +101,9 @@ Expr *parse_if_expr(Parser *parser) {
       expect(parser, OpenBraceTk, "Expected '{' to start ':' body.");
       while (at(parser).type != CloseBraceTk) {
         else_body =
-            realloc_safe(else_body, sizeof(Stmt *) * (else_body_count + 1),
-                         "parse_if_expr else_body");
+            zox_realloc_buf(ZOX_BUF_AST, else_body,
+                            sizeof(Stmt *) * (else_body_count + 1),
+                            "parse_if_expr else_body");
         else_body[else_body_count++] = parse_stmt(parser);
       }
       expect(parser, CloseBraceTk, "Expected '}' to close ':' body.");
@@ -121,8 +122,8 @@ Expr *parse_while_expr(Parser *parser) {
   Stmt **body = NULL;
   size_t body_count = 0;
   while (at(parser).type != CloseBraceTk) {
-    body = realloc_safe(body, sizeof(Stmt *) * (body_count + 1),
-                        "parse_while_expr body");
+    body = zox_realloc_buf(ZOX_BUF_AST, body, sizeof(Stmt *) * (body_count + 1),
+                           "parse_while_expr body");
     body[body_count++] = parse_stmt(parser);
   }
   expect(parser, CloseBraceTk, "Expected '}' to close '#' body.");
@@ -140,8 +141,8 @@ Expr *parse_for_expr(Parser *parser) {
   Stmt **body = NULL;
   size_t body_count = 0;
   while (at(parser).type != CloseBraceTk) {
-    body = realloc_safe(body, sizeof(Stmt *) * (body_count + 1),
-                        "parse_for_expr body");
+    body = zox_realloc_buf(ZOX_BUF_AST, body, sizeof(Stmt *) * (body_count + 1),
+                           "parse_for_expr body");
     body[body_count++] = parse_stmt(parser);
   }
   expect(parser, CloseBraceTk, "Expected '}' to close '@' body.");
@@ -152,7 +153,7 @@ Expr *parse_for_expr(Parser *parser) {
 Expr *parse_func_def(Parser *parser) {
   Token name_token =
       expect(parser, IdentifierTk, "Expected function name after '$'.");
-  char *name = strdup(name_token.value);
+  char *name = zox_strdup_buf(ZOX_BUF_STRING, name_token.value);
   expect(parser, OpenParenTk, "Expected '(' after function name.");
   char **params = NULL;
   size_t param_count = 0;
@@ -161,17 +162,17 @@ Expr *parse_func_def(Parser *parser) {
       expect(parser, CommaTk, "Expected ',' between function parameters.");
     }
     Token param = expect(parser, IdentifierTk, "Expected parameter name.");
-    params = realloc_safe(params, sizeof(char *) * (param_count + 1),
-                          "parse_func_def params");
-    params[param_count++] = strdup(param.value);
+    params = zox_realloc_buf(ZOX_BUF_AST, params, sizeof(char *) * (param_count + 1),
+                             "parse_func_def params");
+    params[param_count++] = zox_strdup_buf(ZOX_BUF_STRING, param.value);
   }
   expect(parser, CloseParenTk, "Expected ')' after function parameters.");
   expect(parser, OpenBraceTk, "Expected '{' to start function body.");
   Stmt **body = NULL;
   size_t body_count = 0;
   while (at(parser).type != CloseBraceTk) {
-    body = realloc_safe(body, sizeof(Stmt *) * (body_count + 1),
-                        "parse_func_def body");
+    body = zox_realloc_buf(ZOX_BUF_AST, body, sizeof(Stmt *) * (body_count + 1),
+                           "parse_func_def body");
     body[body_count++] = parse_stmt(parser);
   }
   expect(parser, CloseBraceTk, "Expected '}' to end function body.");
@@ -186,8 +187,8 @@ Expr *parse_call_expr(Parser *parser, Expr *callee) {
     if (arg_count > 0) {
       expect(parser, CommaTk, "Expected ',' between arguments.");
     }
-    args = realloc_safe(args, sizeof(Expr *) * (arg_count + 1),
-                        "parse_call_expr args");
+    args = zox_realloc_buf(ZOX_BUF_AST, args, sizeof(Expr *) * (arg_count + 1),
+                           "parse_call_expr args");
     args[arg_count++] = parse_expr(parser);
   }
   expect(parser, CloseParenTk, "Expected ')' after arguments.");
@@ -207,10 +208,11 @@ Stmt *parse_type_declaration(Parser *parser) {
       expect(parser, CommaTk, "Expected ',' between fields.");
     }
     Token field = expect(parser, IdentifierTk, "Expected field name.");
-    fields = realloc_safe(fields, sizeof(char *) * (count + 1), "parse_type_declaration fields");
-    fields[count++] = strdup(field.value);
+    fields = zox_realloc_buf(ZOX_BUF_AST, fields, sizeof(char *) * (count + 1),
+                             "parse_type_declaration fields");
+    fields[count++] = zox_strdup_buf(ZOX_BUF_STRING, field.value);
   }
 
   expect(parser, CloseBraceTk, "Expected '}' after fields.");
-  return (Stmt *)create_type_declaration(strdup(name.value), fields, count);
+  return (Stmt *)create_type_declaration(zox_strdup_buf(ZOX_BUF_STRING, name.value), fields, count);
 }

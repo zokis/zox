@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "malloc_safe.h"
 #include "values.h"
+#include "zox_alloc.h"
 
 ErrorCursor      error_cursor = {0, 0, NULL};
 int    zox_argc = 0;
@@ -120,7 +120,7 @@ ssize_t getline(char **lineptr, size_t *n, FILE *stream) {
   c = fgetc(stream);
   if (c == EOF) return -1;
   if (bufptr == NULL) {
-    bufptr = malloc_safe(128, "getline buffer");
+    bufptr = zox_alloc_buf(ZOX_BUF_IO, 128, "getline buffer");
     if (!bufptr) return -1;
     size = 128;
   }
@@ -128,7 +128,7 @@ ssize_t getline(char **lineptr, size_t *n, FILE *stream) {
   while (c != EOF) {
     if ((p - bufptr) > (ssize_t)(size - 1)) {
       size += 128;
-      bufptr = realloc_safe(bufptr, size, "getline buffer");
+      bufptr = zox_realloc_buf(ZOX_BUF_IO, bufptr, size, "getline buffer");
       if (!bufptr) return -1;
     }
     *p++ = c;
@@ -222,7 +222,7 @@ char *read_file(const char *filename) {
   if (!file) { perror("Could not open file"); return NULL; }
   size_t buffer_size   = 1024;
   size_t content_size  = 1;
-  char  *buffer        = malloc_safe(buffer_size, "read_file buffer");
+  char  *buffer        = zox_alloc_buf(ZOX_BUF_IO, buffer_size, "read_file buffer");
   if (!buffer) { perror("Could not allocate buffer"); fclose(file); return NULL; }
   char  *current_position = buffer;
   size_t bytes_read;
@@ -231,10 +231,10 @@ char *read_file(const char *filename) {
     current_position += bytes_read;
     if (content_size + 1 >= buffer_size) {
       buffer_size *= 2;
-      char *new_buffer = realloc_safe(buffer, buffer_size, "read_file buffer");
+      char *new_buffer = zox_realloc_buf(ZOX_BUF_IO, buffer, buffer_size, "read_file buffer");
       if (!new_buffer) {
         perror("Could not reallocate buffer");
-        free_safe(buffer); fclose(file); return NULL;
+        zox_free_buf(ZOX_BUF_IO, buffer); fclose(file); return NULL;
       }
       current_position = new_buffer + (current_position - buffer);
       buffer = new_buffer;
@@ -242,7 +242,7 @@ char *read_file(const char *filename) {
   }
   if (ferror(file)) {
     perror("Error reading file");
-    free_safe(buffer); fclose(file); return NULL;
+    zox_free_buf(ZOX_BUF_IO, buffer); fclose(file); return NULL;
   }
   buffer[content_size - 1] = '\0';
   fclose(file);

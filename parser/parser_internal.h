@@ -7,7 +7,7 @@
 #include "../ast.h"
 #include "../global.h"
 #include "../lexer.h"
-#include "../malloc_safe.h"
+#include "../zox_alloc.h"
 
 #include <setjmp.h>
 #include <stddef.h>

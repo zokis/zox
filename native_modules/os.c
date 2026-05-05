@@ -62,7 +62,7 @@ static RuntimeVal *os_exec(Environment *env, RuntimeVal **args, size_t argc) {
     if (total + chunk + 1 > cap) {
       cap = cap ? cap * 2 : 8192;
       if (total + chunk + 1 > cap) cap = total + chunk + 1;
-      buf = realloc_safe(buf, cap, "os_exec buf");
+      buf = zox_realloc_buf(ZOX_BUF_IO, buf, cap, "os_exec buf");
     }
     memcpy(buf + total, tmp, chunk);
     total += chunk;
@@ -72,7 +72,7 @@ static RuntimeVal *os_exec(Environment *env, RuntimeVal **args, size_t argc) {
   buf[total] = '\0';
   if (total > 0 && buf[total - 1] == '\n') buf[total - 1] = '\0';
   RuntimeVal *r = (RuntimeVal *)MK_STRING(buf);
-  free_safe(buf);
+  zox_free_buf(ZOX_BUF_IO, buf);
   return r;
 }
 

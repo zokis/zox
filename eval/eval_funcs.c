@@ -67,7 +67,7 @@ RuntimeVal *eval_assign_dict_var_expr(AssignDictVar *var, Environment *env) {
   }
   
   DictVal *dict = (DictVal *)target;
-  char *key = runtime_value_to_string(key_val);
+  char *key = dict_key_to_string(key_val);
   if (key == NULL) {
     release(value);
     release(key_val);
@@ -75,7 +75,7 @@ RuntimeVal *eval_assign_dict_var_expr(AssignDictVar *var, Environment *env) {
   }
   
   dict_set_val(dict, key, value);
-  free_safe(key);
+  zox_free_buf(ZOX_BUF_DICT_KEY, key);
   release(key_val);
   return value;
 }
@@ -112,10 +112,10 @@ RuntimeVal *eval_assign_dict_expr(AssignDictExpr *node, Environment *env) {
   RuntimeVal *dict_val = evaluate(&(node->target->stmt), env);
   RuntimeVal *key_val  = evaluate(&(node->key->stmt), env);
   if (dict_val->type != DICT_T) error("Attempted to key-assign a non-dict value.\n");
-  char *key = runtime_value_to_string(key_val);
+  char *key = dict_key_to_string(key_val);
   if (key == NULL) error("Dict key must be convertible to a string.\n");
   dict_set_val((DictVal *)dict_val, key, value);
-  free_safe(key);
+  zox_free_buf(ZOX_BUF_DICT_KEY, key);
   release(key_val);
   release(dict_val);
   return value;
@@ -137,9 +137,10 @@ RuntimeVal *eval_func_def(FuncDef *func_def, Environment *env) {
 /* Args arrive ref+1; func_env keeps them after caller release. */
 RuntimeVal *eval_type_declaration(TypeDeclaration *type_decl, Environment *env) {
   /* Copy field names to avoid ownership issues if type_decl is freed */
-  char **fields = malloc_safe(sizeof(char *) * type_decl->field_count, "eval_type fields");
+  char **fields = zox_alloc_buf(
+      ZOX_BUF_TYPE_FIELDS, sizeof(char *) * type_decl->field_count, "eval_type fields");
   for (size_t i = 0; i < type_decl->field_count; i++) {
-    fields[i] = strdup(type_decl->fields[i]);
+    fields[i] = zox_strdup_buf(ZOX_BUF_STRING, type_decl->fields[i]);
   }
   TypeVal *tv = MK_TYPE(type_decl->name, fields, type_decl->field_count);
   declare_var(env, tv->name, (RuntimeVal *)tv);
@@ -147,8 +148,8 @@ RuntimeVal *eval_type_declaration(TypeDeclaration *type_decl, Environment *env) 
 }
 
 static RuntimeVal **eval_call_args(CallExpr *call_expr, Environment *env) {
-  RuntimeVal **args = malloc_safe(sizeof(RuntimeVal *) * call_expr->arg_count,
-                                  "eval_call_expr args");
+  RuntimeVal **args = zox_alloc_buf(
+      ZOX_BUF_TEMP, sizeof(RuntimeVal *) * call_expr->arg_count, "eval_call_expr args");
   for (size_t i = 0; i < call_expr->arg_count; i++) {
     args[i] = evaluate(&(call_expr->arguments[i]->stmt), env);
   }
@@ -159,7 +160,7 @@ static void release_call_args(RuntimeVal **args, size_t arg_count) {
   for (size_t i = 0; i < arg_count; i++) {
     release(args[i]);
   }
-  free_safe(args);
+  zox_free_buf(ZOX_BUF_TEMP, args);
 }
 
 static RuntimeVal *eval_function_body(FunctionVal *func, Environment *func_env) {
@@ -207,11 +208,18 @@ RuntimeVal *eval_call_expr(CallExpr *call_expr, Environment *env) {
     if (call_expr->arg_count != type_def->field_count) {
       error("Struct constructor argument count mismatch.");
     }
-    RuntimeVal **values = malloc_safe(sizeof(RuntimeVal *) * type_def->field_count, "struct values");
+    RuntimeVal *inline_values[4];
+    RuntimeVal **values = type_def->field_count <= 4
+        ? inline_values
+        : zox_alloc_buf(
+            ZOX_BUF_STRUCT_VALUES, sizeof(RuntimeVal *) * type_def->field_count, "struct values");
     for (size_t i = 0; i < type_def->field_count; i++) {
       values[i] = evaluate(&(call_expr->arguments[i]->stmt), env);
     }
-    StructVal *sv = MK_STRUCT(type_def, values);
+    StructVal *sv = MK_STRUCT_COPY_VALUES(type_def, values);
+    if (type_def->field_count > 4) {
+      zox_free_buf(ZOX_BUF_STRUCT_VALUES, values);
+    }
     release(callee);
     return (RuntimeVal *)sv;
   }
@@ -266,4 +274,3 @@ RuntimeVal *zox_call_function(FunctionVal *func, Environment *env,
   free_environment(func_env);
   return result;
 }
-

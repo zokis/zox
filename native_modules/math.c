@@ -117,8 +117,8 @@ static RuntimeVal *math_median(Environment *env, RuntimeVal **args,
   }
 
   size_t list_size = list->size;
-  RuntimeVal **num_items = (RuntimeVal **)malloc_safe(
-      list_size * sizeof(RuntimeVal *), "math_median");
+  RuntimeVal **num_items = (RuntimeVal **)zox_alloc_buf(
+      ZOX_BUF_TEMP, list_size * sizeof(RuntimeVal *), "math_median");
   size_t count = 0;
 
   for (size_t i = 0; i < list_size; i++) {
@@ -128,7 +128,7 @@ static RuntimeVal *math_median(Environment *env, RuntimeVal **args,
   }
 
   if (count == 0) {
-    free_safe(num_items);
+    zox_free_buf(ZOX_BUF_TEMP, num_items);
     return (RuntimeVal *)MK_NUMBER(0);
   }
 
@@ -143,7 +143,7 @@ static RuntimeVal *math_median(Environment *env, RuntimeVal **args,
     median = (middle1 + middle2) / 2.0;
   }
 
-  free_safe(num_items);
+  zox_free_buf(ZOX_BUF_TEMP, num_items);
 
   return (RuntimeVal *)MK_NUMBER(median);
 }

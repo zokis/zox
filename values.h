@@ -44,7 +44,9 @@ typedef struct {
 
 typedef struct {
   RuntimeVal base;
+  size_t len;
   char *value;
+  char inline_buf[24];
 } StringVal;
 
 typedef struct {
@@ -63,6 +65,7 @@ typedef struct {
   RuntimeVal **items;
   size_t size;
   size_t capacity;
+  RuntimeVal *inline_items[4];
 } ListVal;
 
 typedef struct {
@@ -75,6 +78,7 @@ typedef struct {
   Entry *entries;
   size_t size;
   size_t capacity;
+  Entry inline_entries[8];
 } DictVal;
 
 typedef struct {
@@ -88,6 +92,7 @@ typedef struct {
   RuntimeVal base;
   TypeVal *type_def;
   RuntimeVal **values;
+  RuntimeVal *inline_values[4];
 } StructVal;
 
 typedef struct {
@@ -116,7 +121,10 @@ ListVal *MK_LIST(size_t capacity);
 DictVal *MK_DICT(size_t capacity);
 TypeVal *MK_TYPE(const char *name, char **fields, size_t field_count);
 StructVal *MK_STRUCT(TypeVal *type_def, RuntimeVal **values);
+StructVal *MK_STRUCT_COPY_VALUES(TypeVal *type_def, RuntimeVal **values);
 ModuleVal *MK_MODULE(Environment *env);
+void list_reserve(ListVal *list, size_t capacity);
+void dict_reserve(DictVal *dict, size_t capacity);
 
 RuntimeVal *promote_val(RuntimeVal *val);
 char *dict_key_to_string(RuntimeVal *val);

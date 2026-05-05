@@ -111,9 +111,7 @@ static ListVal *eval_list_concat(ListVal *lhs, ListVal *rhs) {
   if (lhs->base.ref_count == 1) {
     size_t needed = lhs->size + rhs->size;
     if (needed > lhs->capacity) {
-      lhs->capacity = needed > lhs->capacity * 2 ? needed : lhs->capacity * 2;
-      lhs->items = realloc_safe(lhs->items, sizeof(RuntimeVal *) * lhs->capacity,
-                                "eval_list_binary_expr in-place realloc");
+      list_reserve(lhs, needed > lhs->capacity * 2 ? needed : lhs->capacity * 2);
     }
     for (size_t i = 0; i < rhs->size; i++) {
       lhs->items[lhs->size + i] = rhs->items[i];
@@ -197,9 +195,7 @@ static int is_mapped_op(const char *operator) {
 RuntimeVal *eval_list_any_binary_expr(const char *operator, ListVal *lhs, RuntimeVal *rhs) {
   if (!strcmp(operator, "<<")) {
     if (lhs->size >= lhs->capacity) {
-      lhs->capacity = lhs->capacity * 2 + 1;
-      lhs->items = realloc_safe(lhs->items, sizeof(RuntimeVal *) * lhs->capacity,
-                                "eval_list_any_binary_expr realloc");
+      list_reserve(lhs, lhs->capacity * 2 + 1);
     }
     retain(rhs);
     lhs->items[lhs->size++] = rhs;
@@ -251,16 +247,16 @@ static RuntimeVal *eval_string_binary_expr(StringVal *lhs, StringVal *rhs,
                                            const char *operator) {
   if (!strcmp(operator, "+")) {
     size_t new_size = strlen(lhs->value) + strlen(rhs->value);
-    char *new_value = malloc_safe(new_size + 1, "eval_string_binary_expr");
+    char *new_value = zox_alloc_buf(ZOX_BUF_TEMP, new_size + 1, "eval_string_binary_expr");
     strcpy(new_value, lhs->value);
     strcat(new_value, rhs->value);
     RuntimeVal *result = (RuntimeVal *)MK_STRING(new_value);
-    free_safe(new_value);
+    zox_free_buf(ZOX_BUF_TEMP, new_value);
     return result;
   } else if (!strcmp(operator, "-")) {
     int len_a = strlen(lhs->value);
     int len_b = strlen(rhs->value);
-    char *result = malloc_safe(len_a + 1, "eval_string_binary_expr result");
+    char *result = zox_alloc_buf(ZOX_BUF_TEMP, len_a + 1, "eval_string_binary_expr result");
     int result_index = 0;
     for (int i = 0; i < len_a;) {
       int j;
@@ -270,7 +266,7 @@ static RuntimeVal *eval_string_binary_expr(StringVal *lhs, StringVal *rhs,
     }
     result[result_index] = '\0';
     RuntimeVal *r = (RuntimeVal *)MK_STRING(result);
-    free_safe(result);
+    zox_free_buf(ZOX_BUF_TEMP, result);
     return r;
   }
   if (!strcmp(operator, "==")) return (RuntimeVal *)MK_BOOL(!strcmp(lhs->value, rhs->value));
@@ -282,11 +278,12 @@ static RuntimeVal *eval_string_binary_expr(StringVal *lhs, StringVal *rhs,
 RuntimeVal *eval_string_repeat(StringVal *str, NumberVal *num) {
   int repeat_count = (int)num->value;
   if (repeat_count < 0) error("Cannot repeat string a negative number of times");
-  char *new_value = malloc_safe(strlen(str->value) * repeat_count + 1, "eval_string_repeat");
+  char *new_value = zox_alloc_buf(
+      ZOX_BUF_TEMP, strlen(str->value) * repeat_count + 1, "eval_string_repeat");
   new_value[0] = '\0';
   for (int i = 0; i < repeat_count; i++) strcat(new_value, str->value);
   RuntimeVal *result = (RuntimeVal *)MK_STRING(new_value);
-  free_safe(new_value);
+  zox_free_buf(ZOX_BUF_TEMP, new_value);
   return result;
 }
 

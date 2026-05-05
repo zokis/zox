@@ -8,9 +8,9 @@
 #include "../env.h"
 #include "../global.h"
 #include "../hash.h"
-#include "../malloc_safe.h"
 #include "../native_modules.h"
 #include "../parser.h"
+#include "../zox_alloc.h"
 
 #include <fcntl.h>
 #include <math.h>
@@ -57,6 +57,7 @@ RuntimeVal *eval_for_expr(ForExpr *for_expr, Environment *env);
 
 /* eval_collections.c */
 void        list_append_val(ListVal *list, RuntimeVal *item);
+char       *dict_key_to_string(RuntimeVal *val);
 RuntimeVal *eval_list_literal(ListLiteral *list_lit, Environment *env);
 void        resize_dict(DictVal *dict);
 void        dict_set_val(DictVal *dict, const char *key, RuntimeVal *value);

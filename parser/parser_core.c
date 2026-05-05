@@ -2,7 +2,7 @@
 #include "parser_internal.h"
 
 Parser *create_parser(Token *tokens, long long int token_count) {
-  Parser *parser = (Parser *)malloc_safe(sizeof(Parser), "Failed to allocate Parser");
+  Parser *parser = (Parser *)zox_alloc_buf(ZOX_BUF_MISC, sizeof(Parser), "Failed to allocate Parser");
   parser->tokens = tokens;
   parser->token_count = token_count;
   parser->current = 0;
@@ -102,12 +102,13 @@ Program *produce_ast(Parser *parser, const char *source_code) {
   (void)source_code;
   Program *program = create_program(NULL, 0);
   size_t capacity = 8;
-  program->body = (Stmt **)malloc_safe(sizeof(Stmt *) * capacity, "produce_ast");
+  program->body = (Stmt **)zox_alloc_buf(ZOX_BUF_AST, sizeof(Stmt *) * capacity, "produce_ast");
 
   while (not_eof(parser)) {
     if (program->body_count >= capacity) {
       capacity *= 2;
-      program->body = (Stmt **)realloc_safe(program->body, sizeof(Stmt *) * capacity, "produce_ast");
+      program->body = (Stmt **)zox_realloc_buf(
+          ZOX_BUF_AST, program->body, sizeof(Stmt *) * capacity, "produce_ast");
     }
     Stmt *stmt = parse_stmt(parser);
     if (stmt != NULL) program->body[program->body_count++] = stmt;

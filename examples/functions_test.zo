@@ -1,0 +1,15 @@
+~> string { toString };
+
+$ add(a, b) {
+    _>> a + b
+}
+
+$ fib(n) {
+    ?(n <= 1) {
+        _>> n
+    }
+    _>> fib(n - 1) + fib(n - 2)
+}
+
+println("2 + 3 = " + toString(add(2, 3)));
+println("Fib(10) = " + toString(fib(10)));

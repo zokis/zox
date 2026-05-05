@@ -2,16 +2,31 @@
 
 CC      = gcc
 ZOX_ALLOC_STATS ?= 0
+
+# Interpreter sources (no codegen)
+AST_SRCS = ast/ast_nodes.c ast/ast_free.c
+AST_SERIAL_SRCS = ast/ast_serial.c
+PARSER_SRCS = lexer.c \
+              parser/parser_core.c parser/parser_exprs.c parser/parser_stmts.c
+
 SRCS    = main.c \
-          ast/ast_nodes.c ast/ast_free.c ast/ast_serial.c \
-          lexer.c \
-          parser/parser_core.c parser/parser_exprs.c parser/parser_stmts.c \
+          $(AST_SRCS) \
+          $(AST_SERIAL_SRCS) \
+          $(PARSER_SRCS) \
           values.c \
           eval/eval_core.c eval/eval_ops.c eval/eval_control.c \
           eval/eval_collections.c eval/eval_funcs.c eval/eval_import.c \
           malloc_safe.c zox_alloc.c env.c debug.c hash.c builtins.c global.c native_modules.c
-LIBS    = -lm -ldl -Wl,--export-dynamic
-BIN     = zox
+
+# Compiler sources (parser + codegen only, no eval/runtime)
+ZOXC_SRCS = zoxc.c codegen/core.c codegen/stmt.c codegen/expr.c \
+            $(AST_SRCS) \
+            $(PARSER_SRCS) \
+            values.c env.c \
+            malloc_safe.c zox_alloc.c hash.c global.c debug.c
+
+LIBS     = -lm -ldl -Wl,--export-dynamic
+BIN      = zox
 CPPFLAGS = -DZOX_ALLOC_STATS=$(ZOX_ALLOC_STATS)
 
 CFLAGS_RELEASE = -O2 $(CPPFLAGS)
@@ -22,13 +37,25 @@ CFLAGS_LIB     = -shared -fPIC -O2 $(CPPFLAGS)
 LIB_SRCS := $(wildcard lib/*.c)
 LIB_SOS  := $(LIB_SRCS:.c=.so)
 
-.PHONY: all dev alloc-stats test libs buildlib full fulldev testlib testlibs perf perf-update bench-leak clean install listlibs help
+.PHONY: all dev alloc-stats compiler compiler-test test libs buildlib full fulldev testlib testlibs perf perf-update bench-leak clean install listlibs help
 
-## Build release core (default).
-all:
+## Build interpreter and compiler (default).
+all: $(BIN) zoxc
+
+$(BIN): $(SRCS)
 	$(CC) $(CFLAGS_RELEASE) -o $(BIN) $(SRCS) $(LIBS)
 
-## Build core with AddressSanitizer.
+## Build AOT compiler binary.
+compiler: zoxc
+
+zoxc: $(ZOXC_SRCS)
+	$(CC) $(CFLAGS_RELEASE) -o zoxc $(ZOXC_SRCS) -lm
+
+## Run compiler equivalence tests against supported examples.
+compiler-test: all
+	@bash scripts/test_compiler.sh
+
+## Build interpreter with AddressSanitizer.
 dev:
 	$(CC) $(CFLAGS_DEV) -o $(BIN) $(SRCS) $(LIBS)
 
@@ -85,13 +112,14 @@ bench-leak: fulldev
 	@ASAN_OPTIONS=detect_leaks=1 ./$(BIN) --arena=16 tests/benchmarks/bench_memory.zo > /dev/null
 	@echo "No leaks detected."
 
-## Remove binary and compiled libs.
+## Remove binaries and compiled libs.
 clean:
-	rm -f $(BIN) $(LIB_SOS)
+	rm -f $(BIN) zoxc $(LIB_SOS)
 
 ## Install into /usr/local/bin.
 install: all
 	cp $(BIN) /usr/local/bin/$(BIN)
+	cp zoxc /usr/local/bin/zoxc
 
 ## List available libs.
 listlibs:
@@ -101,9 +129,11 @@ listlibs:
 ## Help.
 help:
 	@echo "Available targets:"
-	@echo "  make          - build core (release)"
+	@echo "  make          - build zox and zoxc (release)"
 	@echo "  make dev      - build core with AddressSanitizer"
 	@echo "  make alloc-stats - build core with allocator stats enabled"
+	@echo "  make compiler - build zoxc only"
+	@echo "  make compiler-test - compare zox vs zoxc on supported examples"
 	@echo "  make libs     - build all libs in lib/*.c"
 	@echo "  make buildlib LIB=json  - build lib/json.so"
 	@echo "  make full     - core + all libs"

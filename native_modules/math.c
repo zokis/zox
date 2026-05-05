@@ -318,8 +318,3 @@ void init_math_module(Environment *env) {
   declare_owned(env, "lmax",
               (RuntimeVal *)MK_NATIVE_FN(single_param, 1, math_list_max));
 }
-
-typedef struct {
-  FILE *fp;
-  char *mode;
-} FileHandle;

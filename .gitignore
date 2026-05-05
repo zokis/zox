@@ -1,6 +1,8 @@
 zox
 zox_test
 zox_asan
+zoxc
+a.out
 
 # Prerequisites
 *.d
@@ -61,6 +63,26 @@ dkms.conf
 cmake-build-release/
 cmake-build-debug/
 *.zoxc
+
+# Local generated scratch binaries and asm from compiler experiments
+compile_test_bin
+funcs_test
+if_test
+if_test.s
+if_test_stripped
+if_testnew
+loops_test
+simple_func
+string
+test.s
+test_bin
+test_clean
+test_obf
+vars_test
+vars_test.s
+zoxc_compile_test_clean
+runtime_lib.o
+test.o
 
 # Local performance baseline (machine-specific, not shared)
 tests/benchmarks/perf_baseline.txt

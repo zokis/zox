@@ -5,7 +5,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/stat.h>
-
 #include "ast.h"
 #include "builtins.h"
 #include "env.h"
@@ -32,9 +31,9 @@ static uint64_t file_mtime(const char *path) {
 static Program *try_load_cache(const char *cache_path, uint64_t mtime) {
   FILE *f = fopen(cache_path, "rb");
   if (!f) return NULL;
-  Program *p = ast_deserialize(f, mtime);
+  Program *program = ast_deserialize(f, mtime);
   fclose(f);
-  return p;
+  return program;
 }
 
 static void save_cache(Program *program, const char *cache_path, uint64_t mtime) {
@@ -113,6 +112,7 @@ static int parse_arena_mb(const char *value, size_t *bytes) {
 static int parse_cli(int argc, char **argv, const char **filename, int *alloc_stats) {
   *filename    = NULL;
   *alloc_stats = 0;
+
   for (int i = 1; i < argc; i++) {
     if (strncmp(argv[i], "--arena=", 8) == 0) {
       size_t bytes = 0;
@@ -138,9 +138,10 @@ int main(int argc, char **argv) {
   zox_argv = argv;
   const char *filename    = NULL;
   int         alloc_stats = 0;
-  if (!parse_cli(argc, argv, &filename, &alloc_stats)) {
-    return 1;
-  }
+  int         ok = parse_cli(argc, argv, &filename, &alloc_stats);
+
+  if (!ok) return 1;
+
   Environment *env = create_environment(NULL, "global");
   builtins_env = env;
   register_builtins(env);
@@ -155,33 +156,39 @@ int main(int argc, char **argv) {
   } else {
     global_context.is_repl = 0;
     error_cursor.file = filename;
-
-    char    *cache_path = make_cache_path(filename);
-    uint64_t mtime      = file_mtime(filename);
-
-    Program *program = NULL;
-    Token   *tokens  = NULL;
-    Parser  *parser  = NULL;
+    Program *program     = NULL;
+    Token   *tokens      = NULL;
+    Parser  *parser      = NULL;
     size_t   token_count = 0;
+    uint64_t mtime       = file_mtime(filename);
+    char    *cache_path  = make_cache_path(filename);
 
-    if (mtime > 0) program = try_load_cache(cache_path, mtime);
+    if (mtime > 0) {
+      program = try_load_cache(cache_path, mtime);
+    }
 
     if (!program) {
       char *source_code = read_file(filename);
+
       if (!source_code) {
         zox_free_buf(ZOX_BUF_IO, cache_path);
         free_environment(env);
         zox_alloc_cleanup();
         return 1;
       }
+
       tokens  = tokenize(source_code, &token_count);
       parser  = create_parser(tokens, token_count);
       program = produce_ast(parser, source_code);
       zox_free_buf(ZOX_BUF_IO, source_code);
-      if (mtime > 0) save_cache(program, cache_path, mtime);
+
+      if (mtime > 0) {
+        save_cache(program, cache_path, mtime);
+      }
     }
 
     run_program(program, env);
+
     free_program(program);
     if (tokens) free_tokens(tokens, (int)token_count);
     if (parser) zox_free_buf(ZOX_BUF_MISC, parser);

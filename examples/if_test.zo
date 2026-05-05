@@ -1,0 +1,16 @@
+let x = 10;
+
+?(x > 5) {
+    println("X é maior que 5");
+} : {
+    println("X é menor ou igual a 5");
+}
+
+let cond = false;
+?(cond) {
+    println("Isso não deve aparecer");
+} :? (x == 10) {
+    println("X é exatamente 10");
+} : {
+    println("Caiu no else final");
+}

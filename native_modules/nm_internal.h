@@ -17,4 +17,9 @@
 #include "../values.h"
 #include "../zox_alloc.h"
 
+typedef struct {
+  FILE *fp;
+  char *mode;
+} FileHandle;
+
 #endif /* NM_INTERNAL_H */

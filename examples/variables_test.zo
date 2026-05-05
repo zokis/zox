@@ -1,0 +1,9 @@
+let x = 10;
+let y = 5;
+println(x + y);
+
+x = 100 * 2 + 1;
+println(x);
+
+let nome = "Zox x64";
+println(nome);

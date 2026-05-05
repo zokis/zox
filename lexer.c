@@ -6,12 +6,12 @@
 #include <string.h>
 
 #include "global.h"
-#include "malloc_safe.h"
+#include "zox_alloc.h"
 
 Token create_token(const char *value, ZoxTokenType type, int line,
                    short int column) {
   Token t;
-  t.value = strdup(value);
+  t.value = zox_strdup_buf(ZOX_BUF_STRING, value);
   t.type = type;
   t.line = line;
   t.column = column;
@@ -32,7 +32,8 @@ void ensure_capacity(Token **tokens, size_t *capacity, size_t tokenCount,
                      const char *errMsg) {
   if (tokenCount >= *capacity) {
     *capacity *= 2;
-    *tokens = (Token *)realloc_safe(*tokens, *capacity * sizeof(Token), errMsg);
+    *tokens = (Token *)zox_realloc_buf(
+        ZOX_BUF_MISC, *tokens, *capacity * sizeof(Token), errMsg);
   }
 }
 
@@ -94,7 +95,7 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
   size_t capacity = 100;
   unsigned int line = 1;
   unsigned short int column = 1;
-  Token *tokens = (Token *)malloc_safe(capacity * sizeof(Token), "tokenize");
+  Token *tokens = (Token *)zox_alloc_buf(ZOX_BUF_MISC, capacity * sizeof(Token), "tokenize");
   *tokenCount = 0;
   const char *src = sourceCode;
 
@@ -337,10 +338,10 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
       }
       if (*src != quote) error("Unterminated string literal");
       long long len = src - start;
-      char *val = malloc_safe(len + 1, "string_val");
+      char *val = zox_alloc_buf(ZOX_BUF_STRING, len + 1, "string_val");
       strncpy(val, start, len); val[len] = '\0';
       add_token(&tokens, &capacity, tokenCount, create_token(val, StringTk, line, start_col));
-      free_safe(val);
+      zox_free_buf(ZOX_BUF_STRING, val);
       src++; column++;
       continue;
     }
@@ -363,6 +364,8 @@ Token *tokenize(const char *sourceCode, size_t *tokenCount) {
 }
 
 void free_tokens(Token *tokens, int tokenCount) {
-  for (size_t i = 0; i < (size_t)tokenCount; i++) free_safe(tokens[i].value);
-  free_safe(tokens);
+  for (size_t i = 0; i < (size_t)tokenCount; i++) {
+    zox_free_buf(ZOX_BUF_STRING, tokens[i].value);
+  }
+  zox_free_buf(ZOX_BUF_MISC, tokens);
 }

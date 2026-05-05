@@ -1,6 +1,7 @@
 # Zox Makefile
 
 CC      = gcc
+ZOX_ALLOC_STATS ?= 0
 SRCS    = main.c \
           ast/ast_nodes.c ast/ast_free.c ast/ast_serial.c \
           lexer.c \
@@ -11,16 +12,17 @@ SRCS    = main.c \
           malloc_safe.c zox_alloc.c env.c debug.c hash.c builtins.c global.c native_modules.c
 LIBS    = -lm -ldl -Wl,--export-dynamic
 BIN     = zox
+CPPFLAGS = -DZOX_ALLOC_STATS=$(ZOX_ALLOC_STATS)
 
-CFLAGS_RELEASE = -O2
-CFLAGS_DEV     = -g -fsanitize=address -fno-omit-frame-pointer
-CFLAGS_LIB     = -shared -fPIC -O2
+CFLAGS_RELEASE = -O2 $(CPPFLAGS)
+CFLAGS_DEV     = -g -fsanitize=address -fno-omit-frame-pointer $(CPPFLAGS)
+CFLAGS_LIB     = -shared -fPIC -O2 $(CPPFLAGS)
 
 # Auto-discover lib/*.c files.
 LIB_SRCS := $(wildcard lib/*.c)
 LIB_SOS  := $(LIB_SRCS:.c=.so)
 
-.PHONY: all dev test libs buildlib full fulldev testlib testlibs perf perf-update bench-leak clean install listlibs help
+.PHONY: all dev alloc-stats test libs buildlib full fulldev testlib testlibs perf perf-update bench-leak clean install listlibs help
 
 ## Build release core (default).
 all:
@@ -29,6 +31,10 @@ all:
 ## Build core with AddressSanitizer.
 dev:
 	$(CC) $(CFLAGS_DEV) -o $(BIN) $(SRCS) $(LIBS)
+
+## Build core with allocator stats enabled.
+alloc-stats:
+	$(MAKE) ZOX_ALLOC_STATS=1 all
 
 ## Build all lib/*.c files into lib/*.so.
 libs: $(LIB_SOS)
@@ -97,6 +103,7 @@ help:
 	@echo "Available targets:"
 	@echo "  make          - build core (release)"
 	@echo "  make dev      - build core with AddressSanitizer"
+	@echo "  make alloc-stats - build core with allocator stats enabled"
 	@echo "  make libs     - build all libs in lib/*.c"
 	@echo "  make buildlib LIB=json  - build lib/json.so"
 	@echo "  make full     - core + all libs"

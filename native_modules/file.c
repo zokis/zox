@@ -16,9 +16,9 @@ static RuntimeVal *file_open(Environment *env, RuntimeVal **args,
     error("Does not possible open the file");
   }
 
-  FileHandle *handle = malloc_safe(sizeof(FileHandle), "FileHandle");
+  FileHandle *handle = zox_alloc_buf(ZOX_BUF_MISC, sizeof(FileHandle), "FileHandle");
   handle->fp = fp;
-  handle->mode = strdup(mode);
+  handle->mode = zox_strdup_buf(ZOX_BUF_STRING, mode);
 
   return (RuntimeVal *)handle;
 }
@@ -39,8 +39,8 @@ static RuntimeVal *file_close(Environment *env, RuntimeVal **args,
   if (fclose(handle->fp) != 0) {
     error("Error closing the file");
   }
-  free_safe(handle->mode);
-  free_safe(handle);
+  zox_free_buf(ZOX_BUF_STRING, handle->mode);
+  zox_free_buf(ZOX_BUF_MISC, handle);
 
   return (RuntimeVal *)MK_NIL();
 }
@@ -59,12 +59,12 @@ static RuntimeVal *file_read(Environment *env, RuntimeVal **args,
 
   if (fsize < 0) return (RuntimeVal *)MK_STRING("");
 
-  char *content = malloc_safe(fsize + 1, "file_read content");
+  char *content = zox_alloc_buf(ZOX_BUF_IO, fsize + 1, "file_read content");
   size_t bytes_read = fread(content, 1, fsize, handle->fp);
   content[bytes_read] = '\0';
 
   RuntimeVal *res = (RuntimeVal *)MK_STRING(content);
-  free_safe(content);
+  zox_free_buf(ZOX_BUF_IO, content);
   return res;
 }
 
@@ -82,7 +82,7 @@ static RuntimeVal *file_readline(Environment *env, RuntimeVal **args,
 
   read = getline(&line, &len, handle->fp);
   if (read == -1) {
-    free_safe(line);
+    free(line);
     return (RuntimeVal *)MK_NUMBER(-1);
   }
 
@@ -92,7 +92,7 @@ static RuntimeVal *file_readline(Environment *env, RuntimeVal **args,
   }
 
   RuntimeVal *res = (RuntimeVal *)MK_STRING(line);
-  free_safe(line);
+  free(line);
   return res;
 }
 

@@ -11,9 +11,30 @@ typedef struct PoolNode {
   struct PoolNode *next;
 } PoolNode;
 
+#if ZOX_ALLOC_STATS
+typedef struct BufHeader {
+  size_t size;
+} BufHeader;
+#endif
+
 static PoolNode      *free_lists[ZOX_ALLOC_KIND_COUNT];
+static size_t         free_list_depth[ZOX_ALLOC_KIND_COUNT];
 static void         (*cleanup_fns[ZOX_ALLOC_KIND_COUNT])(void *ptr);
+#if ZOX_ALLOC_STATS
 static ZoxAllocStats  stats[ZOX_ALLOC_KIND_COUNT];
+static ZoxBufStats    buf_stats[ZOX_BUF_KIND_COUNT];
+#define ZOX_STATS_INC(kind, field) (stats[(kind)].field++)
+#define ZOX_STATS_DEC(kind, field) (stats[(kind)].field--)
+#define ZOX_BUF_STATS_INC(kind, field) (buf_stats[(kind)].field++)
+#define ZOX_BUF_STATS_ADD(kind, field, n) (buf_stats[(kind)].field += (n))
+#define ZOX_BUF_STATS_SUB(kind, field, n) (buf_stats[(kind)].field -= (n))
+#else
+#define ZOX_STATS_INC(kind, field) ((void)0)
+#define ZOX_STATS_DEC(kind, field) ((void)0)
+#define ZOX_BUF_STATS_INC(kind, field) ((void)0)
+#define ZOX_BUF_STATS_ADD(kind, field, n) ((void)0)
+#define ZOX_BUF_STATS_SUB(kind, field, n) ((void)0)
+#endif
 
 static unsigned char *arena_base   = NULL;
 static size_t         arena_size   = 0;
@@ -62,6 +83,30 @@ static void *arena_bump(size_t size) {
   return ptr;
 }
 
+static void ignore_buf_kind(ZoxBufKind kind) {
+  (void)kind;
+}
+
+#if ZOX_ALLOC_STATS
+static size_t normalize_buf_kind(ZoxBufKind kind) {
+  return kind < ZOX_BUF_KIND_COUNT ? (size_t)kind : (size_t)ZOX_BUF_MISC;
+}
+
+static void update_buf_peak(size_t kind) {
+  if (buf_stats[kind].live_bytes > buf_stats[kind].peak_bytes) {
+    buf_stats[kind].peak_bytes = buf_stats[kind].live_bytes;
+  }
+}
+
+static void *buf_payload_from_raw(void *raw) {
+  return (void *)((BufHeader *)raw + 1);
+}
+
+static BufHeader *buf_header_from_payload(void *ptr) {
+  return ((BufHeader *)ptr) - 1;
+}
+#endif
+
 void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label) {
   if (kind >= ZOX_ALLOC_KIND_COUNT) return calloc_safe(1, size, label);
 
@@ -69,26 +114,108 @@ void *zox_alloc_obj(ZoxAllocKind kind, size_t size, const char *label) {
   PoolNode *node = free_lists[kind];
   if (node) {
     free_lists[kind] = node->next;
-    stats[kind].reuse++;
-    stats[kind].depth--;
+    free_list_depth[kind]--;
+    ZOX_STATS_INC(kind, reuse);
+    ZOX_STATS_DEC(kind, depth);
     return node;
   }
 
   if (kind == ZOX_ALLOC_ENV || force_heap) {
-    stats[kind].heap++;
+    ZOX_STATS_INC(kind, heap);
     return calloc_safe(1, size, label);
   }
 
-  stats[kind].alloc++;
+  ZOX_STATS_INC(kind, alloc);
   void *ptr = arena_bump(size);
   if (ptr) {
     memset(ptr, 0, size);
-    stats[kind].arena++;
+    ZOX_STATS_INC(kind, arena);
     return ptr;
   }
   
-  stats[kind].heap++;
+  ZOX_STATS_INC(kind, heap);
   return calloc_safe(1, size, label);
+}
+
+void *zox_alloc_buf(ZoxBufKind kind, size_t size, const char *label) {
+  ignore_buf_kind(kind);
+#if !ZOX_ALLOC_STATS
+  return malloc_safe(size, label);
+#else
+  size_t slot = normalize_buf_kind(kind);
+  BufHeader *raw = malloc_safe(sizeof(BufHeader) + size, label);
+  raw->size = size;
+  ZOX_BUF_STATS_INC(slot, alloc);
+  ZOX_BUF_STATS_ADD(slot, live_bytes, size);
+  ZOX_BUF_STATS_ADD(slot, total_bytes, size);
+  update_buf_peak(slot);
+  return buf_payload_from_raw(raw);
+#endif
+}
+
+void *zox_calloc_buf(ZoxBufKind kind, size_t count, size_t size, const char *label) {
+  ignore_buf_kind(kind);
+#if !ZOX_ALLOC_STATS
+  return calloc_safe(count, size, label);
+#else
+  size_t bytes = count * size;
+  size_t slot = normalize_buf_kind(kind);
+  BufHeader *raw = calloc_safe(1, sizeof(BufHeader) + bytes, label);
+  raw->size = bytes;
+  ZOX_BUF_STATS_INC(slot, alloc);
+  ZOX_BUF_STATS_ADD(slot, live_bytes, bytes);
+  ZOX_BUF_STATS_ADD(slot, total_bytes, bytes);
+  update_buf_peak(slot);
+  return buf_payload_from_raw(raw);
+#endif
+}
+
+void *zox_realloc_buf(ZoxBufKind kind, void *ptr, size_t size, const char *label) {
+  ignore_buf_kind(kind);
+#if !ZOX_ALLOC_STATS
+  return realloc_safe(ptr, size, label);
+#else
+  size_t slot = normalize_buf_kind(kind);
+  if (!ptr) {
+    ZOX_BUF_STATS_INC(slot, reallocs);
+    return zox_alloc_buf(kind, size, label);
+  }
+  BufHeader *raw = buf_header_from_payload(ptr);
+  size_t old_size = raw->size;
+  raw = realloc_safe(raw, sizeof(BufHeader) + size, label);
+  raw->size = size;
+  ZOX_BUF_STATS_INC(slot, reallocs);
+  if (size >= old_size) {
+    ZOX_BUF_STATS_ADD(slot, live_bytes, size - old_size);
+    ZOX_BUF_STATS_ADD(slot, total_bytes, size - old_size);
+  } else {
+    ZOX_BUF_STATS_SUB(slot, live_bytes, old_size - size);
+  }
+  update_buf_peak(slot);
+  return buf_payload_from_raw(raw);
+#endif
+}
+
+char *zox_strdup_buf(ZoxBufKind kind, const char *str) {
+  ignore_buf_kind(kind);
+  size_t len = strlen(str) + 1;
+  char *copy = zox_alloc_buf(kind, len, "zox_strdup_buf");
+  memcpy(copy, str, len);
+  return copy;
+}
+
+void zox_free_buf(ZoxBufKind kind, void *ptr) {
+  ignore_buf_kind(kind);
+  if (!ptr) return;
+#if !ZOX_ALLOC_STATS
+  free_safe(ptr);
+#else
+  size_t slot = normalize_buf_kind(kind);
+  BufHeader *raw = buf_header_from_payload(ptr);
+  ZOX_BUF_STATS_INC(slot, freed);
+  ZOX_BUF_STATS_SUB(slot, live_bytes, raw->size);
+  free_safe(raw);
+#endif
 }
 
 void zox_free_obj(ZoxAllocKind kind, void *ptr) {
@@ -97,13 +224,14 @@ void zox_free_obj(ZoxAllocKind kind, void *ptr) {
     if (!ARENA_OWNS(ptr)) free_safe(ptr);
     return;
   }
-  stats[kind].freed++;
+  ZOX_STATS_INC(kind, freed);
 
   if (ARENA_OWNS(ptr)) return;
 
-  if (stats[kind].depth < POOL_CAP) {
-    stats[kind].pooled++;
-    stats[kind].depth++;
+  if (free_list_depth[kind] < POOL_CAP) {
+    free_list_depth[kind]++;
+    ZOX_STATS_INC(kind, pooled);
+    ZOX_STATS_INC(kind, depth);
     PoolNode *node = (PoolNode *)ptr;
     node->next = free_lists[kind];
     free_lists[kind] = node;
@@ -127,7 +255,10 @@ void zox_alloc_cleanup(void) {
       node = next;
     }
     free_lists[i] = NULL;
+    free_list_depth[i] = 0;
+#if ZOX_ALLOC_STATS
     stats[i].depth = 0;
+#endif
   }
 }
 
@@ -136,7 +267,21 @@ static const char *kind_names[ZOX_ALLOC_KIND_COUNT] = {
   "TypeVal", "StructVal", "FunctionVal", "Environment",
 };
 
+static const char *buf_kind_names[ZOX_BUF_KIND_COUNT] = {
+  "STRING", "DICT_KEY", "LIST_ITEMS", "DICT_ENTRIES",
+  "ENV_ENTRIES", "TYPE_FIELDS", "STRUCT_VALUES", "SCOPE_NAME",
+  "AST", "TEMP", "IO", "MISC",
+};
+
 void zox_alloc_report(FILE *out) {
+#if !ZOX_ALLOC_STATS
+  fprintf(out, "alloc stats disabled; rebuild with ZOX_ALLOC_STATS=1\n");
+  if (arena_base) {
+    fprintf(out, "arena used=%zukB / total=%zukB\n",
+            arena_offset / 1024, arena_size / 1024);
+  }
+  return;
+#else
   fprintf(out, "pool  %-12s  %8s  %8s  %8s  %8s  %8s  %8s  %6s\n",
           "kind", "alloc", "reuse", "arena", "heap", "freed", "pooled", "depth");
   for (size_t i = 0; i < ZOX_ALLOC_KIND_COUNT; i++) {
@@ -146,8 +291,17 @@ void zox_alloc_report(FILE *out) {
             stats[i].heap,  stats[i].freed,  stats[i].pooled,
             stats[i].depth);
   }
+  fprintf(out, "buf   %-12s  %8s  %8s  %8s  %10s  %10s  %10s\n",
+          "kind", "alloc", "realloc", "freed", "live", "peak", "total");
+  for (size_t i = 0; i < ZOX_BUF_KIND_COUNT; i++) {
+    fprintf(out, "buf   %-12s  %8zu  %8zu  %8zu  %10zu  %10zu  %10zu\n",
+            buf_kind_names[i],
+            buf_stats[i].alloc, buf_stats[i].reallocs, buf_stats[i].freed,
+            buf_stats[i].live_bytes, buf_stats[i].peak_bytes, buf_stats[i].total_bytes);
+  }
   if (arena_base) {
     fprintf(out, "arena used=%zukB / total=%zukB\n",
             arena_offset / 1024, arena_size / 1024);
   }
+#endif
 }

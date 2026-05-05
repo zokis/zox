@@ -152,8 +152,8 @@ Expr *parse_list_literal(Parser *parser) {
     if (element_count > 0) {
       expect(parser, CommaTk, "Expected ',' between list elements.");
     }
-    elements = realloc_safe(elements, sizeof(Expr *) * (element_count + 1),
-                            "parse_list_literal elements");
+    elements = zox_realloc_buf(ZOX_BUF_AST, elements, sizeof(Expr *) * (element_count + 1),
+                               "parse_list_literal elements");
     elements[element_count++] = (Expr *)parse_expr(parser);
   }
   expect(parser, CloseBraceTk, "Expected '}' after list elements.");
@@ -171,10 +171,10 @@ Expr *parse_dict_literal(Parser *parser) {
     if (element_count > 0) {
       expect(parser, SemiColonTk, "Expected ';' between dictionary elements.");
     }
-    keys = realloc_safe(keys, sizeof(Expr *) * (element_count + 1),
-                        "parse_dict_literal keys");
-    values = realloc_safe(values, sizeof(Expr *) * (element_count + 1),
-                          "parse_dict_literal values");
+    keys = zox_realloc_buf(ZOX_BUF_AST, keys, sizeof(Expr *) * (element_count + 1),
+                           "parse_dict_literal keys");
+    values = zox_realloc_buf(ZOX_BUF_AST, values, sizeof(Expr *) * (element_count + 1),
+                             "parse_dict_literal values");
     Expr *key = (Expr *)parse_expr(parser);
     if (!key) break;
     keys[element_count] = key;
@@ -189,8 +189,8 @@ Expr *parse_dict_literal(Parser *parser) {
 }
 
 char *parse_string(const char *raw_value) {
-  char *parsed_value = malloc_safe(
-      strlen(raw_value) + 1, "Failed to allocate memory for parsed string");
+  char *parsed_value = zox_alloc_buf(
+      ZOX_BUF_STRING, strlen(raw_value) + 1, "Failed to allocate memory for parsed string");
   int i = 0, j = 0;
   while (raw_value[i]) {
     if (raw_value[i] == '\\' && raw_value[i + 1]) {
@@ -221,10 +221,12 @@ Expr *parse_member_expr(Parser *parser, Expr *object) {
   if (at(parser).type == EqualsTk) {
     eat(parser);
     Expr *value = parse_expr(parser);
-    return (Expr *)create_assign_member_expr(object, strdup(member.value), value);
+    return (Expr *)create_assign_member_expr(
+        object, zox_strdup_buf(ZOX_BUF_STRING, member.value), value);
   }
 
-  Expr *identifier = (Expr *)create_member_expr(object, strdup(member.value));
+  Expr *identifier = (Expr *)create_member_expr(
+      object, zox_strdup_buf(ZOX_BUF_STRING, member.value));
 
   while (1) {
     if (at(parser).type == OpenParenTk) {
@@ -235,9 +237,11 @@ Expr *parse_member_expr(Parser *parser, Expr *object) {
       if (at(parser).type == EqualsTk) {
         eat(parser);
         Expr *value = parse_expr(parser);
-        return (Expr *)create_assign_member_expr(identifier, strdup(next_member.value), value);
+        return (Expr *)create_assign_member_expr(
+            identifier, zox_strdup_buf(ZOX_BUF_STRING, next_member.value), value);
       }
-      identifier = (Expr *)create_member_expr(identifier, strdup(next_member.value));
+      identifier = (Expr *)create_member_expr(
+          identifier, zox_strdup_buf(ZOX_BUF_STRING, next_member.value));
     } else {
       break;
     }
@@ -338,7 +342,7 @@ Expr *parse_primary_expr(Parser *parser) {
     const char *raw_value = eat(parser).value;
     char *parsed_value = parse_string(raw_value);
     Expr *result = (Expr *)create_string_literal(parsed_value);
-    free_safe(parsed_value);
+    zox_free_buf(ZOX_BUF_STRING, parsed_value);
     return result;
   }
   case BooleanLiteralTk:
@@ -400,7 +404,8 @@ Expr *parse_arena_block(Parser *parser) {
   Stmt **body = NULL;
 
   while (at(parser).type != CloseArenaTk && at(parser).type != EOFTk) {
-    body = realloc_safe(body, sizeof(Stmt *) * (body_count + 1), "parse_arena_block body");
+    body = zox_realloc_buf(ZOX_BUF_AST, body, sizeof(Stmt *) * (body_count + 1),
+                           "parse_arena_block body");
     body[body_count++] = parse_stmt(parser);
   }
 
@@ -429,7 +434,8 @@ Expr *parse_match_expr(Parser *parser) {
     expect(parser, FatArrowTk, "Expected '=>' after match condition.");
     Expr *branch = parse_expr(parser);
     
-    cases = realloc_safe(cases, sizeof(MatchCase *) * (case_count + 1), "parse_match_expr cases");
+    cases = zox_realloc_buf(ZOX_BUF_AST, cases, sizeof(MatchCase *) * (case_count + 1),
+                            "parse_match_expr cases");
     cases[case_count++] = create_match_case(condition, branch);
     
     if (at(parser).type == CommaTk) eat(parser);

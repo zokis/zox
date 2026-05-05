@@ -13,8 +13,8 @@
 #include "../env.h"
 #include "../eval.h"
 #include "../global.h"
-#include "../malloc_safe.h"
 #include "../native_modules.h"
 #include "../values.h"
+#include "../zox_alloc.h"
 
 #endif /* NM_INTERNAL_H */

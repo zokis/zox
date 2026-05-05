@@ -15,6 +15,34 @@ static void init_singletons(void) {
   /* Done via static init above. */
 }
 
+static int string_uses_inline_storage(StringVal *sv) {
+  return sv->value == sv->inline_buf;
+}
+
+static int list_uses_inline_storage(ListVal *lv) {
+  return lv->items == lv->inline_items;
+}
+
+void list_reserve(ListVal *list, size_t capacity) {
+  if (capacity <= list->capacity) return;
+
+  RuntimeVal **new_items = NULL;
+  if (list_uses_inline_storage(list)) {
+    new_items = (RuntimeVal **)zox_calloc_buf(
+        ZOX_BUF_LIST_ITEMS, capacity, sizeof(RuntimeVal *), "ListVal grow");
+    if (list->size > 0) {
+      memcpy(new_items, list->inline_items, list->size * sizeof(RuntimeVal *));
+    }
+  } else {
+    new_items = (RuntimeVal **)zox_realloc_buf(
+        ZOX_BUF_LIST_ITEMS, list->items, sizeof(RuntimeVal *) * capacity,
+        "ListVal grow");
+  }
+
+  list->items = new_items;
+  list->capacity = capacity;
+}
+
 static void free_runtime_val(RuntimeVal *val) {
   if (!val) return;
   switch (val->type) {
@@ -33,15 +61,20 @@ static void free_runtime_val(RuntimeVal *val) {
       break;
     case STRING_T: {
       StringVal *sv = (StringVal *)val;
-      zox_free_buf(ZOX_BUF_STRING, sv->value);
+      if (sv->value && !string_uses_inline_storage(sv)) {
+        zox_free_buf(ZOX_BUF_STRING, sv->value);
+      }
       sv->value = NULL;
+      sv->len = 0;
       zox_free_obj(ZOX_ALLOC_STRING, sv);
       break;
     }
     case LIST_T: {
       ListVal *lv = (ListVal *)val;
       for (size_t i = 0; i < lv->size; i++) release(lv->items[i]);
-      zox_free_buf(ZOX_BUF_LIST_ITEMS, lv->items);
+      if (lv->items && !list_uses_inline_storage(lv)) {
+        zox_free_buf(ZOX_BUF_LIST_ITEMS, lv->items);
+      }
       lv->items = NULL;
       zox_free_obj(ZOX_ALLOC_LIST, lv);
       break;
@@ -127,9 +160,16 @@ NumberVal *MK_NUMBER(double value) {
 
 StringVal *MK_STRING(const char *str) {
   StringVal *val = (StringVal *)zox_alloc_obj(ZOX_ALLOC_STRING, sizeof(StringVal), "StringVal");
+  size_t len = strlen(str);
   val->base.type      = STRING_T;
   val->base.ref_count = 1;
-  val->value          = zox_strdup_buf(ZOX_BUF_STRING, str);
+  val->len            = len;
+  if (len < sizeof(val->inline_buf)) {
+    memcpy(val->inline_buf, str, len + 1);
+    val->value = val->inline_buf;
+  } else {
+    val->value = zox_strdup_buf(ZOX_BUF_STRING, str);
+  }
   return val;
 }
 
@@ -169,7 +209,9 @@ RuntimeVal *create_native_fn(char **params, size_t param_count,
 
 static void list_pool_cleanup(void *ptr) {
   ListVal *lv = (ListVal *)ptr;
-  if (lv->items) zox_free_buf(ZOX_BUF_LIST_ITEMS, lv->items);
+  if (lv->items && !list_uses_inline_storage(lv)) {
+    zox_free_buf(ZOX_BUF_LIST_ITEMS, lv->items);
+  }
 }
 
 ListVal *MK_LIST(size_t capacity) {
@@ -182,10 +224,15 @@ ListVal *MK_LIST(size_t capacity) {
   ListVal *list = (ListVal *)zox_alloc_obj(ZOX_ALLOC_LIST, sizeof(ListVal), "ListVal");
   list->base.type      = LIST_T;
   list->base.ref_count = 1;
-  list->items          = (RuntimeVal **)zox_calloc_buf(
-      ZOX_BUF_LIST_ITEMS, capacity, sizeof(RuntimeVal *), "ListVal items");
   list->size           = 0;
   list->capacity       = capacity;
+  if (capacity <= sizeof(list->inline_items) / sizeof(list->inline_items[0])) {
+    memset(list->inline_items, 0, sizeof(list->inline_items));
+    list->items = list->inline_items;
+  } else {
+    list->items = (RuntimeVal **)zox_calloc_buf(
+        ZOX_BUF_LIST_ITEMS, capacity, sizeof(RuntimeVal *), "ListVal items");
+  }
   return list;
 }
 

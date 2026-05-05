@@ -111,10 +111,7 @@ static ListVal *eval_list_concat(ListVal *lhs, ListVal *rhs) {
   if (lhs->base.ref_count == 1) {
     size_t needed = lhs->size + rhs->size;
     if (needed > lhs->capacity) {
-      lhs->capacity = needed > lhs->capacity * 2 ? needed : lhs->capacity * 2;
-      lhs->items = zox_realloc_buf(
-          ZOX_BUF_LIST_ITEMS, lhs->items, sizeof(RuntimeVal *) * lhs->capacity,
-          "eval_list_binary_expr in-place realloc");
+      list_reserve(lhs, needed > lhs->capacity * 2 ? needed : lhs->capacity * 2);
     }
     for (size_t i = 0; i < rhs->size; i++) {
       lhs->items[lhs->size + i] = rhs->items[i];
@@ -198,10 +195,7 @@ static int is_mapped_op(const char *operator) {
 RuntimeVal *eval_list_any_binary_expr(const char *operator, ListVal *lhs, RuntimeVal *rhs) {
   if (!strcmp(operator, "<<")) {
     if (lhs->size >= lhs->capacity) {
-      lhs->capacity = lhs->capacity * 2 + 1;
-      lhs->items = zox_realloc_buf(
-          ZOX_BUF_LIST_ITEMS, lhs->items, sizeof(RuntimeVal *) * lhs->capacity,
-          "eval_list_any_binary_expr realloc");
+      list_reserve(lhs, lhs->capacity * 2 + 1);
     }
     retain(rhs);
     lhs->items[lhs->size++] = rhs;

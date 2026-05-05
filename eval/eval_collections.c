@@ -4,10 +4,7 @@
 void list_append_val(ListVal *list, RuntimeVal *item) {
   retain(item);
   if (list->size >= list->capacity) {
-    list->capacity = list->capacity * 2 + 1;
-    list->items = zox_realloc_buf(
-        ZOX_BUF_LIST_ITEMS, list->items, sizeof(RuntimeVal *) * list->capacity,
-        "list_append_val realloc");
+    list_reserve(list, list->capacity * 2 + 1);
   }
   list->items[list->size++] = item;
 }

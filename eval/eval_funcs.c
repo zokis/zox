@@ -208,12 +208,18 @@ RuntimeVal *eval_call_expr(CallExpr *call_expr, Environment *env) {
     if (call_expr->arg_count != type_def->field_count) {
       error("Struct constructor argument count mismatch.");
     }
-    RuntimeVal **values = zox_alloc_buf(
-        ZOX_BUF_STRUCT_VALUES, sizeof(RuntimeVal *) * type_def->field_count, "struct values");
+    RuntimeVal *inline_values[4];
+    RuntimeVal **values = type_def->field_count <= 4
+        ? inline_values
+        : zox_alloc_buf(
+            ZOX_BUF_STRUCT_VALUES, sizeof(RuntimeVal *) * type_def->field_count, "struct values");
     for (size_t i = 0; i < type_def->field_count; i++) {
       values[i] = evaluate(&(call_expr->arguments[i]->stmt), env);
     }
-    StructVal *sv = MK_STRUCT(type_def, values);
+    StructVal *sv = MK_STRUCT_COPY_VALUES(type_def, values);
+    if (type_def->field_count > 4) {
+      zox_free_buf(ZOX_BUF_STRUCT_VALUES, values);
+    }
     release(callee);
     return (RuntimeVal *)sv;
   }

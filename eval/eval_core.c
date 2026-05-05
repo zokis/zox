@@ -224,14 +224,21 @@ static RuntimeVal *promote_function_val(FunctionVal *fv) {
 
 static RuntimeVal *promote_struct_val(StructVal *old_struct) {
   size_t count = old_struct->type_def->field_count;
-  RuntimeVal **new_values = zox_alloc_buf(
-      ZOX_BUF_STRUCT_VALUES, sizeof(RuntimeVal *) * count, "promote_struct_val");
+  RuntimeVal *inline_values[4];
+  RuntimeVal **new_values = count <= 4
+      ? inline_values
+      : zox_alloc_buf(
+          ZOX_BUF_STRUCT_VALUES, sizeof(RuntimeVal *) * count, "promote_struct_val");
   for (size_t i = 0; i < count; i++) {
     new_values[i] = promote_val(old_struct->values[i]);
     retain(new_values[i]);
     if (new_values[i] != old_struct->values[i]) release(new_values[i]);
   }
-  return (RuntimeVal *)MK_STRUCT(old_struct->type_def, new_values);
+  RuntimeVal *result = (RuntimeVal *)MK_STRUCT_COPY_VALUES(old_struct->type_def, new_values);
+  if (count > 4) {
+    zox_free_buf(ZOX_BUF_STRUCT_VALUES, new_values);
+  }
+  return result;
 }
 
 static RuntimeVal *promote_type_val(TypeVal *old_type) {

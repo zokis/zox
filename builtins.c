@@ -214,14 +214,22 @@ static RuntimeVal *copy_dict(DictVal *old) {
 }
 
 static RuntimeVal *copy_struct(StructVal *old) {
-  RuntimeVal **values = zox_alloc_buf(
-      ZOX_BUF_STRUCT_VALUES, sizeof(RuntimeVal *) * old->type_def->field_count,
-      "struct copy values");
+  size_t count = old->type_def->field_count;
+  RuntimeVal *inline_values[4];
+  RuntimeVal **values = count <= 4
+      ? inline_values
+      : zox_alloc_buf(
+          ZOX_BUF_STRUCT_VALUES, sizeof(RuntimeVal *) * count,
+          "struct copy values");
   for (size_t i = 0; i < old->type_def->field_count; i++) {
     values[i] = old->values[i];
     retain(values[i]);
   }
-  return (RuntimeVal *)MK_STRUCT(old->type_def, values);
+  RuntimeVal *copy = (RuntimeVal *)MK_STRUCT_COPY_VALUES(old->type_def, values);
+  if (count > 4) {
+    zox_free_buf(ZOX_BUF_STRUCT_VALUES, values);
+  }
+  return copy;
 }
 
 RuntimeVal *builtin_copy(Environment *env, RuntimeVal **args, size_t arg_count) {

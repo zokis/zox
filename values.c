@@ -28,6 +28,10 @@ static int dict_uses_inline_storage(DictVal *dv) {
   return dv->entries == dv->inline_entries;
 }
 
+static int struct_uses_inline_storage(StructVal *sv) {
+  return sv->values == sv->inline_values;
+}
+
 void list_reserve(ListVal *list, size_t capacity) {
   if (capacity <= list->capacity) return;
 
@@ -144,7 +148,9 @@ static void free_runtime_val(RuntimeVal *val) {
       for (size_t i = 0; i < field_count; i++) {
         release(sv->values[i]);
       }
-      zox_free_buf(ZOX_BUF_STRUCT_VALUES, sv->values);
+      if (sv->values && !struct_uses_inline_storage(sv)) {
+        zox_free_buf(ZOX_BUF_STRUCT_VALUES, sv->values);
+      }
       sv->values = NULL;
       release((RuntimeVal *)sv->type_def);
       zox_free_obj(ZOX_ALLOC_STRUCT, sv);
@@ -337,7 +343,9 @@ TypeVal *MK_TYPE(const char *name, char **fields, size_t field_count) {
 
 static void struct_pool_cleanup(void *ptr) {
   StructVal *sv = (StructVal *)ptr;
-  if (sv->values) zox_free_buf(ZOX_BUF_STRUCT_VALUES, sv->values);
+  if (sv->values && !struct_uses_inline_storage(sv)) {
+    zox_free_buf(ZOX_BUF_STRUCT_VALUES, sv->values);
+  }
 }
 
 StructVal *MK_STRUCT(TypeVal *type_def, RuntimeVal **values) {
@@ -346,11 +354,33 @@ StructVal *MK_STRUCT(TypeVal *type_def, RuntimeVal **values) {
     zox_alloc_set_cleanup_fn(ZOX_ALLOC_STRUCT, struct_pool_cleanup);
     cleanup_registered = 1;
   }
+  size_t field_count = type_def->field_count;
   StructVal *sv = (StructVal *)zox_alloc_obj(ZOX_ALLOC_STRUCT, sizeof(StructVal), "StructVal");
   sv->base.type = STRUCT_T;
   sv->base.ref_count = 1;
   sv->type_def = type_def;
   retain((RuntimeVal *)type_def);
-  sv->values = values;
+  if (field_count <= sizeof(sv->inline_values) / sizeof(sv->inline_values[0])) {
+    memset(sv->inline_values, 0, sizeof(sv->inline_values));
+    for (size_t i = 0; i < field_count; i++) {
+      sv->inline_values[i] = values[i];
+    }
+    sv->values = sv->inline_values;
+  } else {
+    sv->values = values;
+  }
   return sv;
+}
+
+StructVal *MK_STRUCT_COPY_VALUES(TypeVal *type_def, RuntimeVal **values) {
+  size_t field_count = type_def->field_count;
+  RuntimeVal **owned_values = values;
+
+  if (field_count > sizeof(((StructVal *)0)->inline_values) / sizeof(RuntimeVal *)) {
+    owned_values = zox_alloc_buf(
+        ZOX_BUF_STRUCT_VALUES, sizeof(RuntimeVal *) * field_count, "StructVal values");
+    memcpy(owned_values, values, sizeof(RuntimeVal *) * field_count);
+  }
+
+  return MK_STRUCT(type_def, owned_values);
 }

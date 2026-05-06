@@ -4,6 +4,7 @@
 #include "../codegen.h"
 
 void cg_emit(Codegen *cg, const char *fmt, ...);
+void cg_emit_data_string(Codegen *cg, const char *label, const char *value);
 void cg_push(Codegen *cg, const char *reg);
 void cg_pop(Codegen *cg, const char *reg);
 void cg_emit_call(Codegen *cg, const char *fn);

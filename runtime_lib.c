@@ -85,6 +85,14 @@ int main(int argc, char **argv) {
 }
 
 RuntimeVal *zox_rt_call(RuntimeVal *callee, RuntimeVal **args, size_t arg_count) {
+    if (callee && callee->type == TYPE_T) {
+        TypeVal *type_def = (TypeVal *)callee;
+        if (arg_count != type_def->field_count) {
+            fprintf(stderr, "Error: Struct constructor argument count mismatch.\n");
+            exit(1);
+        }
+        return (RuntimeVal *)MK_STRUCT_COPY_VALUES(type_def, args);
+    }
     if (!callee || callee->type != FUNCTION_T) {
         fprintf(stderr, "Error: Attempted to call a non-function value (type %d).\n", callee ? callee->type : -1);
         exit(1);
@@ -149,6 +157,94 @@ RuntimeVal *zox_rt_result_err(RuntimeVal *value) {
     return builtin_err(get_current_env(), args, 1);
 }
 
+RuntimeVal *zox_rt_unwrap_ok(RuntimeVal *value) {
+    RuntimeVal *ok_val;
+
+    if (!value || value->type != DICT_T) {
+        fprintf(stderr, "Error: Unwrap operator !? expects a result dictionary {ok: v} or {err: v}.\n");
+        exit(1);
+    }
+
+    ok_val = dict_get_val((DictVal *)value, "ok");
+    if (!ok_val) {
+        fprintf(stderr, "Error: Unwrap operator !? expects a result dictionary with 'ok' or 'err' key.\n");
+        exit(1);
+    }
+
+    retain(ok_val);
+    return ok_val;
+}
+
+int zox_rt_unwrap_has_err(RuntimeVal *value) {
+    if (!value || value->type != DICT_T) {
+        fprintf(stderr, "Error: Unwrap operator !? expects a result dictionary {ok: v} or {err: v}.\n");
+        exit(1);
+    }
+
+    return dict_get_val((DictVal *)value, "err") != NULL;
+}
+
+RuntimeVal *zox_rt_declare_type(const char *name, const char **fields, size_t field_count) {
+    char **owned_fields;
+    TypeVal *tv;
+    size_t i;
+
+    owned_fields = zox_alloc_buf(
+        ZOX_BUF_TYPE_FIELDS, sizeof(char *) * field_count, "zox_rt_declare_type fields");
+    for (i = 0; i < field_count; i++) {
+        owned_fields[i] = zox_strdup_buf(ZOX_BUF_STRING, fields[i]);
+    }
+
+    tv = MK_TYPE(name, owned_fields, field_count);
+    declare_var(get_current_env(), tv->name, (RuntimeVal *)tv);
+    return (RuntimeVal *)tv;
+}
+
+RuntimeVal *zox_rt_member_get(RuntimeVal *object, const char *member) {
+    StructVal *sv;
+    size_t i;
+
+    if (!object || object->type != STRUCT_T) {
+        fprintf(stderr, "Error: Accessing member of non-struct value.\n");
+        exit(1);
+    }
+
+    sv = (StructVal *)object;
+    for (i = 0; i < sv->type_def->field_count; i++) {
+        if (strcmp(sv->type_def->fields[i], member) == 0) {
+            RuntimeVal *val = sv->values[i];
+            retain(val);
+            return val;
+        }
+    }
+
+    fprintf(stderr, "Error: Struct 'type<%s>' has no field '%s'.\n", sv->type_def->name, member);
+    exit(1);
+}
+
+RuntimeVal *zox_rt_member_set(RuntimeVal *object, const char *member, RuntimeVal *value) {
+    StructVal *sv;
+    size_t i;
+
+    if (!object || object->type != STRUCT_T) {
+        fprintf(stderr, "Error: Attempted to assign member of a non-struct value.\n");
+        exit(1);
+    }
+
+    sv = (StructVal *)object;
+    for (i = 0; i < sv->type_def->field_count; i++) {
+        if (strcmp(sv->type_def->fields[i], member) == 0) {
+            release(sv->values[i]);
+            sv->values[i] = value;
+            retain(value);
+            return value;
+        }
+    }
+
+    fprintf(stderr, "Error: Struct 'type<%s>' has no field '%s'.\n", sv->type_def->name, member);
+    exit(1);
+}
+
 int zox_rt_match_cond(RuntimeVal *target, RuntimeVal *condition) {
     if (!condition) return 1;
     if (condition->type == BOOLEAN_T) {
@@ -192,6 +288,19 @@ RuntimeVal *zox_rt_get_index(RuntimeVal *target_val, RuntimeVal *index_val) {
         }
         char single_char[2] = {str->value[idx], '\0'};
         return (RuntimeVal *)MK_STRING(single_char);
+    }
+
+    if (target_val->type == STRUCT_T) {
+        StructVal *sv = (StructVal *)target_val;
+        int field_count = (int)sv->type_def->field_count;
+        if (idx < 0) idx = field_count + idx;
+        if (idx < 0 || idx >= field_count) {
+            fprintf(stderr, "Error: Struct index out of bounds.\n");
+            exit(1);
+        }
+        RuntimeVal *result = sv->values[idx];
+        retain(result);
+        return result;
     }
 
     fprintf(stderr, "Error: Attempted to index a non-collection value.\n");

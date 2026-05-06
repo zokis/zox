@@ -38,7 +38,7 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             cg_emit(cg, "  mov rdi, rax");
             sprintf(label, "uop_%d", cg->const_count++);
             cg_emit(cg, "  section .data");
-            cg_emit(cg, "    %s: db \"%s\", 0", label, unary->operator);
+            cg_emit_data_string(cg, label, unary->operator);
             cg_emit(cg, "  section .text");
             cg_emit(cg, "  lea rsi, [rel %s]", label);
             cg_emit_call(cg, "zox_rt_unary_op");
@@ -50,7 +50,7 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             char label[32];
             sprintf(label, "s_s_%d", cg->const_count++);
             cg_emit(cg, "  section .data");
-            cg_emit(cg, "    %s: db \"%s\", 0", label, str->value);
+            cg_emit_data_string(cg, label, str->value);
             cg_emit(cg, "  section .text");
             cg_emit(cg, "  lea rdi, [rel %s]", label);
             cg_emit_call(cg, "MK_STRING");
@@ -108,7 +108,7 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             cg_pop(cg, "rdi");
             sprintf(label, "op_%d", cg->const_count++);
             cg_emit(cg, "  section .data");
-            cg_emit(cg, "    %s: db \"%s\", 0", label, bin->operator);
+            cg_emit_data_string(cg, label, bin->operator);
             cg_emit(cg, "  section .text");
             cg_emit(cg, "  lea rdx, [rel %s]", label);
             cg_emit_call(cg, "z_rt_bin_op");
@@ -123,7 +123,7 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             cg_emit(cg, "  mov rdi, rax");
             sprintf(label, "id_%d", cg->const_count++);
             cg_emit(cg, "  section .data");
-            cg_emit(cg, "    %s: db \"%s\", 0", label, id->symbol);
+            cg_emit_data_string(cg, label, id->symbol);
             cg_emit(cg, "  section .text");
             cg_emit(cg, "  lea rsi, [rel %s]", label);
             cg_emit_call(cg, "lookup_var");
@@ -162,6 +162,20 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             cg_emit(cg, "  mov rsi, rax");
             cg_pop(cg, "rdi");
             cg_emit_call(cg, "zox_rt_dict_get");
+            break;
+        }
+
+        case MemberExprAst: {
+            MemberExpr *member = (MemberExpr *)expr;
+            char label[32];
+            codegen_expr(cg, member->object);
+            cg_emit(cg, "  mov rdi, rax");
+            sprintf(label, "m_%d", cg->const_count++);
+            cg_emit(cg, "  section .data");
+            cg_emit_data_string(cg, label, member->member);
+            cg_emit(cg, "  section .text");
+            cg_emit(cg, "  lea rsi, [rel %s]", label);
+            cg_emit_call(cg, "zox_rt_member_get");
             break;
         }
 
@@ -206,6 +220,38 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             break;
         }
 
+        case UnwrapAst: {
+            UnwrapExpr *unwrap = (UnwrapExpr *)expr;
+            int unwrap_id = cg->label_count++;
+            int unwrap_stack_depth;
+            char ok_label[64];
+
+            if (!cg->in_function) {
+                cg_emit(cg, "  ; unwrap outside function is unsupported in compiled mode");
+                cg_emit(cg, "  ud2");
+                break;
+            }
+
+            sprintf(ok_label, "Z_L_unwrap_ok_%d", unwrap_id);
+            codegen_expr(cg, unwrap->expr);
+            cg_push(cg, "rax");
+            unwrap_stack_depth = cg->stack_depth;
+            cg_emit(cg, "  mov rdi, [rsp]");
+            cg_emit_call(cg, "zox_rt_unwrap_has_err");
+            cg_emit(cg, "  cmp eax, 0");
+            cg_emit(cg, "  je %s", ok_label);
+            cg_emit(cg, "  pop rax");
+            cg->stack_depth = unwrap_stack_depth - 1;
+            cg_emit(cg, "  jmp %s", cg->function_return_label);
+            cg_emit(cg, "%s:", ok_label);
+            cg->stack_depth = unwrap_stack_depth;
+            cg_emit(cg, "  mov rdi, [rsp]");
+            cg_emit_call(cg, "zox_rt_unwrap_ok");
+            cg_emit(cg, "  add rsp, 8");
+            cg->stack_depth = unwrap_stack_depth - 1;
+            break;
+        }
+
         case CallExprAst: {
             CallExpr *call = (CallExpr *)expr;
             codegen_expr(cg, call->callee);
@@ -237,7 +283,7 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             cg_emit(cg, "  mov rdi, rax");
             sprintf(label, "av_%d", cg->const_count++);
             cg_emit(cg, "  section .data");
-            cg_emit(cg, "    %s: db \"%s\", 0", label, assign->varname);
+            cg_emit_data_string(cg, label, assign->varname);
             cg_emit(cg, "  section .text");
             cg_emit(cg, "  lea rsi, [rel %s]", label);
             cg_pop(cg, "rdx");
@@ -270,6 +316,23 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             cg_pop(cg, "rsi");
             cg_pop(cg, "rdi");
             cg_emit_call(cg, "zox_rt_dict_set");
+            break;
+        }
+
+        case AssignMemberExprAst: {
+            AssignMemberExpr *assign = (AssignMemberExpr *)expr;
+            char label[32];
+            codegen_expr(cg, assign->object);
+            cg_push(cg, "rax");
+            codegen_expr(cg, assign->value);
+            cg_emit(cg, "  mov rdx, rax");
+            cg_pop(cg, "rdi");
+            sprintf(label, "am_%d", cg->const_count++);
+            cg_emit(cg, "  section .data");
+            cg_emit_data_string(cg, label, assign->member);
+            cg_emit(cg, "  section .text");
+            cg_emit(cg, "  lea rsi, [rel %s]", label);
+            cg_emit_call(cg, "zox_rt_member_set");
             break;
         }
 

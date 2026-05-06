@@ -1,0 +1,18 @@
+~> string { toString };
+
+type Point { x, y };
+let p = Point(3, 4);
+println("px=" + toString(p.x));
+println("py=" + toString(p.y));
+println("p0=" + toString(p[0]));
+println("p1=" + toString(p[1]));
+
+p.x = 7;
+println("px2=" + toString(p.x));
+println("p02=" + toString(p[0]));
+
+type User { name, age };
+let u = User("Alice", 30);
+u.age = 31;
+println("uname=" + u.name);
+println("uage=" + toString(u.age));

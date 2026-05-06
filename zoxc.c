@@ -1,4 +1,5 @@
 #include <limits.h>
+#include <sys/wait.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -92,12 +93,6 @@ static int resolve_runtime_dir(const char *argv0, char *dir, size_t dir_size) {
     return dirname_from_path(".", dir, dir_size);
 }
 
-static int run_command(const char *cmd, const char *failure_message) {
-    if (system(cmd) == 0) return 1;
-    fprintf(stderr, "%s\n", failure_message);
-    return 0;
-}
-
 static int append_fmt(char *buf, size_t buf_size, size_t *len, const char *fmt, ...) {
     va_list args;
     int written;
@@ -113,28 +108,80 @@ static int append_fmt(char *buf, size_t buf_size, size_t *len, const char *fmt, 
     return 1;
 }
 
+static int run_process(char *const argv[], const char *failure_message) {
+    pid_t pid;
+    int status;
+
+    pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        fprintf(stderr, "%s\n", failure_message);
+        return 0;
+    }
+    if (pid == 0) {
+        execvp(argv[0], argv);
+        perror(argv[0]);
+        _exit(127);
+    }
+    if (waitpid(pid, &status, 0) < 0) {
+        perror("waitpid");
+        fprintf(stderr, "%s\n", failure_message);
+        return 0;
+    }
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) return 1;
+    fprintf(stderr, "%s\n", failure_message);
+    return 0;
+}
+
+static int join_path(char *out, size_t out_size, const char *dir, const char *rel) {
+    return snprintf(out, out_size, "%s/%s", dir, rel) < (int)out_size;
+}
+
 static int make_temp_path(const char *suffix, char *path, size_t path_size) {
     int fd;
-    size_t suffix_len = strlen(suffix);
-    char template_path[] = "/tmp/zoxcXXXXXX";
+    const char *tmp_dir = getenv("TMPDIR");
+    char template_path[PATH_MAX];
+    int suffix_len = (int)strlen(suffix);
 
+    if (!tmp_dir || tmp_dir[0] == '\0') tmp_dir = "/tmp";
+    if (snprintf(template_path, sizeof(template_path), "%s/zoxcXXXXXX%s", tmp_dir, suffix) >= (int)sizeof(template_path)) {
+        return 0;
+    }
     if (snprintf(path, path_size, "%s", template_path) >= (int)path_size) return 0;
-    fd = mkstemp(path);
+    fd = mkstemps(path, suffix_len);
     if (fd < 0) return 0;
     close(fd);
-    unlink(path);
-
-    if (strlen(path) + suffix_len + 1 > path_size) return 0;
-    strcat(path, suffix);
     return 1;
 }
 
 int main(int argc, char **argv) {
     CompilerOptions opts;
     char            runtime_dir[PATH_MAX];
-    char            tmp_s[64];
-    char            tmp_o[64];
-    char            cmd[32768];
+    char            tmp_s[PATH_MAX];
+    char            tmp_o[PATH_MAX];
+    char            runtime_lib[PATH_MAX];
+    char            ast_nodes[PATH_MAX];
+    char            ast_free[PATH_MAX];
+    char            ast_serial[PATH_MAX];
+    char            lexer_path[PATH_MAX];
+    char            parser_core[PATH_MAX];
+    char            parser_exprs[PATH_MAX];
+    char            parser_stmts[PATH_MAX];
+    char            values_path[PATH_MAX];
+    char            eval_core[PATH_MAX];
+    char            eval_ops[PATH_MAX];
+    char            eval_control[PATH_MAX];
+    char            eval_collections[PATH_MAX];
+    char            eval_funcs[PATH_MAX];
+    char            eval_import[PATH_MAX];
+    char            malloc_safe[PATH_MAX];
+    char            zox_alloc_path[PATH_MAX];
+    char            env_path[PATH_MAX];
+    char            debug_path[PATH_MAX];
+    char            hash_path[PATH_MAX];
+    char            builtins_path[PATH_MAX];
+    char            global_path[PATH_MAX];
+    char            native_modules[PATH_MAX];
     const char     *asm_path = NULL;
 
     if (!parse_cli(argc, argv, &opts)) return 1;
@@ -193,58 +240,90 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    snprintf(cmd, sizeof(cmd), "nasm -f elf64 %s -o %s", asm_path, tmp_o);
-    if (!run_command(cmd, "Error: assembly failed")) {
-        if (!opts.keep_asm) unlink(tmp_s);
-        return 1;
+    {
+        char *nasm_argv[] = { "nasm", "-f", "elf64", (char *)asm_path, "-o", tmp_o, NULL };
+        if (!run_process(nasm_argv, "Error: assembly failed")) {
+            if (!opts.keep_asm) unlink(tmp_s);
+            unlink(tmp_o);
+            return 1;
+        }
     }
 
-    size_t cmd_len = 0;
-    if (!append_fmt(cmd, sizeof(cmd), &cmd_len, "gcc -no-pie ")) {
-        fprintf(stderr, "Error: link command overflow\n");
-        if (!opts.keep_asm) unlink(tmp_s);
-        unlink(tmp_o);
-        return 1;
-    }
-    if (opts.strip && !append_fmt(cmd, sizeof(cmd), &cmd_len, "-s ")) {
-        fprintf(stderr, "Error: link command overflow\n");
-        if (!opts.keep_asm) unlink(tmp_s);
-        unlink(tmp_o);
-        return 1;
-    }
-    if (!append_fmt(cmd, sizeof(cmd), &cmd_len,
-        "%s %s/runtime_lib.c "
-        "%s/ast/ast_nodes.c %s/ast/ast_free.c %s/ast/ast_serial.c "
-        "%s/lexer.c "
-        "%s/parser/parser_core.c %s/parser/parser_exprs.c %s/parser/parser_stmts.c "
-        "%s/values.c "
-        "%s/eval/eval_core.c %s/eval/eval_ops.c %s/eval/eval_control.c "
-        "%s/eval/eval_collections.c %s/eval/eval_funcs.c %s/eval/eval_import.c "
-        "%s/malloc_safe.c %s/zox_alloc.c %s/env.c %s/debug.c %s/hash.c "
-        "%s/builtins.c %s/global.c %s/native_modules.c "
-        "-lm -ldl -rdynamic -o %s",
-        tmp_o,
-        runtime_dir,
-        runtime_dir, runtime_dir, runtime_dir,
-        runtime_dir,
-        runtime_dir, runtime_dir, runtime_dir,
-        runtime_dir,
-        runtime_dir, runtime_dir, runtime_dir,
-        runtime_dir, runtime_dir, runtime_dir,
-        runtime_dir, runtime_dir, runtime_dir, runtime_dir, runtime_dir,
-        runtime_dir, runtime_dir, runtime_dir,
-        opts.output)) {
-        fprintf(stderr, "Error: link command overflow\n");
+    if (!join_path(runtime_lib, sizeof(runtime_lib), runtime_dir, "runtime_lib.c") ||
+        !join_path(ast_nodes, sizeof(ast_nodes), runtime_dir, "ast/ast_nodes.c") ||
+        !join_path(ast_free, sizeof(ast_free), runtime_dir, "ast/ast_free.c") ||
+        !join_path(ast_serial, sizeof(ast_serial), runtime_dir, "ast/ast_serial.c") ||
+        !join_path(lexer_path, sizeof(lexer_path), runtime_dir, "lexer.c") ||
+        !join_path(parser_core, sizeof(parser_core), runtime_dir, "parser/parser_core.c") ||
+        !join_path(parser_exprs, sizeof(parser_exprs), runtime_dir, "parser/parser_exprs.c") ||
+        !join_path(parser_stmts, sizeof(parser_stmts), runtime_dir, "parser/parser_stmts.c") ||
+        !join_path(values_path, sizeof(values_path), runtime_dir, "values.c") ||
+        !join_path(eval_core, sizeof(eval_core), runtime_dir, "eval/eval_core.c") ||
+        !join_path(eval_ops, sizeof(eval_ops), runtime_dir, "eval/eval_ops.c") ||
+        !join_path(eval_control, sizeof(eval_control), runtime_dir, "eval/eval_control.c") ||
+        !join_path(eval_collections, sizeof(eval_collections), runtime_dir, "eval/eval_collections.c") ||
+        !join_path(eval_funcs, sizeof(eval_funcs), runtime_dir, "eval/eval_funcs.c") ||
+        !join_path(eval_import, sizeof(eval_import), runtime_dir, "eval/eval_import.c") ||
+        !join_path(malloc_safe, sizeof(malloc_safe), runtime_dir, "malloc_safe.c") ||
+        !join_path(zox_alloc_path, sizeof(zox_alloc_path), runtime_dir, "zox_alloc.c") ||
+        !join_path(env_path, sizeof(env_path), runtime_dir, "env.c") ||
+        !join_path(debug_path, sizeof(debug_path), runtime_dir, "debug.c") ||
+        !join_path(hash_path, sizeof(hash_path), runtime_dir, "hash.c") ||
+        !join_path(builtins_path, sizeof(builtins_path), runtime_dir, "builtins.c") ||
+        !join_path(global_path, sizeof(global_path), runtime_dir, "global.c") ||
+        !join_path(native_modules, sizeof(native_modules), runtime_dir, "native_modules.c")) {
+        fprintf(stderr, "Error: runtime path overflow\n");
         if (!opts.keep_asm) unlink(tmp_s);
         unlink(tmp_o);
         return 1;
     }
 
-    int ret = run_command(cmd, "Error: linking failed");
+    {
+        char *gcc_argv[40];
+        int argc_gcc = 0;
+        gcc_argv[argc_gcc++] = "gcc";
+        gcc_argv[argc_gcc++] = "-no-pie";
+        if (opts.strip) gcc_argv[argc_gcc++] = "-s";
+        gcc_argv[argc_gcc++] = tmp_o;
+        gcc_argv[argc_gcc++] = runtime_lib;
+        gcc_argv[argc_gcc++] = ast_nodes;
+        gcc_argv[argc_gcc++] = ast_free;
+        gcc_argv[argc_gcc++] = ast_serial;
+        gcc_argv[argc_gcc++] = lexer_path;
+        gcc_argv[argc_gcc++] = parser_core;
+        gcc_argv[argc_gcc++] = parser_exprs;
+        gcc_argv[argc_gcc++] = parser_stmts;
+        gcc_argv[argc_gcc++] = values_path;
+        gcc_argv[argc_gcc++] = eval_core;
+        gcc_argv[argc_gcc++] = eval_ops;
+        gcc_argv[argc_gcc++] = eval_control;
+        gcc_argv[argc_gcc++] = eval_collections;
+        gcc_argv[argc_gcc++] = eval_funcs;
+        gcc_argv[argc_gcc++] = eval_import;
+        gcc_argv[argc_gcc++] = malloc_safe;
+        gcc_argv[argc_gcc++] = zox_alloc_path;
+        gcc_argv[argc_gcc++] = env_path;
+        gcc_argv[argc_gcc++] = debug_path;
+        gcc_argv[argc_gcc++] = hash_path;
+        gcc_argv[argc_gcc++] = builtins_path;
+        gcc_argv[argc_gcc++] = global_path;
+        gcc_argv[argc_gcc++] = native_modules;
+        gcc_argv[argc_gcc++] = "-lm";
+        gcc_argv[argc_gcc++] = "-ldl";
+        gcc_argv[argc_gcc++] = "-rdynamic";
+        gcc_argv[argc_gcc++] = "-o";
+        gcc_argv[argc_gcc++] = (char *)opts.output;
+        gcc_argv[argc_gcc] = NULL;
+
+        if (!run_process(gcc_argv, "Error: linking failed")) {
+            if (!opts.keep_asm) unlink(tmp_s);
+            unlink(tmp_o);
+            return 1;
+        }
+    }
+
     if (!opts.keep_asm) unlink(tmp_s);
     unlink(tmp_o);
-
-    if (!ret) return 1;
 
     printf("Done! Binary: %s\n", opts.output);
     if (opts.keep_asm) printf("Assembly: %s\n", opts.asm_output);

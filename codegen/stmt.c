@@ -13,11 +13,11 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             sprintf(aliases_label, "i_a_%d", cg->const_count);
             sprintf(mod_name_label, "m_n_%d", cg->const_count++);
             cg_emit(cg, "  section .data");
-            cg_emit(cg, "    %s: db \"%s\", 0", mod_name_label, import->module_name);
+            cg_emit_data_string(cg, mod_name_label, import->module_name);
             for (size_t i = 0; i < import->import_count; i++) {
                 char item_label[32];
                 sprintf(item_label, "i_i_%d_%zu", cg->const_count, i);
-                cg_emit(cg, "    %s: db \"%s\", 0", item_label, import->imports[i]->name);
+                cg_emit_data_string(cg, item_label, import->imports[i]->name);
             }
             cg_emit(cg, "    %s_ptr: ", names_label);
             for (size_t i = 0; i < import->import_count; i++) {
@@ -36,6 +36,33 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             break;
         }
 
+        case TypeDeclarationAst: {
+            TypeDeclaration *type_decl = (TypeDeclaration *)stmt;
+            char type_label[32];
+            char fields_label[32];
+            size_t i;
+
+            sprintf(type_label, "t_n_%d", cg->const_count);
+            sprintf(fields_label, "t_f_%d", cg->const_count++);
+            cg_emit(cg, "  section .data");
+            cg_emit_data_string(cg, type_label, type_decl->name);
+            for (i = 0; i < type_decl->field_count; i++) {
+                char field_label[64];
+                sprintf(field_label, "%s_%zu", fields_label, i);
+                cg_emit_data_string(cg, field_label, type_decl->fields[i]);
+            }
+            cg_emit(cg, "    %s_ptr:", fields_label);
+            for (i = 0; i < type_decl->field_count; i++) {
+                cg_emit(cg, "      dq %s_%zu", fields_label, i);
+            }
+            cg_emit(cg, "  section .text");
+            cg_emit(cg, "  lea rdi, [rel %s]", type_label);
+            cg_emit(cg, "  lea rsi, [rel %s_ptr]", fields_label);
+            cg_emit(cg, "  mov rdx, %zu", type_decl->field_count);
+            cg_emit_call(cg, "zox_rt_declare_type");
+            break;
+        }
+
         case VarDeclarationAst: {
             VarDeclaration *var = (VarDeclaration *)stmt;
             codegen_expr(cg, var->value);
@@ -45,7 +72,7 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             cg_emit(cg, "  section .data");
             char var_label[32];
             sprintf(var_label, "v_n_%d", cg->const_count++);
-            cg_emit(cg, "    %s: db \"%s\", 0", var_label, var->varname);
+            cg_emit_data_string(cg, var_label, var->varname);
             cg_emit(cg, "  section .text");
             cg_emit(cg, "  lea rsi, [rel %s]", var_label);
             cg_pop(cg, "rdx");
@@ -60,7 +87,7 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             char label[32];
             sprintf(label, "alv_%d", cg->const_count++);
             cg_emit(cg, "  section .data");
-            cg_emit(cg, "    %s: db \"%s\", 0", label, assign->varname);
+            cg_emit_data_string(cg, label, assign->varname);
             cg_emit(cg, "  section .text");
             cg_emit(cg, "  lea rsi, [rel %s]", label);
             cg_emit_call(cg, "lookup_var");
@@ -82,7 +109,7 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             char label[32];
             sprintf(label, "adv_%d", cg->const_count++);
             cg_emit(cg, "  section .data");
-            cg_emit(cg, "    %s: db \"%s\", 0", label, assign->varname);
+            cg_emit_data_string(cg, label, assign->varname);
             cg_emit(cg, "  section .text");
             cg_emit(cg, "  lea rsi, [rel %s]", label);
             cg_emit_call(cg, "lookup_var");
@@ -128,13 +155,17 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             FuncDef *func = (FuncDef *)stmt;
             int func_id = cg->label_count++;
             char func_label[64], skip_label[64], params_label[64];
-            sprintf(func_label, "Z_F_%s_%d", func->name, func_id);
+            char prev_return_label[64];
+            int prev_in_function = cg->in_function;
+            sprintf(func_label, "Z_F_%d", func_id);
             sprintf(skip_label, "Z_F_skip_%d", func_id);
             sprintf(params_label, "Z_F_params_%d", func_id);
             cg_emit(cg, "  jmp %s", skip_label);
             cg_emit(cg, "  section .data");
             for (size_t i = 0; i < func->param_count; i++) {
-                cg_emit(cg, "    %s_p%zu: db \"%s\", 0", params_label, i, func->params[i]);
+                char param_label[96];
+                snprintf(param_label, sizeof(param_label), "%s_p%zu", params_label, i);
+                cg_emit_data_string(cg, param_label, func->params[i]);
             }
             cg_emit(cg, "    %s_ptr: ", params_label);
             for (size_t i = 0; i < func->param_count; i++) {
@@ -147,6 +178,9 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
 
             int old_depth = cg->stack_depth;
             cg->stack_depth = 0;
+            snprintf(prev_return_label, sizeof(prev_return_label), "%s", cg->function_return_label);
+            cg->in_function = 1;
+            snprintf(cg->function_return_label, sizeof(cg->function_return_label), "Z_F_ret_%d", func_id);
 
             cg_push(cg, "rdi ; parent_env");
             cg_push(cg, "rsi ; args_array");
@@ -165,11 +199,15 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             }
 
             cg_emit_call(cg, "MK_NIL");
+            cg_emit(cg, "  jmp %s", cg->function_return_label);
+            cg_emit(cg, "%s:", cg->function_return_label);
             cg_push(cg, "rax");
             cg_emit_call(cg, "zox_rt_func_pop");
             cg_pop(cg, "rax");
             cg_emit(cg, "  pop rbp");
             cg_emit(cg, "  ret");
+            cg->in_function = prev_in_function;
+            snprintf(cg->function_return_label, sizeof(cg->function_return_label), "%s", prev_return_label);
 
             cg_emit(cg, "%s:", skip_label);
             cg_emit_call(cg, "z_rt_get_env");
@@ -182,7 +220,7 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             cg_emit(cg, "  section .data");
             char name_label[64];
             sprintf(name_label, "f_n_%d", cg->const_count++);
-            cg_emit(cg, "    %s: db \"%s\", 0", name_label, func->name);
+            cg_emit_data_string(cg, name_label, func->name);
             cg_emit(cg, "  section .text");
             cg_pop(cg, "rdx");
             cg_emit(cg, "  lea rsi, [rel %s]", name_label);
@@ -196,12 +234,7 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             ReturnStmt *ret = (ReturnStmt *)stmt;
             if (ret->value) codegen_expr(cg, ret->value);
             else cg_emit_call(cg, "MK_NIL");
-            cg_push(cg, "rax");
-            cg_emit_call(cg, "zox_rt_func_pop");
-            cg_pop(cg, "rax");
-            cg_emit(cg, "  mov rsp, rbp");
-            cg_emit(cg, "  pop rbp");
-            cg_emit(cg, "  ret");
+            cg_emit(cg, "  jmp %s", cg->function_return_label);
             break;
         }
 
@@ -211,12 +244,7 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             else cg_emit_call(cg, "MK_NIL");
             cg_emit(cg, "  mov rdi, rax");
             cg_emit_call(cg, "zox_rt_result_ok");
-            cg_push(cg, "rax");
-            cg_emit_call(cg, "zox_rt_func_pop");
-            cg_pop(cg, "rax");
-            cg_emit(cg, "  mov rsp, rbp");
-            cg_emit(cg, "  pop rbp");
-            cg_emit(cg, "  ret");
+            cg_emit(cg, "  jmp %s", cg->function_return_label);
             break;
         }
 
@@ -226,12 +254,7 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             else cg_emit_call(cg, "MK_NIL");
             cg_emit(cg, "  mov rdi, rax");
             cg_emit_call(cg, "zox_rt_result_err");
-            cg_push(cg, "rax");
-            cg_emit_call(cg, "zox_rt_func_pop");
-            cg_pop(cg, "rax");
-            cg_emit(cg, "  mov rsp, rbp");
-            cg_emit(cg, "  pop rbp");
-            cg_emit(cg, "  ret");
+            cg_emit(cg, "  jmp %s", cg->function_return_label);
             break;
         }
 

@@ -129,6 +129,8 @@ Current compiler test set:
 - `examples/loop_control_test.zo`
 - `examples/string_index_test.zo`
 - `examples/match_test.zo`
+- `examples/result_unwrap_test.zo`
+- `examples/structs_test.zo`
 - `examples/compiler_benchmark.zo`
 
 For each case the runner:

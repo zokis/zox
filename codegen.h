@@ -12,6 +12,8 @@ typedef struct {
     int loop_depth;
     char break_labels[64][64];
     char continue_labels[64][64];
+    int in_function;
+    char function_return_label[64];
 } Codegen;
 
 Codegen *create_codegen(FILE *output);

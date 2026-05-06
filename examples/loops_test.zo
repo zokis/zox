@@ -1,0 +1,13 @@
+~> string { toString };
+
+let i = 0;
+println("Iniciando While:");
+#(i < 3) {
+    println("i = " + toString(i));
+    i = i + 1;
+}
+
+println("Iniciando For:");
+@(let j = 0; j < 3; j = j + 1) {
+    println("j = " + toString(j));
+}

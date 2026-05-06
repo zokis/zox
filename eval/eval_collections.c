@@ -36,16 +36,6 @@ char *dict_key_to_string(RuntimeVal *val) {
   return value_to_string_with_kind(val, ZOX_BUF_DICT_KEY);
 }
 
-Entry *dict_find_entry(DictVal *dict, const char *key) {
-  if (!dict || !key) return NULL;
-  size_t index = hash(key, dict->capacity);
-  while (dict->entries[index].key != NULL) {
-    if (strcmp(dict->entries[index].key, key) == 0) return &dict->entries[index];
-    index = (index + 1) % dict->capacity;
-  }
-  return NULL;
-}
-
 RuntimeVal *dict_get_val(DictVal *dict, const char *key) {
   Entry *entry = dict_find_entry(dict, key);
   if (entry == NULL) return NULL;

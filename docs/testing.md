@@ -6,6 +6,7 @@ Zox has two test suites:
 
 1. **Legacy Regression Tests** (`tests/`) - print-based tests with expected output files
 2. **Unit Tests** (`tests/unit/`) - modern assertion-based tests using `~> test` framework
+3. **Compiler Equivalence Tests** (`scripts/test_compiler.sh`) - compare `zox` output with compiled `zoxc` binaries on the currently supported subset
 
 New tests should use the unit test framework. Legacy tests are maintained for backward compatibility and regression testing.
 
@@ -108,6 +109,37 @@ make testlibs      -# library tests
 ```
 
 The test runner compares actual output against `.expected` files.
+
+## Compiler Equivalence Tests
+
+The AOT compiler currently supports only a subset of the language. Its test flow is separate from the main unit suite and checks output equivalence against the interpreter.
+
+Run compiler tests:
+```bash
+make compiler-test
+```
+
+Current compiler test set:
+- `examples/compile_test.zo`
+- `examples/variables_test.zo`
+- `examples/if_test.zo`
+- `examples/loops_test.zo`
+- `examples/functions_test.zo`
+- `examples/collections_test.zo`
+- `examples/loop_control_test.zo`
+- `examples/string_index_test.zo`
+- `examples/match_test.zo`
+- `examples/result_unwrap_test.zo`
+- `examples/structs_test.zo`
+- `examples/compiler_benchmark.zo`
+
+For each case the runner:
+1. Executes `./zox file.zo`
+2. Compiles with `./zoxc file.zo -o tmp_bin`
+3. Executes the compiled binary
+4. Diffs both outputs
+
+This keeps the compiler honest without pretending it already supports the full language.
 
 ## Writing Unit Tests
 

@@ -23,6 +23,10 @@ static Environment *alloc_environment(void) {
 
 Environment *builtins_env = NULL;
 
+Environment *get_builtins_env(void) {
+  return builtins_env;
+}
+
 static Environment **all_envs = NULL;
 static size_t all_envs_count = 0;
 static size_t all_envs_cap = 0;

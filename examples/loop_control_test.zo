@@ -1,0 +1,39 @@
+~> string { toString };
+
+let while_break_total = 0;
+let while_break_i = 0;
+
+#(while_break_i < 10) {
+    ?(while_break_i == 5) { ~!! }
+    while_break_total = while_break_total + 1;
+    while_break_i = while_break_i + 1
+};
+
+println("while_break=" + toString(while_break_total));
+
+let while_continue_total = 0;
+let while_continue_j = 0;
+
+#(while_continue_j < 10) {
+    while_continue_j = while_continue_j + 1;
+    ?(while_continue_j % 2 != 0) { __> }
+    while_continue_total = while_continue_total + 1
+};
+
+println("while_continue=" + toString(while_continue_total));
+
+let for_break_total = 0;
+@(let n = 0; n < 100; n = n + 1) {
+    ?(n == 7) { ~!! }
+    for_break_total = for_break_total + 1
+};
+
+println("for_break=" + toString(for_break_total));
+
+let for_continue_total = 0;
+@(let m = 0; m < 10; m = m + 1) {
+    ?(m % 2 == 0) { __> }
+    for_continue_total = for_continue_total + 1
+};
+
+println("for_continue=" + toString(for_continue_total));

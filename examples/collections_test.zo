@@ -1,0 +1,79 @@
+~> string { toString };
+
+let xs = {10, 20, 30};
+println("xs0=" + toString(xs[0]));
+println("xs2=" + toString(xs[2]));
+
+xs[1] = 99;
+println("xs1=" + toString(xs[1]));
+xs << 123;
+println("xs3=" + toString(xs[3]));
+
+let user = ["name" -> "Ana"; "age" -> 28];
+println("name=" + user{"name"});
+println("age=" + toString(user{"age"}));
+
+user{"age"} = 29;
+println("age2=" + toString(user{"age"}));
+
+let nested = ["nums" -> {1, 2, 3}];
+println("nested0=" + toString(nested{"nums"}[0]));
+
+nested{"nums"}[2] = 42;
+println("nested2=" + toString(nested{"nums"}[2]));
+
+let concat = {1, 2} + {3, 4};
+println("concat0=" + toString(concat[0]));
+println("concat3=" + toString(concat[3]));
+
+let repeated = {1, 2} * 3;
+println("repeat0=" + toString(repeated[0]));
+println("repeat5=" + toString(repeated[5]));
+
+let diff = {1, 2, 3, 4} - {3, 4, 5};
+println("diff0=" + toString(diff[0]));
+println("diff1=" + toString(diff[1]));
+
+let inter = {1, 2, 3} & {2, 3, 4};
+println("inter0=" + toString(inter[0]));
+println("inter1=" + toString(inter[1]));
+
+let union = {1, 2, 3} | {3, 4, 5};
+println("union_len=" + toString(len(union)));
+println("union0=" + toString(union[0]));
+println("union4=" + toString(union[4]));
+
+println("list_eq=" + toString({1, 2, 3} == {1, 2, 3}));
+println("list_neq=" + toString({1, 2, 3} != {1, 2, 4}));
+
+let ns = {1, 2, 3, 4};
+let add = ns &+ 10;
+let mul = ns &* 2;
+let sub = ns &- 1;
+let div = ns &/ 2;
+let mod = {8, 12, 16} &% 5;
+println("elem_add0=" + toString(add[0]));
+println("elem_add3=" + toString(add[3]));
+println("elem_mul1=" + toString(mul[1]));
+println("elem_sub2=" + toString(sub[2]));
+println("elem_div0=" + toString(div[0]));
+println("elem_mod0=" + toString(mod[0]));
+println("elem_mod1=" + toString(mod[1]));
+println("elem_mod2=" + toString(mod[2]));
+
+let merged = ["x" -> 1; "y" -> 2] + ["y" -> 9; "z" -> 3];
+println("mergedx=" + toString(merged{"x"}));
+println("mergedy=" + toString(merged{"y"}));
+println("mergedz=" + toString(merged{"z"}));
+println("dict_eq=" + toString(["x" -> 1; "y" -> 2] == ["y" -> 2; "x" -> 1]));
+println("dict_neq=" + toString(["x" -> 1] != ["x" -> 2]));
+
+let ys = {10, 20, 30, 40, 50};
+let sliceA = ys[1:3];
+let sliceB = ys[:2];
+let sliceC = ys[3:];
+println("slice_a0=" + toString(sliceA[0]));
+println("slice_a1=" + toString(sliceA[1]));
+println("slice_b_len=" + toString(len(sliceB)));
+println("slice_c0=" + toString(sliceC[0]));
+println("slice_c1=" + toString(sliceC[1]));

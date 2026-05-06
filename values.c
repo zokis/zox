@@ -77,6 +77,16 @@ void dict_reserve(DictVal *dict, size_t capacity) {
   dict->capacity = capacity;
 }
 
+Entry *dict_find_entry(DictVal *dict, const char *key) {
+  if (!dict || !key) return NULL;
+  size_t index = hash(key, dict->capacity);
+  while (dict->entries[index].key != NULL) {
+    if (strcmp(dict->entries[index].key, key) == 0) return &dict->entries[index];
+    index = (index + 1) % dict->capacity;
+  }
+  return NULL;
+}
+
 static void free_runtime_val(RuntimeVal *val) {
   if (!val) return;
   switch (val->type) {

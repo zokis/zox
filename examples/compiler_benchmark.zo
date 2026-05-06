@@ -1,0 +1,144 @@
+~> string { toString };
+
+$ f01(x) { _>> x + 1 }
+$ f02(x) { _>> x + 2 }
+$ f03(x) { _>> x + 3 }
+$ f04(x) { _>> x + 4 }
+$ f05(x) { _>> x + 5 }
+$ f06(x) { _>> x + 6 }
+$ f07(x) { _>> x + 7 }
+$ f08(x) { _>> x + 8 }
+$ f09(x) { _>> x + 9 }
+$ f10(x) { _>> x + 5 * 2 }
+$ f11(x) { _>> x + 11 }
+$ f12(x) { _>> x + 12 }
+$ f13(x) { _>> x + 13 }
+$ f14(x) { _>> x + 14 }
+$ f15(x) { _>> x + 5 * 3 }
+$ f16(x) { _>> x + 16 }
+$ f17(x) { _>> x + 17 }
+$ f18(x) { _>> x + 18 }
+$ f19(x) { _>> x + 19 }
+$ f20(x) { _>> x + 10 + 10 }
+$ f21(x) { _>> x + 21 }
+$ f22(x) { _>> x + 22 }
+$ f23(x) { _>> x + 23 }
+$ f24(x) { _>> x + 24 }
+$ f25(x) { _>> x + 5 * 5 }
+$ f26(x) { _>> x + 26 }
+$ f27(x) { _>> x + 27 }
+$ f28(x) { _>> x + 28 }
+$ f29(x) { _>> x + 29 }
+$ f30(x) { _>> x + 10 * 3 }
+$ f31(x) { _>> x + 31 }
+$ f32(x) { _>> x + 32 }
+
+$ pickA(n) {
+    ?(n < 10) {
+        _>> f01(n) + f02(n) + f03(n)
+    } :? (n < 20) {
+        _>> f04(n) + f05(n) + f06(n)
+    } :? (n < 30) {
+        _>> f07(n) + f08(n) + f09(n)
+    } : {
+        _>> f10(n) + f11(n) + f12(n)
+    }
+}
+
+$ pickB(n) {
+    ?(n < 5) {
+        _>> f13(n) + f14(n)
+    } :? (n < 15) {
+        _>> f15(n) + f16(n)
+    } :? (n < 25) {
+        _>> f17(n) + f18(n)
+    } : {
+        _>> f19(n) + f20(n)
+    }
+}
+
+$ pickC(n) {
+    ?(n < 8) {
+        _>> f21(n)
+    } :? (n < 16) {
+        _>> f22(n)
+    } :? (n < 24) {
+        _>> f23(n)
+    } : {
+        _>> f24(n)
+    }
+}
+
+$ maybeBonus(flag, n) {
+    ?(flag) {
+        _>> f25(n) + f26(n)
+    } : {
+        _>> f27(n) + f28(n)
+    }
+}
+
+$ giant1() { _>> 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 }
+$ giant2() { _>> 11 + 12 + 13 + 14 + 15 + 16 + 17 + 18 + 19 + 20 }
+$ giant3() { _>> 21 + 22 + 23 + 24 + 25 + 26 + 27 + 28 + 29 + 30 }
+$ giant4() { _>> 31 + 32 + 33 + 34 + 35 + 36 + 37 + 38 + 39 + 40 }
+$ giant5() { _>> 41 + 42 + 43 + 44 + 45 + 46 + 47 + 48 + 49 + 50 }
+$ giant6() { _>> 51 + 52 + 53 + 54 + 55 + 56 + 57 + 58 + 59 + 60 }
+$ giant7() { _>> 61 + 62 + 63 + 64 + 65 + 66 + 67 + 68 + 69 + 70 }
+$ giant8() { _>> 71 + 72 + 73 + 74 + 75 + 76 + 77 + 78 + 79 + 80 }
+$ giant9() { _>> 81 + 82 + 83 + 84 + 85 + 86 + 87 + 88 + 89 + 90 }
+$ giant10() { _>> 91 + 92 + 93 + 94 + 95 + 96 + 97 + 98 + 99 + 100 }
+
+let total = 0;
+let keep = true;
+let nilCheck = nil;
+
+let seed01 = pickA(3);
+let seed02 = pickA(13);
+let seed03 = pickA(23);
+let seed04 = pickA(33);
+let seed05 = pickB(2);
+let seed06 = pickB(12);
+let seed07 = pickB(22);
+let seed08 = pickB(32);
+let seed09 = pickC(1);
+let seed10 = pickC(9);
+let seed11 = pickC(17);
+let seed12 = pickC(25);
+
+let static01 = giant1() + giant2();
+let static02 = giant3() + giant4();
+let static03 = giant5() + giant6();
+let static04 = giant7() + giant8();
+let static05 = giant9() + giant10();
+
+total = total + seed01 + seed02 + seed03 + seed04;
+total = total + seed05 + seed06 + seed07 + seed08;
+total = total + seed09 + seed10 + seed11 + seed12;
+total = total + static01 + static02 + static03 + static04 + static05;
+
+?(keep) {
+    total = total + maybeBonus(true, 7);
+} : {
+    total = total + maybeBonus(false, 7);
+}
+
+?(nilCheck == nil) {
+    total = total + f29(1) + f30(1);
+} :? (total < 0) {
+    total = total + f31(1);
+} : {
+    total = total + f32(1);
+}
+
+let i = 0;
+#(i < 8) {
+    total = total + i;
+    i = i + 1;
+}
+
+@(let j = 0; j < 8; j = j + 1) {
+    total = total + j;
+}
+
+println("total=" + toString(total));
+println("pi=" + toString(PI));

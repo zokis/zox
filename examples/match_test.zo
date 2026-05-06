@@ -1,0 +1,41 @@
+~> string { toString };
+
+$ divide(a, b) {
+    ?(b == 0) { _>>! "zero" } : { _>>@ a / b }
+}
+
+let x = 3;
+let value_label = ?? (x) {
+    1 => "one",
+    2 => "two",
+    3 => "three",
+    _ => "unknown"
+};
+
+println("value_match=" + value_label);
+
+let age = 20;
+let age_group = ?? (age) {
+    age >= 65 => "senior",
+    age >= 18 => "adult",
+    _ => "minor"
+};
+
+println("guard_match=" + age_group);
+
+let ok_res = divide(8, 2);
+let err_res = divide(8, 0);
+
+let ok_msg = ?? (ok_res) {
+    has_key(ok_res, "ok") => "got " + toString(ok_res{"ok"}),
+    _ => "error"
+};
+
+let err_msg = ?? (err_res) {
+    has_key(err_res, "ok") => "got " + toString(err_res{"ok"}),
+    has_key(err_res, "err") => "failed: " + err_res{"err"},
+    _ => "none"
+};
+
+println("match_ok=" + ok_msg);
+println("match_err=" + err_msg);

@@ -41,5 +41,6 @@ RuntimeVal *lookup_var(Environment *env, const char *varname);
 Environment *resolve(Environment *env, const char *varname);
 
 extern Environment *builtins_env;
+Environment *get_builtins_env(void);
 
 #endif

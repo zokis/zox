@@ -1,0 +1,22 @@
+~> string { toString };
+
+$ divide(a, b) {
+    ?(b == 0) {
+        _>>! "division by zero"
+    } : {
+        _>>@ a / b
+    }
+}
+
+$ calculate(a, b, c) {
+    let d = divide(a, b)!?;
+    _>>@ d + c
+}
+
+let ok_res = calculate(10, 2, 5);
+let err_res = calculate(10, 0, 5);
+
+println("ok_type=" + typeof(ok_res));
+println("ok_value=" + toString(ok_res{"ok"}));
+println("err_type=" + typeof(err_res));
+println("err_value=" + err_res{"err"});

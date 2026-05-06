@@ -1,0 +1,5 @@
+~> string { toString };
+
+println("Resultado 1: " + toString(1 + 2));
+println("Resultado 2: " + toString(10 - 5 * 2));
+println("PI é: " + toString(PI));

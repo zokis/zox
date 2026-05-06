@@ -9,6 +9,9 @@ typedef struct {
     int label_count;
     int const_count;
     int stack_depth;
+    int loop_depth;
+    char break_labels[64][64];
+    char continue_labels[64][64];
 } Codegen;
 
 Codegen *create_codegen(FILE *output);

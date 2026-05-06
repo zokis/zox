@@ -122,34 +122,83 @@ RuntimeVal *z_rt_bin_op(RuntimeVal *lhs, RuntimeVal *rhs, const char *op) {
     return eval_binary_expr_evaluated(lhs, rhs, op);
 }
 
-RuntimeVal *zox_rt_list_get(RuntimeVal *list_val, RuntimeVal *index_val) {
-    if (!list_val || list_val->type != LIST_T) {
-        fprintf(stderr, "Error: Attempted to index a non-list value.\n");
-        exit(1);
-    }
-    if (!index_val || index_val->type != NUMBER_T) {
-        fprintf(stderr, "Error: List index must be a number.\n");
+RuntimeVal *zox_rt_unary_op(RuntimeVal *value, const char *op) {
+    if (!value || value->type != NUMBER_T) {
+        fprintf(stderr, "Error: Unary operator not applicable to non-number type.\n");
         exit(1);
     }
 
-    ListVal *list = (ListVal *)list_val;
-    int idx = (int)((NumberVal *)index_val)->value;
-    if (idx < 0) idx = (int)list->size + idx;
-    if (idx < 0 || idx >= (int)list->size) {
-        fprintf(stderr, "Error: List index out of bounds.\n");
-        exit(1);
+    if (strcmp(op, "-") == 0) {
+        return (RuntimeVal *)MK_NUMBER(-((NumberVal *)value)->value);
+    }
+    if (strcmp(op, "+") == 0) {
+        return (RuntimeVal *)MK_NUMBER(((NumberVal *)value)->value);
     }
 
-    RuntimeVal *result = list->items[idx];
-    retain(result);
-    return result;
+    fprintf(stderr, "Error: Unsupported unary operator '%s'.\n", op ? op : "(null)");
+    exit(1);
 }
 
-RuntimeVal *zox_rt_list_slice(RuntimeVal *list_val, RuntimeVal *start_val, RuntimeVal *end_val) {
-    if (!list_val || list_val->type != LIST_T) {
-        fprintf(stderr, "Error: Attempted to slice a non-list value.\n");
+RuntimeVal *zox_rt_result_ok(RuntimeVal *value) {
+    RuntimeVal *args[1] = { value };
+    return builtin_ok(get_current_env(), args, 1);
+}
+
+RuntimeVal *zox_rt_result_err(RuntimeVal *value) {
+    RuntimeVal *args[1] = { value };
+    return builtin_err(get_current_env(), args, 1);
+}
+
+int zox_rt_match_cond(RuntimeVal *target, RuntimeVal *condition) {
+    if (!condition) return 1;
+    if (condition->type == BOOLEAN_T) {
+        return ((BooleanVal *)condition)->value;
+    }
+    return compare_runtimeval(target, condition);
+}
+
+RuntimeVal *zox_rt_get_index(RuntimeVal *target_val, RuntimeVal *index_val) {
+    if (!index_val || index_val->type != NUMBER_T) {
+        fprintf(stderr, "Error: Index must be a number.\n");
         exit(1);
     }
+
+    int idx = (int)((NumberVal *)index_val)->value;
+
+    if (!target_val) {
+        fprintf(stderr, "Error: Attempted to index a null value.\n");
+        exit(1);
+    }
+
+    if (target_val->type == LIST_T) {
+        ListVal *list = (ListVal *)target_val;
+        if (idx < 0) idx = (int)list->size + idx;
+        if (idx < 0 || idx >= (int)list->size) {
+            fprintf(stderr, "Error: List index out of bounds.\n");
+            exit(1);
+        }
+        RuntimeVal *result = list->items[idx];
+        retain(result);
+        return result;
+    }
+
+    if (target_val->type == STRING_T) {
+        StringVal *str = (StringVal *)target_val;
+        int len = (int)strlen(str->value);
+        if (idx < 0) idx = len + idx;
+        if (idx < 0 || idx >= len) {
+            fprintf(stderr, "Error: String index out of bounds.\n");
+            exit(1);
+        }
+        char single_char[2] = {str->value[idx], '\0'};
+        return (RuntimeVal *)MK_STRING(single_char);
+    }
+
+    fprintf(stderr, "Error: Attempted to index a non-collection value.\n");
+    exit(1);
+}
+
+RuntimeVal *zox_rt_get_slice(RuntimeVal *target_val, RuntimeVal *start_val, RuntimeVal *end_val) {
     if (!start_val || start_val->type != NUMBER_T) {
         fprintf(stderr, "Error: Slice start must be a number.\n");
         exit(1);
@@ -160,10 +209,29 @@ RuntimeVal *zox_rt_list_slice(RuntimeVal *list_val, RuntimeVal *start_val, Runti
     }
 
     int start = (int)((NumberVal *)start_val)->value;
-    int end = (!end_val || end_val->type == NIL_T)
-        ? (int)((ListVal *)list_val)->size
-        : (int)((NumberVal *)end_val)->value;
-    return get_list_slice((ListVal *)list_val, start, end);
+
+    if (!target_val) {
+        fprintf(stderr, "Error: Attempted to slice a null value.\n");
+        exit(1);
+    }
+
+    if (target_val->type == LIST_T) {
+        int end = (!end_val || end_val->type == NIL_T)
+            ? (int)((ListVal *)target_val)->size
+            : (int)((NumberVal *)end_val)->value;
+        return get_list_slice((ListVal *)target_val, start, end);
+    }
+
+    if (target_val->type == STRING_T) {
+        StringVal *str = (StringVal *)target_val;
+        int end = (!end_val || end_val->type == NIL_T)
+            ? (int)strlen(str->value)
+            : (int)((NumberVal *)end_val)->value;
+        return get_string_slice(str, start, end);
+    }
+
+    fprintf(stderr, "Error: Attempted to slice a non-collection value.\n");
+    exit(1);
 }
 
 RuntimeVal *zox_rt_list_set(RuntimeVal *list_val, RuntimeVal *index_val, RuntimeVal *value) {

@@ -113,6 +113,22 @@ static int append_fmt(char *buf, size_t buf_size, size_t *len, const char *fmt, 
     return 1;
 }
 
+static int make_temp_path(const char *suffix, char *path, size_t path_size) {
+    int fd;
+    size_t suffix_len = strlen(suffix);
+    char template_path[] = "/tmp/zoxcXXXXXX";
+
+    if (snprintf(path, path_size, "%s", template_path) >= (int)path_size) return 0;
+    fd = mkstemp(path);
+    if (fd < 0) return 0;
+    close(fd);
+    unlink(path);
+
+    if (strlen(path) + suffix_len + 1 > path_size) return 0;
+    strcat(path, suffix);
+    return 1;
+}
+
 int main(int argc, char **argv) {
     CompilerOptions opts;
     char            runtime_dir[PATH_MAX];
@@ -138,8 +154,16 @@ int main(int argc, char **argv) {
     Program *program = produce_ast(parser, source);
     zox_free_buf(ZOX_BUF_IO, source);
 
-    snprintf(tmp_s, sizeof(tmp_s), "/tmp/zoxc_%d.s", (int)getpid());
-    snprintf(tmp_o, sizeof(tmp_o), "/tmp/zoxc_%d.o", (int)getpid());
+    if (!make_temp_path(".s", tmp_s, sizeof(tmp_s)) ||
+        !make_temp_path(".o", tmp_o, sizeof(tmp_o))) {
+        fprintf(stderr, "Error: cannot create temporary file names\n");
+        free_program(program);
+        free_tokens(tokens, (int)token_count);
+        zox_free_buf(ZOX_BUF_MISC, parser);
+        zox_alloc_cleanup();
+        zox_arena_destroy();
+        return 1;
+    }
     asm_path = opts.keep_asm ? opts.asm_output : tmp_s;
 
     FILE *asm_out = fopen(asm_path, "w");

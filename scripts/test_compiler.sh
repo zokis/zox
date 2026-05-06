@@ -12,6 +12,9 @@ TEST_CASES=(
   "examples/loops_test.zo"
   "examples/functions_test.zo"
   "examples/collections_test.zo"
+  "examples/loop_control_test.zo"
+  "examples/string_index_test.zo"
+  "examples/match_test.zo"
   "examples/compiler_benchmark.zo"
 )
 

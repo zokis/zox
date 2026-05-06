@@ -205,12 +205,65 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             break;
         }
 
+        case ReturnSuccessAst: {
+            ReturnStmt *ret = (ReturnStmt *)stmt;
+            if (ret->value) codegen_expr(cg, ret->value);
+            else cg_emit_call(cg, "MK_NIL");
+            cg_emit(cg, "  mov rdi, rax");
+            cg_emit_call(cg, "zox_rt_result_ok");
+            cg_push(cg, "rax");
+            cg_emit_call(cg, "zox_rt_func_pop");
+            cg_pop(cg, "rax");
+            cg_emit(cg, "  mov rsp, rbp");
+            cg_emit(cg, "  pop rbp");
+            cg_emit(cg, "  ret");
+            break;
+        }
+
+        case ReturnErrorAst: {
+            ReturnStmt *ret = (ReturnStmt *)stmt;
+            if (ret->value) codegen_expr(cg, ret->value);
+            else cg_emit_call(cg, "MK_NIL");
+            cg_emit(cg, "  mov rdi, rax");
+            cg_emit_call(cg, "zox_rt_result_err");
+            cg_push(cg, "rax");
+            cg_emit_call(cg, "zox_rt_func_pop");
+            cg_pop(cg, "rax");
+            cg_emit(cg, "  mov rsp, rbp");
+            cg_emit(cg, "  pop rbp");
+            cg_emit(cg, "  ret");
+            break;
+        }
+
+        case BreakAst: {
+            const char *break_label = cg_current_break_label(cg);
+            if (!break_label) {
+                cg_emit(cg, "  ; invalid break outside loop");
+                cg_emit(cg, "  ud2");
+                break;
+            }
+            cg_emit(cg, "  jmp %s", break_label);
+            break;
+        }
+
+        case ContinueAst: {
+            const char *continue_label = cg_current_continue_label(cg);
+            if (!continue_label) {
+                cg_emit(cg, "  ; invalid continue outside loop");
+                cg_emit(cg, "  ud2");
+                break;
+            }
+            cg_emit(cg, "  jmp %s", continue_label);
+            break;
+        }
+
         case WhileAst: {
             WhileExpr *while_expr = (WhileExpr *)stmt;
             int label_id = cg->label_count++;
             char start_label[64], end_label[64];
             sprintf(start_label, "Z_L_while_s_%d", label_id);
             sprintf(end_label, "Z_L_while_e_%d", label_id);
+            cg_push_loop(cg, end_label, start_label);
             cg_emit(cg, "%s:", start_label);
             codegen_expr(cg, while_expr->condition);
             cg_emit(cg, "  mov rdi, rax");
@@ -220,16 +273,19 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
             for (size_t i = 0; i < while_expr->body_count; i++) codegen_stmt(cg, while_expr->body[i]);
             cg_emit(cg, "  jmp %s", start_label);
             cg_emit(cg, "%s:", end_label);
+            cg_pop_loop(cg);
             break;
         }
 
         case ForAst: {
             ForExpr *for_expr = (ForExpr *)stmt;
             int label_id = cg->label_count++;
-            char start_label[64], end_label[64];
+            char start_label[64], continue_label[64], end_label[64];
             sprintf(start_label, "Z_L_for_s_%d", label_id);
+            sprintf(continue_label, "Z_L_for_c_%d", label_id);
             sprintf(end_label, "Z_L_for_e_%d", label_id);
             if (for_expr->initialization) codegen_stmt(cg, (Stmt *)for_expr->initialization);
+            cg_push_loop(cg, end_label, continue_label);
             cg_emit(cg, "%s:", start_label);
             if (for_expr->condition) {
                 codegen_expr(cg, for_expr->condition);
@@ -239,9 +295,11 @@ void codegen_stmt(Codegen *cg, Stmt *stmt) {
                 cg_emit(cg, "  je %s", end_label);
             }
             for (size_t i = 0; i < for_expr->body_count; i++) codegen_stmt(cg, for_expr->body[i]);
+            cg_emit(cg, "%s:", continue_label);
             if (for_expr->increment) codegen_expr(cg, for_expr->increment);
             cg_emit(cg, "  jmp %s", start_label);
             cg_emit(cg, "%s:", end_label);
+            cg_pop_loop(cg);
             break;
         }
 

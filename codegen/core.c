@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "internal.h"
 
@@ -12,6 +13,7 @@ Codegen *create_codegen(FILE *output) {
     cg->label_count = 0;
     cg->const_count = 0;
     cg->stack_depth = 0;
+    cg->loop_depth = 0;
     return cg;
 }
 
@@ -43,6 +45,30 @@ void cg_emit_call(Codegen *cg, const char *fn) {
     cg_emit(cg, "  extern %s", fn);
     cg_emit(cg, "  call %s", fn);
     if (needs_align) cg_emit(cg, "  add rsp, 8");
+}
+
+void cg_push_loop(Codegen *cg, const char *break_label, const char *continue_label) {
+    if (cg->loop_depth >= 64) {
+        fprintf(stderr, "Codegen error: loop nesting too deep\n");
+        exit(1);
+    }
+    snprintf(cg->break_labels[cg->loop_depth], sizeof(cg->break_labels[cg->loop_depth]), "%s", break_label);
+    snprintf(cg->continue_labels[cg->loop_depth], sizeof(cg->continue_labels[cg->loop_depth]), "%s", continue_label);
+    cg->loop_depth++;
+}
+
+void cg_pop_loop(Codegen *cg) {
+    if (cg->loop_depth > 0) cg->loop_depth--;
+}
+
+const char *cg_current_break_label(Codegen *cg) {
+    if (cg->loop_depth == 0) return NULL;
+    return cg->break_labels[cg->loop_depth - 1];
+}
+
+const char *cg_current_continue_label(Codegen *cg) {
+    if (cg->loop_depth == 0) return NULL;
+    return cg->continue_labels[cg->loop_depth - 1];
 }
 
 void codegen_program(Codegen *cg, Program *program) {

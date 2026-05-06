@@ -31,6 +31,20 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             break;
         }
 
+        case UnaryExprAst: {
+            UnaryExpr *unary = (UnaryExpr *)expr;
+            char label[32];
+            codegen_expr(cg, unary->expr);
+            cg_emit(cg, "  mov rdi, rax");
+            sprintf(label, "uop_%d", cg->const_count++);
+            cg_emit(cg, "  section .data");
+            cg_emit(cg, "    %s: db \"%s\", 0", label, unary->operator);
+            cg_emit(cg, "  section .text");
+            cg_emit(cg, "  lea rsi, [rel %s]", label);
+            cg_emit_call(cg, "zox_rt_unary_op");
+            break;
+        }
+
         case StringLiteralAst: {
             StringLiteral *str = (StringLiteral *)expr;
             char label[32];
@@ -124,7 +138,7 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             if (!index->is_slice) {
                 cg_emit(cg, "  mov rsi, rax");
                 cg_pop(cg, "rdi");
-                cg_emit_call(cg, "zox_rt_list_get");
+                cg_emit_call(cg, "zox_rt_get_index");
                 break;
             }
             cg_push(cg, "rax");
@@ -136,7 +150,7 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             cg_emit(cg, "  mov rdx, rax");
             cg_pop(cg, "rsi");
             cg_pop(cg, "rdi");
-            cg_emit_call(cg, "zox_rt_list_slice");
+            cg_emit_call(cg, "zox_rt_get_slice");
             break;
         }
 
@@ -148,6 +162,47 @@ void codegen_expr(Codegen *cg, Expr *expr) {
             cg_emit(cg, "  mov rsi, rax");
             cg_pop(cg, "rdi");
             cg_emit_call(cg, "zox_rt_dict_get");
+            break;
+        }
+
+        case MatchAst: {
+            MatchExpr *match = (MatchExpr *)expr;
+            int match_id = cg->label_count++;
+            int match_stack_depth;
+            char end_label[64];
+            sprintf(end_label, "Z_L_match_end_%d", match_id);
+
+            codegen_expr(cg, match->target);
+            cg_push(cg, "rax");
+            match_stack_depth = cg->stack_depth;
+
+            for (size_t i = 0; i < match->case_count; i++) {
+                MatchCase *c = match->cases[i];
+                char next_label[64];
+                sprintf(next_label, "Z_L_match_next_%d_%zu", match_id, i);
+                cg->stack_depth = match_stack_depth;
+
+                if (c->condition != NULL) {
+                    codegen_expr(cg, c->condition);
+                    cg_emit(cg, "  mov rsi, rax");
+                    cg_emit(cg, "  mov rdi, [rsp]");
+                    cg_emit_call(cg, "zox_rt_match_cond");
+                    cg_emit(cg, "  cmp eax, 0");
+                    cg_emit(cg, "  je %s", next_label);
+                }
+
+                codegen_expr(cg, c->branch);
+                cg_emit(cg, "  add rsp, 8");
+                cg->stack_depth = match_stack_depth - 1;
+                cg_emit(cg, "  jmp %s", end_label);
+                cg_emit(cg, "%s:", next_label);
+            }
+
+            cg->stack_depth = match_stack_depth;
+            cg_emit(cg, "  add rsp, 8");
+            cg->stack_depth = match_stack_depth - 1;
+            cg_emit_call(cg, "MK_NIL");
+            cg_emit(cg, "%s:", end_label);
             break;
         }
 

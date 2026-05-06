@@ -1,0 +1,16 @@
+~> string { toString };
+
+let s = "zoxlang";
+
+println("char0=" + s[0]);
+println("char3=" + s[3]);
+println("char_neg1=" + s[-1]);
+
+let a = s[1:4];
+let b = s[:3];
+let c = s[4:];
+
+println("slice_a=" + a);
+println("slice_b=" + b);
+println("slice_c=" + c);
+println("slice_len=" + toString(len(c)));
